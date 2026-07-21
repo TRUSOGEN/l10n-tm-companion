@@ -1,0 +1,9 @@
+{
+  "name": "com.l10n.tm_companion",
+  "description": "L10n TM Companion - Starling CLI Bridge",
+  "path": "/ABSOLUTE/PATH/TO/native-host/starling-bridge.py",
+  "type": "stdio",
+  "allowed_origins": [
+    "chrome-extension://EXTENSION_ID/"
+  ]
+}

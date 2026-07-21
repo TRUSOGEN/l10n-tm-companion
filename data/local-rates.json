@@ -1,0 +1,3717 @@
+{
+  "schema_version": 1,
+  "source": {
+    "filename": "local rate 费用表.xlsx",
+    "sha256": "99c95ce39300b86d755e99838cd7348512f56c5f7857827d0df8673072b478ef",
+    "sheets": {
+      "Alconost": 56,
+      "Pactera": 23,
+      "RWS": 35,
+      "Skrivanek": 56
+    }
+  },
+  "vendors": {
+    "Alconost": [
+      {
+        "hourly_rate_usd": 35,
+        "provenance": {
+          "hourly_cell": "C2",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A2",
+            "target": "B2"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 2,
+          "sheet": "Alconost"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Arabic",
+        "target_locale": "ar"
+      },
+      {
+        "hourly_rate_usd": 40,
+        "provenance": {
+          "hourly_cell": "C3",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A3",
+            "target": "B3"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 3,
+          "sheet": "Alconost"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Azerbaijani",
+        "target_locale": "az"
+      },
+      {
+        "hourly_rate_usd": 35,
+        "provenance": {
+          "hourly_cell": "C4",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A4",
+            "target": "B4"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 4,
+          "sheet": "Alconost"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Bulgarian",
+        "target_locale": "bg"
+      },
+      {
+        "hourly_rate_usd": 34,
+        "provenance": {
+          "hourly_cell": "C5",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A5",
+            "target": "B5"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 5,
+          "sheet": "Alconost"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Bengali (India)",
+        "target_locale": "bn-IN"
+      },
+      {
+        "hourly_rate_usd": 35,
+        "provenance": {
+          "hourly_cell": "C6",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A6",
+            "target": "B6"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 6,
+          "sheet": "Alconost"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Catalan",
+        "target_locale": "ca"
+      },
+      {
+        "hourly_rate_usd": 35,
+        "provenance": {
+          "hourly_cell": "C7",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A7",
+            "target": "B7"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 7,
+          "sheet": "Alconost"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Cebuano (Philippines)",
+        "target_locale": "ceb-PH"
+      },
+      {
+        "hourly_rate_usd": 37,
+        "provenance": {
+          "hourly_cell": "C8",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A8",
+            "target": "B8"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 8,
+          "sheet": "Alconost"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Czech (Czech Republic)",
+        "target_locale": "cs-CZ"
+      },
+      {
+        "hourly_rate_usd": 48,
+        "provenance": {
+          "hourly_cell": "C9",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A9",
+            "target": "B9"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 9,
+          "sheet": "Alconost"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Danish",
+        "target_locale": "da"
+      },
+      {
+        "hourly_rate_usd": 35,
+        "provenance": {
+          "hourly_cell": "C10",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A10",
+            "target": "B10"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 10,
+          "sheet": "Alconost"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "German (Germany)",
+        "target_locale": "de-DE"
+      },
+      {
+        "hourly_rate_usd": 35,
+        "provenance": {
+          "hourly_cell": "C11",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A11",
+            "target": "B11"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 11,
+          "sheet": "Alconost"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Greek (Greece)",
+        "target_locale": "el-GR"
+      },
+      {
+        "hourly_rate_usd": 36,
+        "provenance": {
+          "hourly_cell": "C12",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A12",
+            "target": "B12"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 12,
+          "sheet": "Alconost"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "English (United Kingdom)",
+        "target_locale": "en-GB"
+      },
+      {
+        "hourly_rate_usd": 33,
+        "provenance": {
+          "hourly_cell": "C13",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A13",
+            "target": "B13"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 13,
+          "sheet": "Alconost"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Spanish",
+        "target_locale": "es"
+      },
+      {
+        "hourly_rate_usd": 33,
+        "provenance": {
+          "hourly_cell": "C14",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A14",
+            "target": "B14"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 14,
+          "sheet": "Alconost"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Spanish (Latin America)",
+        "target_locale": "es-419"
+      },
+      {
+        "hourly_rate_usd": 47,
+        "provenance": {
+          "hourly_cell": "C15",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A15",
+            "target": "B15"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 15,
+          "sheet": "Alconost"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Estonian",
+        "target_locale": "et"
+      },
+      {
+        "hourly_rate_usd": 37,
+        "provenance": {
+          "hourly_cell": "C16",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A16",
+            "target": "B16"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 16,
+          "sheet": "Alconost"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Persian (Iran)",
+        "target_locale": "fa-IR"
+      },
+      {
+        "hourly_rate_usd": 48,
+        "provenance": {
+          "hourly_cell": "C17",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A17",
+            "target": "B17"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 17,
+          "sheet": "Alconost"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Finnish (Finland)",
+        "target_locale": "fi-FI"
+      },
+      {
+        "hourly_rate_usd": 31,
+        "provenance": {
+          "hourly_cell": "C18",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A18",
+            "target": "B18"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 18,
+          "sheet": "Alconost"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Filipino (Philippines)",
+        "target_locale": "fil-PH"
+      },
+      {
+        "hourly_rate_usd": 35,
+        "provenance": {
+          "hourly_cell": "C19",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A19",
+            "target": "B19"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 19,
+          "sheet": "Alconost"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "French",
+        "target_locale": "fr"
+      },
+      {
+        "hourly_rate_usd": 42,
+        "provenance": {
+          "hourly_cell": "C20",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A20",
+            "target": "B20"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 20,
+          "sheet": "Alconost"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "French (Canada)",
+        "target_locale": "fr-CA"
+      },
+      {
+        "hourly_rate_usd": 55,
+        "provenance": {
+          "hourly_cell": "C21",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A21",
+            "target": "B21"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 21,
+          "sheet": "Alconost"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Irish",
+        "target_locale": "ga"
+      },
+      {
+        "hourly_rate_usd": 52,
+        "provenance": {
+          "hourly_cell": "C22",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A22",
+            "target": "B22"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 22,
+          "sheet": "Alconost"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Hebrew (Israel)",
+        "target_locale": "he-IL"
+      },
+      {
+        "hourly_rate_usd": 31,
+        "provenance": {
+          "hourly_cell": "C23",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A23",
+            "target": "B23"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 23,
+          "sheet": "Alconost"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Hindi (India)",
+        "target_locale": "hi-IN"
+      },
+      {
+        "hourly_rate_usd": 35,
+        "provenance": {
+          "hourly_cell": "C24",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A24",
+            "target": "B24"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 24,
+          "sheet": "Alconost"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Croatian",
+        "target_locale": "hr"
+      },
+      {
+        "hourly_rate_usd": 35,
+        "provenance": {
+          "hourly_cell": "C25",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A25",
+            "target": "B25"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 25,
+          "sheet": "Alconost"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Hungarian (Hungary)",
+        "target_locale": "hu-HU"
+      },
+      {
+        "hourly_rate_usd": 35,
+        "provenance": {
+          "hourly_cell": "C26",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A26",
+            "target": "B26"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 26,
+          "sheet": "Alconost"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Indonesian (Indonesia)",
+        "target_locale": "id-ID"
+      },
+      {
+        "hourly_rate_usd": 55,
+        "provenance": {
+          "hourly_cell": "C27",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A27",
+            "target": "B27"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 27,
+          "sheet": "Alconost"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Icelandic",
+        "target_locale": "is"
+      },
+      {
+        "hourly_rate_usd": 35,
+        "provenance": {
+          "hourly_cell": "C28",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A28",
+            "target": "B28"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 28,
+          "sheet": "Alconost"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Italian (Italy)",
+        "target_locale": "it-IT"
+      },
+      {
+        "hourly_rate_usd": 42,
+        "provenance": {
+          "hourly_cell": "C29",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A29",
+            "target": "B29"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 29,
+          "sheet": "Alconost"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Japanese (Japan)",
+        "target_locale": "ja-JP"
+      },
+      {
+        "hourly_rate_usd": 31,
+        "provenance": {
+          "hourly_cell": "C30",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A30",
+            "target": "B30"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 30,
+          "sheet": "Alconost"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Javanese (Indonesia)",
+        "target_locale": "jv-ID"
+      },
+      {
+        "hourly_rate_usd": 35,
+        "provenance": {
+          "hourly_cell": "C31",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A31",
+            "target": "B31"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 31,
+          "sheet": "Alconost"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Kazakh",
+        "target_locale": "kk"
+      },
+      {
+        "hourly_rate_usd": 50,
+        "provenance": {
+          "hourly_cell": "C32",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A32",
+            "target": "B32"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 32,
+          "sheet": "Alconost"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Khmer (Cambodia)",
+        "target_locale": "km-KH"
+      },
+      {
+        "hourly_rate_usd": 31.7,
+        "provenance": {
+          "hourly_cell": "C33",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A33",
+            "target": "B33"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 33,
+          "sheet": "Alconost"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Korean (South Korea)",
+        "target_locale": "ko-KR"
+      },
+      {
+        "hourly_rate_usd": 40,
+        "provenance": {
+          "hourly_cell": "C34",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A34",
+            "target": "B34"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 34,
+          "sheet": "Alconost"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Lithuanian",
+        "target_locale": "lt"
+      },
+      {
+        "hourly_rate_usd": 35,
+        "provenance": {
+          "hourly_cell": "C35",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A35",
+            "target": "B35"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 35,
+          "sheet": "Alconost"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Latvian",
+        "target_locale": "lv"
+      },
+      {
+        "hourly_rate_usd": 31.7,
+        "provenance": {
+          "hourly_cell": "C36",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A36",
+            "target": "B36"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 36,
+          "sheet": "Alconost"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Malay (Malaysia)",
+        "target_locale": "ms-MY"
+      },
+      {
+        "hourly_rate_usd": 42,
+        "provenance": {
+          "hourly_cell": "C37",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A37",
+            "target": "B37"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 37,
+          "sheet": "Alconost"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Burmese (Myanmar)",
+        "target_locale": "my-MM"
+      },
+      {
+        "hourly_rate_usd": 60,
+        "provenance": {
+          "hourly_cell": "C38",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A38",
+            "target": "B38"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 38,
+          "sheet": "Alconost"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Norwegian Bokmål",
+        "target_locale": "nb"
+      },
+      {
+        "hourly_rate_usd": 47,
+        "provenance": {
+          "hourly_cell": "C39",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A39",
+            "target": "B39"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 39,
+          "sheet": "Alconost"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Dutch (Netherlands)",
+        "target_locale": "nl-NL"
+      },
+      {
+        "hourly_rate_usd": 35,
+        "provenance": {
+          "hourly_cell": "C40",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A40",
+            "target": "B40"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 40,
+          "sheet": "Alconost"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Polish (Poland)",
+        "target_locale": "pl-PL"
+      },
+      {
+        "hourly_rate_usd": 35,
+        "provenance": {
+          "hourly_cell": "C41",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A41",
+            "target": "B41"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 41,
+          "sheet": "Alconost"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Portuguese",
+        "target_locale": "pt"
+      },
+      {
+        "hourly_rate_usd": 35,
+        "provenance": {
+          "hourly_cell": "C42",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A42",
+            "target": "B42"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 42,
+          "sheet": "Alconost"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Portuguese (Brazil)",
+        "target_locale": "pt-BR"
+      },
+      {
+        "hourly_rate_usd": 35,
+        "provenance": {
+          "hourly_cell": "C43",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A43",
+            "target": "B43"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 43,
+          "sheet": "Alconost"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Romanian (Romania)",
+        "target_locale": "ro-RO"
+      },
+      {
+        "hourly_rate_usd": 31,
+        "provenance": {
+          "hourly_cell": "C44",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A44",
+            "target": "B44"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 44,
+          "sheet": "Alconost"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Russian (Russia)",
+        "target_locale": "ru-RU"
+      },
+      {
+        "hourly_rate_usd": 35,
+        "provenance": {
+          "hourly_cell": "C45",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A45",
+            "target": "B45"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 45,
+          "sheet": "Alconost"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Slovak",
+        "target_locale": "sk"
+      },
+      {
+        "hourly_rate_usd": 35,
+        "provenance": {
+          "hourly_cell": "C46",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A46",
+            "target": "B46"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 46,
+          "sheet": "Alconost"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Slovenian",
+        "target_locale": "sl"
+      },
+      {
+        "hourly_rate_usd": 35,
+        "provenance": {
+          "hourly_cell": "C47",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A47",
+            "target": "B47"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 47,
+          "sheet": "Alconost"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Albanian",
+        "target_locale": "sq"
+      },
+      {
+        "hourly_rate_usd": 48,
+        "provenance": {
+          "hourly_cell": "C48",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A48",
+            "target": "B48"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 48,
+          "sheet": "Alconost"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Swedish (Sweden)",
+        "target_locale": "sv-SE"
+      },
+      {
+        "hourly_rate_usd": 35,
+        "provenance": {
+          "hourly_cell": "C49",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A49",
+            "target": "B49"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 49,
+          "sheet": "Alconost"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Swahili",
+        "target_locale": "sw"
+      },
+      {
+        "hourly_rate_usd": 31.7,
+        "provenance": {
+          "hourly_cell": "C50",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A50",
+            "target": "B50"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 50,
+          "sheet": "Alconost"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Thai (Thailand)",
+        "target_locale": "th-TH"
+      },
+      {
+        "hourly_rate_usd": 33.3,
+        "provenance": {
+          "hourly_cell": "C51",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A51",
+            "target": "B51"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 51,
+          "sheet": "Alconost"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Turkish (Turkey)",
+        "target_locale": "tr-TR"
+      },
+      {
+        "hourly_rate_usd": 30,
+        "provenance": {
+          "hourly_cell": "C52",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A52",
+            "target": "B52"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 52,
+          "sheet": "Alconost"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Ukrainian (Ukraine)",
+        "target_locale": "uk-UA"
+      },
+      {
+        "hourly_rate_usd": 31,
+        "provenance": {
+          "hourly_cell": "C53",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A53",
+            "target": "B53"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 53,
+          "sheet": "Alconost"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Urdu",
+        "target_locale": "ur"
+      },
+      {
+        "hourly_rate_usd": 31,
+        "provenance": {
+          "hourly_cell": "C54",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A54",
+            "target": "B54"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 54,
+          "sheet": "Alconost"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Uzbek",
+        "target_locale": "uz"
+      },
+      {
+        "hourly_rate_usd": 31.7,
+        "provenance": {
+          "hourly_cell": "C55",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A55",
+            "target": "B55"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 55,
+          "sheet": "Alconost"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Vietnamese (Vietnam)",
+        "target_locale": "vi-VN"
+      },
+      {
+        "hourly_rate_usd": 35,
+        "provenance": {
+          "hourly_cell": "C56",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A56",
+            "target": "B56"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 56,
+          "sheet": "Alconost"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Chinese (Simplified)",
+        "target_locale": "zh-Hans"
+      },
+      {
+        "hourly_rate_usd": 37.3,
+        "provenance": {
+          "hourly_cell": "C57",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A57",
+            "target": "B57"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 57,
+          "sheet": "Alconost"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Chinese (Traditional, Taiwan)",
+        "target_locale": "zh-Hant-TW"
+      }
+    ],
+    "Pactera": [
+      {
+        "aipe_usd_per_1000_words": 56.71,
+        "hourly_rate_usd": 27.2,
+        "provenance": {
+          "hourly_cell": "H2",
+          "hourly_column": "Hourly rate (USD/h)",
+          "language_cells": {
+            "source": "A2",
+            "target": "B2"
+          },
+          "rate_cells": {
+            "aipe": "F2",
+            "t_only": "D2"
+          },
+          "rate_columns": {
+            "aipe": "AIPE rate",
+            "t_only": "T rate"
+          },
+          "row": 2,
+          "sheet": "Pactera"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "t_only_usd_per_1000_words": 80.25,
+        "target_language": "Arabic",
+        "target_locale": "ar"
+      },
+      {
+        "aipe_usd_per_1000_words": 58.03,
+        "hourly_rate_usd": 26.45,
+        "provenance": {
+          "hourly_cell": "H3",
+          "hourly_column": "Hourly rate (USD/h)",
+          "language_cells": {
+            "source": "A3",
+            "target": "B3"
+          },
+          "rate_cells": {
+            "aipe": "F3",
+            "t_only": "D3"
+          },
+          "rate_columns": {
+            "aipe": "AIPE rate",
+            "t_only": "T rate"
+          },
+          "row": 3,
+          "sheet": "Pactera"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "t_only_usd_per_1000_words": 79.13,
+        "target_language": "Bengali",
+        "target_locale": "bn-IN"
+      },
+      {
+        "aipe_usd_per_1000_words": 62.21,
+        "hourly_rate_usd": 30.16,
+        "provenance": {
+          "hourly_cell": "H4",
+          "hourly_column": "Hourly rate (USD/h)",
+          "language_cells": {
+            "source": "A4",
+            "target": "B4"
+          },
+          "rate_cells": {
+            "aipe": "F4",
+            "t_only": "D4"
+          },
+          "rate_columns": {
+            "aipe": "AIPE rate",
+            "t_only": "T rate"
+          },
+          "row": 4,
+          "sheet": "Pactera"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "t_only_usd_per_1000_words": 88.88,
+        "target_language": "Cebuano(Sinugboanon)",
+        "target_locale": "ceb-PH"
+      },
+      {
+        "aipe_usd_per_1000_words": 20.14,
+        "hourly_rate_usd": 27.7,
+        "provenance": {
+          "hourly_cell": "H5",
+          "hourly_column": "Hourly rate (USD/h)",
+          "language_cells": {
+            "source": "A5",
+            "target": "B5"
+          },
+          "rate_cells": {
+            "aipe": "F5",
+            "t_only": "D5"
+          },
+          "rate_columns": {
+            "aipe": "AIPE rate",
+            "t_only": "T rate"
+          },
+          "row": 5,
+          "sheet": "Pactera"
+        },
+        "source_language": "English(US)",
+        "source_locale": "en",
+        "t_only_usd_per_1000_words": 28.5,
+        "target_language": "English(GB)",
+        "target_locale": "en-GB"
+      },
+      {
+        "aipe_usd_per_1000_words": 56.71,
+        "hourly_rate_usd": 30.8,
+        "provenance": {
+          "hourly_cell": "H6",
+          "hourly_column": "Hourly rate (USD/h)",
+          "language_cells": {
+            "source": "A6",
+            "target": "B6"
+          },
+          "rate_cells": {
+            "aipe": "F6",
+            "t_only": "D6"
+          },
+          "rate_columns": {
+            "aipe": "AIPE rate",
+            "t_only": "T rate"
+          },
+          "row": 6,
+          "sheet": "Pactera"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "t_only_usd_per_1000_words": 77.33,
+        "target_language": "Farsi",
+        "target_locale": "fa-IR"
+      },
+      {
+        "aipe_usd_per_1000_words": 57.98,
+        "hourly_rate_usd": 26.85,
+        "provenance": {
+          "hourly_cell": "H7",
+          "hourly_column": "Hourly rate (USD/h)",
+          "language_cells": {
+            "source": "A7",
+            "target": "B7"
+          },
+          "rate_cells": {
+            "aipe": "F7",
+            "t_only": "D7"
+          },
+          "rate_columns": {
+            "aipe": "AIPE rate",
+            "t_only": "T rate"
+          },
+          "row": 7,
+          "sheet": "Pactera"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "t_only_usd_per_1000_words": 83.63,
+        "target_language": "Filipino",
+        "target_locale": "fil-PH"
+      },
+      {
+        "aipe_usd_per_1000_words": 77,
+        "hourly_rate_usd": 31.3,
+        "provenance": {
+          "hourly_cell": "H8",
+          "hourly_column": "Hourly rate (USD/h)",
+          "language_cells": {
+            "source": "A8",
+            "target": "B8"
+          },
+          "rate_cells": {
+            "aipe": "F8",
+            "t_only": "D8"
+          },
+          "rate_columns": {
+            "aipe": "AIPE rate",
+            "t_only": "T rate"
+          },
+          "row": 8,
+          "sheet": "Pactera"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "t_only_usd_per_1000_words": 105,
+        "target_language": "Irish",
+        "target_locale": "ga"
+      },
+      {
+        "aipe_usd_per_1000_words": 65.18,
+        "hourly_rate_usd": 30.2,
+        "provenance": {
+          "hourly_cell": "H9",
+          "hourly_column": "Hourly rate (USD/h)",
+          "language_cells": {
+            "source": "A9",
+            "target": "B9"
+          },
+          "rate_cells": {
+            "aipe": "F9",
+            "t_only": "D9"
+          },
+          "rate_columns": {
+            "aipe": "AIPE rate",
+            "t_only": "T rate"
+          },
+          "row": 9,
+          "sheet": "Pactera"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "t_only_usd_per_1000_words": 88.88,
+        "target_language": "Hebrew",
+        "target_locale": "he-IL"
+      },
+      {
+        "aipe_usd_per_1000_words": 58.54,
+        "hourly_rate_usd": 26.85,
+        "provenance": {
+          "hourly_cell": "H10",
+          "hourly_column": "Hourly rate (USD/h)",
+          "language_cells": {
+            "source": "A10",
+            "target": "B10"
+          },
+          "rate_cells": {
+            "aipe": "F10",
+            "t_only": "D10"
+          },
+          "rate_columns": {
+            "aipe": "AIPE rate",
+            "t_only": "T rate"
+          },
+          "row": 10,
+          "sheet": "Pactera"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "t_only_usd_per_1000_words": 83.63,
+        "target_language": "Hindi",
+        "target_locale": "hi-IN"
+      },
+      {
+        "aipe_usd_per_1000_words": 60.31,
+        "hourly_rate_usd": 28.72,
+        "provenance": {
+          "hourly_cell": "H11",
+          "hourly_column": "Hourly rate (USD/h)",
+          "language_cells": {
+            "source": "A11",
+            "target": "B11"
+          },
+          "rate_cells": {
+            "aipe": "F11",
+            "t_only": "D11"
+          },
+          "rate_columns": {
+            "aipe": "AIPE rate",
+            "t_only": "T rate"
+          },
+          "row": 11,
+          "sheet": "Pactera"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "t_only_usd_per_1000_words": 85.35,
+        "target_language": "Indonesian",
+        "target_locale": "id-ID"
+      },
+      {
+        "aipe_usd_per_1000_words": 77,
+        "hourly_rate_usd": 33.88,
+        "provenance": {
+          "hourly_cell": "H12",
+          "hourly_column": "Hourly rate (USD/h)",
+          "language_cells": {
+            "source": "A12",
+            "target": "B12"
+          },
+          "rate_cells": {
+            "aipe": "F12",
+            "t_only": "D12"
+          },
+          "rate_columns": {
+            "aipe": "AIPE rate",
+            "t_only": "T rate"
+          },
+          "row": 12,
+          "sheet": "Pactera"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "t_only_usd_per_1000_words": 105,
+        "target_language": "Japanese",
+        "target_locale": "ja-JP"
+      },
+      {
+        "aipe_usd_per_1000_words": 58.54,
+        "hourly_rate_usd": 27.44,
+        "provenance": {
+          "hourly_cell": "H13",
+          "hourly_column": "Hourly rate (USD/h)",
+          "language_cells": {
+            "source": "A13",
+            "target": "B13"
+          },
+          "rate_cells": {
+            "aipe": "F13",
+            "t_only": "D13"
+          },
+          "rate_columns": {
+            "aipe": "AIPE rate",
+            "t_only": "T rate"
+          },
+          "row": 13,
+          "sheet": "Pactera"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "t_only_usd_per_1000_words": 83.63,
+        "target_language": "Javanese",
+        "target_locale": "jv-ID"
+      },
+      {
+        "aipe_usd_per_1000_words": 73.92,
+        "hourly_rate_usd": 35.2,
+        "provenance": {
+          "hourly_cell": "H14",
+          "hourly_column": "Hourly rate (USD/h)",
+          "language_cells": {
+            "source": "A14",
+            "target": "B14"
+          },
+          "rate_cells": {
+            "aipe": "F14",
+            "t_only": "D14"
+          },
+          "rate_columns": {
+            "aipe": "AIPE rate",
+            "t_only": "T rate"
+          },
+          "row": 14,
+          "sheet": "Pactera"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "t_only_usd_per_1000_words": 100.8,
+        "target_language": "Khmer",
+        "target_locale": "km-KH"
+      },
+      {
+        "aipe_usd_per_1000_words": 57.98,
+        "hourly_rate_usd": 26.85,
+        "provenance": {
+          "hourly_cell": "H15",
+          "hourly_column": "Hourly rate (USD/h)",
+          "language_cells": {
+            "source": "A15",
+            "target": "B15"
+          },
+          "rate_cells": {
+            "aipe": "F15",
+            "t_only": "D15"
+          },
+          "rate_columns": {
+            "aipe": "AIPE rate",
+            "t_only": "T rate"
+          },
+          "row": 15,
+          "sheet": "Pactera"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "t_only_usd_per_1000_words": 83.63,
+        "target_language": "Korean",
+        "target_locale": "ko-KR"
+      },
+      {
+        "aipe_usd_per_1000_words": 57.98,
+        "hourly_rate_usd": 26.95,
+        "provenance": {
+          "hourly_cell": "H16",
+          "hourly_column": "Hourly rate (USD/h)",
+          "language_cells": {
+            "source": "A16",
+            "target": "B16"
+          },
+          "rate_cells": {
+            "aipe": "F16",
+            "t_only": "D16"
+          },
+          "rate_columns": {
+            "aipe": "AIPE rate",
+            "t_only": "T rate"
+          },
+          "row": 16,
+          "sheet": "Pactera"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "t_only_usd_per_1000_words": 83.63,
+        "target_language": "Malay/Bahasa",
+        "target_locale": "ms-MY"
+      },
+      {
+        "aipe_usd_per_1000_words": 60.31,
+        "hourly_rate_usd": 29,
+        "provenance": {
+          "hourly_cell": "H17",
+          "hourly_column": "Hourly rate (USD/h)",
+          "language_cells": {
+            "source": "A17",
+            "target": "B17"
+          },
+          "rate_cells": {
+            "aipe": "F17",
+            "t_only": "D17"
+          },
+          "rate_columns": {
+            "aipe": "AIPE rate",
+            "t_only": "T rate"
+          },
+          "row": 17,
+          "sheet": "Pactera"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "t_only_usd_per_1000_words": 85.35,
+        "target_language": "Burmese",
+        "target_locale": "my-MM"
+      },
+      {
+        "aipe_usd_per_1000_words": 58.54,
+        "hourly_rate_usd": 27.44,
+        "provenance": {
+          "hourly_cell": "H18",
+          "hourly_column": "Hourly rate (USD/h)",
+          "language_cells": {
+            "source": "A18",
+            "target": "B18"
+          },
+          "rate_cells": {
+            "aipe": "F18",
+            "t_only": "D18"
+          },
+          "rate_columns": {
+            "aipe": "AIPE rate",
+            "t_only": "T rate"
+          },
+          "row": 18,
+          "sheet": "Pactera"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "t_only_usd_per_1000_words": 83.63,
+        "target_language": "Thai",
+        "target_locale": "th-TH"
+      },
+      {
+        "aipe_usd_per_1000_words": 58.54,
+        "hourly_rate_usd": 25.34,
+        "provenance": {
+          "hourly_cell": "H19",
+          "hourly_column": "Hourly rate (USD/h)",
+          "language_cells": {
+            "source": "A19",
+            "target": "B19"
+          },
+          "rate_cells": {
+            "aipe": "F19",
+            "t_only": "D19"
+          },
+          "rate_columns": {
+            "aipe": "AIPE rate",
+            "t_only": "T rate"
+          },
+          "row": 19,
+          "sheet": "Pactera"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "t_only_usd_per_1000_words": 83.63,
+        "target_language": "Urdu(Pak)",
+        "target_locale": "ur"
+      },
+      {
+        "aipe_usd_per_1000_words": 58.54,
+        "hourly_rate_usd": 26.95,
+        "provenance": {
+          "hourly_cell": "H20",
+          "hourly_column": "Hourly rate (USD/h)",
+          "language_cells": {
+            "source": "A20",
+            "target": "B20"
+          },
+          "rate_cells": {
+            "aipe": "F20",
+            "t_only": "D20"
+          },
+          "rate_columns": {
+            "aipe": "AIPE rate",
+            "t_only": "T rate"
+          },
+          "row": 20,
+          "sheet": "Pactera"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "t_only_usd_per_1000_words": 83.63,
+        "target_language": "Vietnamese",
+        "target_locale": "vi-VN"
+      },
+      {
+        "aipe_usd_per_1000_words": 34.72,
+        "hourly_rate_usd": 20.6,
+        "provenance": {
+          "hourly_cell": "H21",
+          "hourly_column": "Hourly rate (USD/h)",
+          "language_cells": {
+            "source": "A21",
+            "target": "B21"
+          },
+          "rate_cells": {
+            "aipe": "F21",
+            "t_only": "D21"
+          },
+          "rate_columns": {
+            "aipe": "AIPE rate",
+            "t_only": "T rate"
+          },
+          "row": 21,
+          "sheet": "Pactera"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "t_only_usd_per_1000_words": 49.13,
+        "target_language": "Chinese S",
+        "target_locale": "zh-Hans"
+      },
+      {
+        "aipe_usd_per_1000_words": 38.72,
+        "hourly_rate_usd": 21,
+        "provenance": {
+          "hourly_cell": "H22",
+          "hourly_column": "Hourly rate (USD/h)",
+          "language_cells": {
+            "source": "A22",
+            "target": "B22"
+          },
+          "rate_cells": {
+            "aipe": "F22",
+            "t_only": "D22"
+          },
+          "rate_columns": {
+            "aipe": "AIPE rate",
+            "t_only": "T rate"
+          },
+          "row": 22,
+          "sheet": "Pactera"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "t_only_usd_per_1000_words": 52.8,
+        "target_language": "Chinese TW",
+        "target_locale": "zh-Hant-TW"
+      },
+      {
+        "aipe_usd_per_1000_words": 34.72,
+        "hourly_rate_usd": 20.6,
+        "provenance": {
+          "hourly_cell": "H23",
+          "hourly_column": "Hourly rate (USD/h)",
+          "language_cells": {
+            "source": "A23",
+            "target": "B23"
+          },
+          "rate_cells": {
+            "aipe": "F23",
+            "t_only": "D23"
+          },
+          "rate_columns": {
+            "aipe": "AIPE rate",
+            "t_only": "T rate"
+          },
+          "row": 23,
+          "sheet": "Pactera"
+        },
+        "source_language": "Chinese",
+        "source_locale": "zh-Hans",
+        "t_only_usd_per_1000_words": 49.13,
+        "target_language": "English",
+        "target_locale": "en"
+      },
+      {
+        "aipe_usd_per_1000_words": 62.59,
+        "hourly_rate_usd": 30.8,
+        "provenance": {
+          "hourly_cell": "H24",
+          "hourly_column": "Hourly rate (USD/h)",
+          "language_cells": {
+            "source": "A24",
+            "target": "B24"
+          },
+          "rate_cells": {
+            "aipe": "F24",
+            "t_only": "D24"
+          },
+          "rate_columns": {
+            "aipe": "AIPE rate",
+            "t_only": "T rate"
+          },
+          "row": 24,
+          "sheet": "Pactera"
+        },
+        "source_language": "Chinese",
+        "source_locale": "zh-Hans",
+        "t_only_usd_per_1000_words": 85.35,
+        "target_language": "Japanese",
+        "target_locale": "ja-JP"
+      }
+    ],
+    "RWS": [
+      {
+        "aipe_usd_per_1000_words": 74,
+        "hourly_rate_usd": 40,
+        "provenance": {
+          "hourly_cell": "G2",
+          "hourly_column": "Hourly rate (USD/h)",
+          "language_cells": {
+            "source": "A2",
+            "target": "B2"
+          },
+          "rate_cells": {
+            "aipe": "F2",
+            "t_only": "D2"
+          },
+          "rate_columns": {
+            "aipe": "AI翻译+人工校准AIPE rate",
+            "t_only": "人工翻译\nHuman Translation rate"
+          },
+          "row": 2,
+          "sheet": "RWS"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "t_only_usd_per_1000_words": 92,
+        "target_language": "ro",
+        "target_locale": "ro-RO"
+      },
+      {
+        "aipe_usd_per_1000_words": 74,
+        "hourly_rate_usd": 40,
+        "provenance": {
+          "hourly_cell": "G3",
+          "hourly_column": "Hourly rate (USD/h)",
+          "language_cells": {
+            "source": "A3",
+            "target": "B3"
+          },
+          "rate_cells": {
+            "aipe": "F3",
+            "t_only": "D3"
+          },
+          "rate_columns": {
+            "aipe": "AI翻译+人工校准AIPE rate",
+            "t_only": "人工翻译\nHuman Translation rate"
+          },
+          "row": 3,
+          "sheet": "RWS"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "t_only_usd_per_1000_words": 92,
+        "target_language": "pl",
+        "target_locale": "pl-PL"
+      },
+      {
+        "aipe_usd_per_1000_words": 80,
+        "hourly_rate_usd": 40,
+        "provenance": {
+          "hourly_cell": "G4",
+          "hourly_column": "Hourly rate (USD/h)",
+          "language_cells": {
+            "source": "A4",
+            "target": "B4"
+          },
+          "rate_cells": {
+            "aipe": "F4",
+            "t_only": "D4"
+          },
+          "rate_columns": {
+            "aipe": "AI翻译+人工校准AIPE rate",
+            "t_only": "人工翻译\nHuman Translation rate"
+          },
+          "row": 4,
+          "sheet": "RWS"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "t_only_usd_per_1000_words": 92,
+        "target_language": "it",
+        "target_locale": "it-IT"
+      },
+      {
+        "aipe_usd_per_1000_words": 76,
+        "hourly_rate_usd": 40,
+        "provenance": {
+          "hourly_cell": "G5",
+          "hourly_column": "Hourly rate (USD/h)",
+          "language_cells": {
+            "source": "A5",
+            "target": "B5"
+          },
+          "rate_cells": {
+            "aipe": "F5",
+            "t_only": "D5"
+          },
+          "rate_columns": {
+            "aipe": "AI翻译+人工校准AIPE rate",
+            "t_only": "人工翻译\nHuman Translation rate"
+          },
+          "row": 5,
+          "sheet": "RWS"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "t_only_usd_per_1000_words": 92,
+        "target_language": "sk",
+        "target_locale": "sk"
+      },
+      {
+        "aipe_usd_per_1000_words": 74,
+        "hourly_rate_usd": 40,
+        "provenance": {
+          "hourly_cell": "G6",
+          "hourly_column": "Hourly rate (USD/h)",
+          "language_cells": {
+            "source": "A6",
+            "target": "B6"
+          },
+          "rate_cells": {
+            "aipe": "F6",
+            "t_only": "D6"
+          },
+          "rate_columns": {
+            "aipe": "AI翻译+人工校准AIPE rate",
+            "t_only": "人工翻译\nHuman Translation rate"
+          },
+          "row": 6,
+          "sheet": "RWS"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "t_only_usd_per_1000_words": 92,
+        "target_language": "tr",
+        "target_locale": "tr-TR"
+      },
+      {
+        "aipe_usd_per_1000_words": 74,
+        "hourly_rate_usd": 40,
+        "provenance": {
+          "hourly_cell": "G7",
+          "hourly_column": "Hourly rate (USD/h)",
+          "language_cells": {
+            "source": "A7",
+            "target": "B7"
+          },
+          "rate_cells": {
+            "aipe": "F7",
+            "t_only": "D7"
+          },
+          "rate_columns": {
+            "aipe": "AI翻译+人工校准AIPE rate",
+            "t_only": "人工翻译\nHuman Translation rate"
+          },
+          "row": 7,
+          "sheet": "RWS"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "t_only_usd_per_1000_words": 92,
+        "target_language": "pt-BR",
+        "target_locale": "pt-BR"
+      },
+      {
+        "aipe_usd_per_1000_words": 94,
+        "hourly_rate_usd": 43,
+        "provenance": {
+          "hourly_cell": "G8",
+          "hourly_column": "Hourly rate (USD/h)",
+          "language_cells": {
+            "source": "A8",
+            "target": "B8"
+          },
+          "rate_cells": {
+            "aipe": "F8",
+            "t_only": "D8"
+          },
+          "rate_columns": {
+            "aipe": "AI翻译+人工校准AIPE rate",
+            "t_only": "人工翻译\nHuman Translation rate"
+          },
+          "row": 8,
+          "sheet": "RWS"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "t_only_usd_per_1000_words": 108,
+        "target_language": "fr-CA",
+        "target_locale": "fr-CA"
+      },
+      {
+        "aipe_usd_per_1000_words": 94,
+        "hourly_rate_usd": 43,
+        "provenance": {
+          "hourly_cell": "G9",
+          "hourly_column": "Hourly rate (USD/h)",
+          "language_cells": {
+            "source": "A9",
+            "target": "B9"
+          },
+          "rate_cells": {
+            "aipe": "F9",
+            "t_only": "D9"
+          },
+          "rate_columns": {
+            "aipe": "AI翻译+人工校准AIPE rate",
+            "t_only": "人工翻译\nHuman Translation rate"
+          },
+          "row": 9,
+          "sheet": "RWS"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "t_only_usd_per_1000_words": 108,
+        "target_language": "fr",
+        "target_locale": "fr"
+      },
+      {
+        "aipe_usd_per_1000_words": 105,
+        "hourly_rate_usd": 50,
+        "provenance": {
+          "hourly_cell": "G10",
+          "hourly_column": "Hourly rate (USD/h)",
+          "language_cells": {
+            "source": "A10",
+            "target": "B10"
+          },
+          "rate_cells": {
+            "aipe": "F10",
+            "t_only": "D10"
+          },
+          "rate_columns": {
+            "aipe": "AI翻译+人工校准AIPE rate",
+            "t_only": "人工翻译\nHuman Translation rate"
+          },
+          "row": 10,
+          "sheet": "RWS"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "t_only_usd_per_1000_words": 121,
+        "target_language": "da",
+        "target_locale": "da"
+      },
+      {
+        "aipe_usd_per_1000_words": 80,
+        "hourly_rate_usd": 40,
+        "provenance": {
+          "hourly_cell": "G11",
+          "hourly_column": "Hourly rate (USD/h)",
+          "language_cells": {
+            "source": "A11",
+            "target": "B11"
+          },
+          "rate_cells": {
+            "aipe": "F11",
+            "t_only": "D11"
+          },
+          "rate_columns": {
+            "aipe": "AI翻译+人工校准AIPE rate",
+            "t_only": "人工翻译\nHuman Translation rate"
+          },
+          "row": 11,
+          "sheet": "RWS"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "t_only_usd_per_1000_words": 92,
+        "target_language": "lv",
+        "target_locale": "lv"
+      },
+      {
+        "aipe_usd_per_1000_words": 89,
+        "hourly_rate_usd": 43,
+        "provenance": {
+          "hourly_cell": "G12",
+          "hourly_column": "Hourly rate (USD/h)",
+          "language_cells": {
+            "source": "A12",
+            "target": "B12"
+          },
+          "rate_cells": {
+            "aipe": "F12",
+            "t_only": "D12"
+          },
+          "rate_columns": {
+            "aipe": "AI翻译+人工校准AIPE rate",
+            "t_only": "人工翻译\nHuman Translation rate"
+          },
+          "row": 12,
+          "sheet": "RWS"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "t_only_usd_per_1000_words": 108,
+        "target_language": "uz",
+        "target_locale": "uz"
+      },
+      {
+        "aipe_usd_per_1000_words": 76,
+        "hourly_rate_usd": 40,
+        "provenance": {
+          "hourly_cell": "G13",
+          "hourly_column": "Hourly rate (USD/h)",
+          "language_cells": {
+            "source": "A13",
+            "target": "B13"
+          },
+          "rate_cells": {
+            "aipe": "F13",
+            "t_only": "D13"
+          },
+          "rate_columns": {
+            "aipe": "AI翻译+人工校准AIPE rate",
+            "t_only": "人工翻译\nHuman Translation rate"
+          },
+          "row": 13,
+          "sheet": "RWS"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "t_only_usd_per_1000_words": 92,
+        "target_language": "lt",
+        "target_locale": "lt"
+      },
+      {
+        "aipe_usd_per_1000_words": 74,
+        "hourly_rate_usd": 40,
+        "provenance": {
+          "hourly_cell": "G14",
+          "hourly_column": "Hourly rate (USD/h)",
+          "language_cells": {
+            "source": "A14",
+            "target": "B14"
+          },
+          "rate_cells": {
+            "aipe": "F14",
+            "t_only": "D14"
+          },
+          "rate_columns": {
+            "aipe": "AI翻译+人工校准AIPE rate",
+            "t_only": "人工翻译\nHuman Translation rate"
+          },
+          "row": 14,
+          "sheet": "RWS"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "t_only_usd_per_1000_words": 92,
+        "target_language": "hu",
+        "target_locale": "hu-HU"
+      },
+      {
+        "aipe_usd_per_1000_words": 74,
+        "hourly_rate_usd": 40,
+        "provenance": {
+          "hourly_cell": "G15",
+          "hourly_column": "Hourly rate (USD/h)",
+          "language_cells": {
+            "source": "A15",
+            "target": "B15"
+          },
+          "rate_cells": {
+            "aipe": "F15",
+            "t_only": "D15"
+          },
+          "rate_columns": {
+            "aipe": "AI翻译+人工校准AIPE rate",
+            "t_only": "人工翻译\nHuman Translation rate"
+          },
+          "row": 15,
+          "sheet": "RWS"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "t_only_usd_per_1000_words": 92,
+        "target_language": "es",
+        "target_locale": "es"
+      },
+      {
+        "aipe_usd_per_1000_words": 80,
+        "hourly_rate_usd": 40,
+        "provenance": {
+          "hourly_cell": "G16",
+          "hourly_column": "Hourly rate (USD/h)",
+          "language_cells": {
+            "source": "A16",
+            "target": "B16"
+          },
+          "rate_cells": {
+            "aipe": "F16",
+            "t_only": "D16"
+          },
+          "rate_columns": {
+            "aipe": "AI翻译+人工校准AIPE rate",
+            "t_only": "人工翻译\nHuman Translation rate"
+          },
+          "row": 16,
+          "sheet": "RWS"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "t_only_usd_per_1000_words": 92,
+        "target_language": "el",
+        "target_locale": "el-GR"
+      },
+      {
+        "aipe_usd_per_1000_words": 105,
+        "hourly_rate_usd": 50,
+        "provenance": {
+          "hourly_cell": "G17",
+          "hourly_column": "Hourly rate (USD/h)",
+          "language_cells": {
+            "source": "A17",
+            "target": "B17"
+          },
+          "rate_cells": {
+            "aipe": "F17",
+            "t_only": "D17"
+          },
+          "rate_columns": {
+            "aipe": "AI翻译+人工校准AIPE rate",
+            "t_only": "人工翻译\nHuman Translation rate"
+          },
+          "row": 17,
+          "sheet": "RWS"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "t_only_usd_per_1000_words": 121,
+        "target_language": "nb",
+        "target_locale": "nb"
+      },
+      {
+        "aipe_usd_per_1000_words": 105,
+        "hourly_rate_usd": 50,
+        "provenance": {
+          "hourly_cell": "G18",
+          "hourly_column": "Hourly rate (USD/h)",
+          "language_cells": {
+            "source": "A18",
+            "target": "B18"
+          },
+          "rate_cells": {
+            "aipe": "F18",
+            "t_only": "D18"
+          },
+          "rate_columns": {
+            "aipe": "AI翻译+人工校准AIPE rate",
+            "t_only": "人工翻译\nHuman Translation rate"
+          },
+          "row": 18,
+          "sheet": "RWS"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "t_only_usd_per_1000_words": 121,
+        "target_language": "sv",
+        "target_locale": "sv-SE"
+      },
+      {
+        "aipe_usd_per_1000_words": 86,
+        "hourly_rate_usd": 43,
+        "provenance": {
+          "hourly_cell": "G19",
+          "hourly_column": "Hourly rate (USD/h)",
+          "language_cells": {
+            "source": "A19",
+            "target": "B19"
+          },
+          "rate_cells": {
+            "aipe": "F19",
+            "t_only": "D19"
+          },
+          "rate_columns": {
+            "aipe": "AI翻译+人工校准AIPE rate",
+            "t_only": "人工翻译\nHuman Translation rate"
+          },
+          "row": 19,
+          "sheet": "RWS"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "t_only_usd_per_1000_words": 108,
+        "target_language": "kk",
+        "target_locale": "kk"
+      },
+      {
+        "aipe_usd_per_1000_words": 74,
+        "hourly_rate_usd": 40,
+        "provenance": {
+          "hourly_cell": "G20",
+          "hourly_column": "Hourly rate (USD/h)",
+          "language_cells": {
+            "source": "A20",
+            "target": "B20"
+          },
+          "rate_cells": {
+            "aipe": "F20",
+            "t_only": "D20"
+          },
+          "rate_columns": {
+            "aipe": "AI翻译+人工校准AIPE rate",
+            "t_only": "人工翻译\nHuman Translation rate"
+          },
+          "row": 20,
+          "sheet": "RWS"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "t_only_usd_per_1000_words": 92,
+        "target_language": "ru",
+        "target_locale": "ru-RU"
+      },
+      {
+        "aipe_usd_per_1000_words": 74,
+        "hourly_rate_usd": 40,
+        "provenance": {
+          "hourly_cell": "G21",
+          "hourly_column": "Hourly rate (USD/h)",
+          "language_cells": {
+            "source": "A21",
+            "target": "B21"
+          },
+          "rate_cells": {
+            "aipe": "F21",
+            "t_only": "D21"
+          },
+          "rate_columns": {
+            "aipe": "AI翻译+人工校准AIPE rate",
+            "t_only": "人工翻译\nHuman Translation rate"
+          },
+          "row": 21,
+          "sheet": "RWS"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "t_only_usd_per_1000_words": 92,
+        "target_language": "uk",
+        "target_locale": "uk-UA"
+      },
+      {
+        "aipe_usd_per_1000_words": 105,
+        "hourly_rate_usd": 50,
+        "provenance": {
+          "hourly_cell": "G22",
+          "hourly_column": "Hourly rate (USD/h)",
+          "language_cells": {
+            "source": "A22",
+            "target": "B22"
+          },
+          "rate_cells": {
+            "aipe": "F22",
+            "t_only": "D22"
+          },
+          "rate_columns": {
+            "aipe": "AI翻译+人工校准AIPE rate",
+            "t_only": "人工翻译\nHuman Translation rate"
+          },
+          "row": 22,
+          "sheet": "RWS"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "t_only_usd_per_1000_words": 121,
+        "target_language": "nl",
+        "target_locale": "nl-NL"
+      },
+      {
+        "aipe_usd_per_1000_words": 94,
+        "hourly_rate_usd": 43,
+        "provenance": {
+          "hourly_cell": "G23",
+          "hourly_column": "Hourly rate (USD/h)",
+          "language_cells": {
+            "source": "A23",
+            "target": "B23"
+          },
+          "rate_cells": {
+            "aipe": "F23",
+            "t_only": "D23"
+          },
+          "rate_columns": {
+            "aipe": "AI翻译+人工校准AIPE rate",
+            "t_only": "人工翻译\nHuman Translation rate"
+          },
+          "row": 23,
+          "sheet": "RWS"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "t_only_usd_per_1000_words": 108,
+        "target_language": "de",
+        "target_locale": "de-DE"
+      },
+      {
+        "aipe_usd_per_1000_words": 100,
+        "hourly_rate_usd": 50,
+        "provenance": {
+          "hourly_cell": "G24",
+          "hourly_column": "Hourly rate (USD/h)",
+          "language_cells": {
+            "source": "A24",
+            "target": "B24"
+          },
+          "rate_cells": {
+            "aipe": "F24",
+            "t_only": "D24"
+          },
+          "rate_columns": {
+            "aipe": "AI翻译+人工校准AIPE rate",
+            "t_only": "人工翻译\nHuman Translation rate"
+          },
+          "row": 24,
+          "sheet": "RWS"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "t_only_usd_per_1000_words": 121,
+        "target_language": "et",
+        "target_locale": "et"
+      },
+      {
+        "aipe_usd_per_1000_words": 76,
+        "hourly_rate_usd": 40,
+        "provenance": {
+          "hourly_cell": "G25",
+          "hourly_column": "Hourly rate (USD/h)",
+          "language_cells": {
+            "source": "A25",
+            "target": "B25"
+          },
+          "rate_cells": {
+            "aipe": "F25",
+            "t_only": "D25"
+          },
+          "rate_columns": {
+            "aipe": "AI翻译+人工校准AIPE rate",
+            "t_only": "人工翻译\nHuman Translation rate"
+          },
+          "row": 25,
+          "sheet": "RWS"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "t_only_usd_per_1000_words": 92,
+        "target_language": "cs",
+        "target_locale": "cs-CZ"
+      },
+      {
+        "aipe_usd_per_1000_words": 105,
+        "hourly_rate_usd": 50,
+        "provenance": {
+          "hourly_cell": "G26",
+          "hourly_column": "Hourly rate (USD/h)",
+          "language_cells": {
+            "source": "A26",
+            "target": "B26"
+          },
+          "rate_cells": {
+            "aipe": "F26",
+            "t_only": "D26"
+          },
+          "rate_columns": {
+            "aipe": "AI翻译+人工校准AIPE rate",
+            "t_only": "人工翻译\nHuman Translation rate"
+          },
+          "row": 26,
+          "sheet": "RWS"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "t_only_usd_per_1000_words": 121,
+        "target_language": "fi",
+        "target_locale": "fi-FI"
+      },
+      {
+        "aipe_usd_per_1000_words": 74,
+        "hourly_rate_usd": 40,
+        "provenance": {
+          "hourly_cell": "G27",
+          "hourly_column": "Hourly rate (USD/h)",
+          "language_cells": {
+            "source": "A27",
+            "target": "B27"
+          },
+          "rate_cells": {
+            "aipe": "F27",
+            "t_only": "D27"
+          },
+          "rate_columns": {
+            "aipe": "AI翻译+人工校准AIPE rate",
+            "t_only": "人工翻译\nHuman Translation rate"
+          },
+          "row": 27,
+          "sheet": "RWS"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "t_only_usd_per_1000_words": 92,
+        "target_language": "bg",
+        "target_locale": "bg"
+      },
+      {
+        "aipe_usd_per_1000_words": 76,
+        "hourly_rate_usd": 40,
+        "provenance": {
+          "hourly_cell": "G28",
+          "hourly_column": "Hourly rate (USD/h)",
+          "language_cells": {
+            "source": "A28",
+            "target": "B28"
+          },
+          "rate_cells": {
+            "aipe": "F28",
+            "t_only": "D28"
+          },
+          "rate_columns": {
+            "aipe": "AI翻译+人工校准AIPE rate",
+            "t_only": "人工翻译\nHuman Translation rate"
+          },
+          "row": 28,
+          "sheet": "RWS"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "t_only_usd_per_1000_words": 92,
+        "target_language": "ca",
+        "target_locale": "ca"
+      },
+      {
+        "aipe_usd_per_1000_words": 76,
+        "hourly_rate_usd": 40,
+        "provenance": {
+          "hourly_cell": "G29",
+          "hourly_column": "Hourly rate (USD/h)",
+          "language_cells": {
+            "source": "A29",
+            "target": "B29"
+          },
+          "rate_cells": {
+            "aipe": "F29",
+            "t_only": "D29"
+          },
+          "rate_columns": {
+            "aipe": "AI翻译+人工校准AIPE rate",
+            "t_only": "人工翻译\nHuman Translation rate"
+          },
+          "row": 29,
+          "sheet": "RWS"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "t_only_usd_per_1000_words": 92,
+        "target_language": "pt",
+        "target_locale": "pt"
+      },
+      {
+        "aipe_usd_per_1000_words": 76,
+        "hourly_rate_usd": 40,
+        "provenance": {
+          "hourly_cell": "G30",
+          "hourly_column": "Hourly rate (USD/h)",
+          "language_cells": {
+            "source": "A30",
+            "target": "B30"
+          },
+          "rate_cells": {
+            "aipe": "F30",
+            "t_only": "D30"
+          },
+          "rate_columns": {
+            "aipe": "AI翻译+人工校准AIPE rate",
+            "t_only": "人工翻译\nHuman Translation rate"
+          },
+          "row": 30,
+          "sheet": "RWS"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "t_only_usd_per_1000_words": 92,
+        "target_language": "sq",
+        "target_locale": "sq"
+      },
+      {
+        "aipe_usd_per_1000_words": 76,
+        "hourly_rate_usd": 40,
+        "provenance": {
+          "hourly_cell": "G31",
+          "hourly_column": "Hourly rate (USD/h)",
+          "language_cells": {
+            "source": "A31",
+            "target": "B31"
+          },
+          "rate_cells": {
+            "aipe": "F31",
+            "t_only": "D31"
+          },
+          "rate_columns": {
+            "aipe": "AI翻译+人工校准AIPE rate",
+            "t_only": "人工翻译\nHuman Translation rate"
+          },
+          "row": 31,
+          "sheet": "RWS"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "t_only_usd_per_1000_words": 92,
+        "target_language": "sl",
+        "target_locale": "sl"
+      },
+      {
+        "aipe_usd_per_1000_words": 105,
+        "hourly_rate_usd": 50,
+        "provenance": {
+          "hourly_cell": "G32",
+          "hourly_column": "Hourly rate (USD/h)",
+          "language_cells": {
+            "source": "A32",
+            "target": "B32"
+          },
+          "rate_cells": {
+            "aipe": "F32",
+            "t_only": "D32"
+          },
+          "rate_columns": {
+            "aipe": "AI翻译+人工校准AIPE rate",
+            "t_only": "人工翻译\nHuman Translation rate"
+          },
+          "row": 32,
+          "sheet": "RWS"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "t_only_usd_per_1000_words": 121,
+        "target_language": "is",
+        "target_locale": "is"
+      },
+      {
+        "aipe_usd_per_1000_words": 89,
+        "hourly_rate_usd": 43,
+        "provenance": {
+          "hourly_cell": "G33",
+          "hourly_column": "Hourly rate (USD/h)",
+          "language_cells": {
+            "source": "A33",
+            "target": "B33"
+          },
+          "rate_cells": {
+            "aipe": "F33",
+            "t_only": "D33"
+          },
+          "rate_columns": {
+            "aipe": "AI翻译+人工校准AIPE rate",
+            "t_only": "人工翻译\nHuman Translation rate"
+          },
+          "row": 33,
+          "sheet": "RWS"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "t_only_usd_per_1000_words": 108,
+        "target_language": "sw",
+        "target_locale": "sw"
+      },
+      {
+        "aipe_usd_per_1000_words": 80,
+        "hourly_rate_usd": 40,
+        "provenance": {
+          "hourly_cell": "G34",
+          "hourly_column": "Hourly rate (USD/h)",
+          "language_cells": {
+            "source": "A34",
+            "target": "B34"
+          },
+          "rate_cells": {
+            "aipe": "F34",
+            "t_only": "D34"
+          },
+          "rate_columns": {
+            "aipe": "AI翻译+人工校准AIPE rate",
+            "t_only": "人工翻译\nHuman Translation rate"
+          },
+          "row": 34,
+          "sheet": "RWS"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "t_only_usd_per_1000_words": 92,
+        "target_language": "az",
+        "target_locale": "az"
+      },
+      {
+        "aipe_usd_per_1000_words": 74,
+        "hourly_rate_usd": 40,
+        "provenance": {
+          "hourly_cell": "G35",
+          "hourly_column": "Hourly rate (USD/h)",
+          "language_cells": {
+            "source": "A35",
+            "target": "B35"
+          },
+          "rate_cells": {
+            "aipe": "F35",
+            "t_only": "D35"
+          },
+          "rate_columns": {
+            "aipe": "AI翻译+人工校准AIPE rate",
+            "t_only": "人工翻译\nHuman Translation rate"
+          },
+          "row": 35,
+          "sheet": "RWS"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "t_only_usd_per_1000_words": 92,
+        "target_language": "es-419",
+        "target_locale": "es-419"
+      },
+      {
+        "aipe_usd_per_1000_words": 74,
+        "hourly_rate_usd": 40,
+        "provenance": {
+          "hourly_cell": "G36",
+          "hourly_column": "Hourly rate (USD/h)",
+          "language_cells": {
+            "source": "A36",
+            "target": "B36"
+          },
+          "rate_cells": {
+            "aipe": "F36",
+            "t_only": "D36"
+          },
+          "rate_columns": {
+            "aipe": "AI翻译+人工校准AIPE rate",
+            "t_only": "人工翻译\nHuman Translation rate"
+          },
+          "row": 36,
+          "sheet": "RWS"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "t_only_usd_per_1000_words": 92,
+        "target_language": "hr",
+        "target_locale": "hr"
+      }
+    ],
+    "Skrivanek": [
+      {
+        "hourly_rate_usd": 35,
+        "provenance": {
+          "hourly_cell": "C2",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A2",
+            "target": "B2"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 2,
+          "sheet": "Skrivanek"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Arabic",
+        "target_locale": "ar"
+      },
+      {
+        "hourly_rate_usd": 35,
+        "provenance": {
+          "hourly_cell": "C3",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A3",
+            "target": "B3"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 3,
+          "sheet": "Skrivanek"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Azerbaijani",
+        "target_locale": "az"
+      },
+      {
+        "hourly_rate_usd": 35,
+        "provenance": {
+          "hourly_cell": "C4",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A4",
+            "target": "B4"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 4,
+          "sheet": "Skrivanek"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Bulgarian",
+        "target_locale": "bg"
+      },
+      {
+        "hourly_rate_usd": 30,
+        "provenance": {
+          "hourly_cell": "C5",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A5",
+            "target": "B5"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 5,
+          "sheet": "Skrivanek"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Bengali (India)",
+        "target_locale": "bn-IN"
+      },
+      {
+        "hourly_rate_usd": 40,
+        "provenance": {
+          "hourly_cell": "C6",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A6",
+            "target": "B6"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 6,
+          "sheet": "Skrivanek"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Catalan",
+        "target_locale": "ca"
+      },
+      {
+        "hourly_rate_usd": 35,
+        "provenance": {
+          "hourly_cell": "C7",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A7",
+            "target": "B7"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 7,
+          "sheet": "Skrivanek"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Cebuano (Philippines)",
+        "target_locale": "ceb-PH"
+      },
+      {
+        "hourly_rate_usd": 25,
+        "provenance": {
+          "hourly_cell": "C8",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A8",
+            "target": "B8"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 8,
+          "sheet": "Skrivanek"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Czech (Czech Republic)",
+        "target_locale": "cs-CZ"
+      },
+      {
+        "hourly_rate_usd": 50,
+        "provenance": {
+          "hourly_cell": "C9",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A9",
+            "target": "B9"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 9,
+          "sheet": "Skrivanek"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Danish",
+        "target_locale": "da"
+      },
+      {
+        "hourly_rate_usd": 40,
+        "provenance": {
+          "hourly_cell": "C10",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A10",
+            "target": "B10"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 10,
+          "sheet": "Skrivanek"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "German (Germany)",
+        "target_locale": "de-DE"
+      },
+      {
+        "hourly_rate_usd": 35,
+        "provenance": {
+          "hourly_cell": "C11",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A11",
+            "target": "B11"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 11,
+          "sheet": "Skrivanek"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Greek (Greece)",
+        "target_locale": "el-GR"
+      },
+      {
+        "hourly_rate_usd": 25,
+        "provenance": {
+          "hourly_cell": "C12",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A12",
+            "target": "B12"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 12,
+          "sheet": "Skrivanek"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "English (United Kingdom)",
+        "target_locale": "en-GB"
+      },
+      {
+        "hourly_rate_usd": 35,
+        "provenance": {
+          "hourly_cell": "C13",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A13",
+            "target": "B13"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 13,
+          "sheet": "Skrivanek"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Spanish",
+        "target_locale": "es"
+      },
+      {
+        "hourly_rate_usd": 35,
+        "provenance": {
+          "hourly_cell": "C14",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A14",
+            "target": "B14"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 14,
+          "sheet": "Skrivanek"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Spanish (Latin America)",
+        "target_locale": "es-419"
+      },
+      {
+        "hourly_rate_usd": 40,
+        "provenance": {
+          "hourly_cell": "C15",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A15",
+            "target": "B15"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 15,
+          "sheet": "Skrivanek"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Estonian",
+        "target_locale": "et"
+      },
+      {
+        "hourly_rate_usd": 30,
+        "provenance": {
+          "hourly_cell": "C16",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A16",
+            "target": "B16"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 16,
+          "sheet": "Skrivanek"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Persian (Iran)",
+        "target_locale": "fa-IR"
+      },
+      {
+        "hourly_rate_usd": 50,
+        "provenance": {
+          "hourly_cell": "C17",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A17",
+            "target": "B17"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 17,
+          "sheet": "Skrivanek"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Finnish (Finland)",
+        "target_locale": "fi-FI"
+      },
+      {
+        "hourly_rate_usd": 30,
+        "provenance": {
+          "hourly_cell": "C18",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A18",
+            "target": "B18"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 18,
+          "sheet": "Skrivanek"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Filipino (Philippines)",
+        "target_locale": "fil-PH"
+      },
+      {
+        "hourly_rate_usd": 40,
+        "provenance": {
+          "hourly_cell": "C19",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A19",
+            "target": "B19"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 19,
+          "sheet": "Skrivanek"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "French",
+        "target_locale": "fr"
+      },
+      {
+        "hourly_rate_usd": 40,
+        "provenance": {
+          "hourly_cell": "C20",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A20",
+            "target": "B20"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 20,
+          "sheet": "Skrivanek"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "French (Canada)",
+        "target_locale": "fr-CA"
+      },
+      {
+        "hourly_rate_usd": 50,
+        "provenance": {
+          "hourly_cell": "C21",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A21",
+            "target": "B21"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 21,
+          "sheet": "Skrivanek"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Irish",
+        "target_locale": "ga"
+      },
+      {
+        "hourly_rate_usd": 40,
+        "provenance": {
+          "hourly_cell": "C22",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A22",
+            "target": "B22"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 22,
+          "sheet": "Skrivanek"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Hebrew (Israel)",
+        "target_locale": "he-IL"
+      },
+      {
+        "hourly_rate_usd": 30,
+        "provenance": {
+          "hourly_cell": "C23",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A23",
+            "target": "B23"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 23,
+          "sheet": "Skrivanek"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Hindi (India)",
+        "target_locale": "hi-IN"
+      },
+      {
+        "hourly_rate_usd": 35,
+        "provenance": {
+          "hourly_cell": "C24",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A24",
+            "target": "B24"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 24,
+          "sheet": "Skrivanek"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Croatian",
+        "target_locale": "hr"
+      },
+      {
+        "hourly_rate_usd": 35,
+        "provenance": {
+          "hourly_cell": "C25",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A25",
+            "target": "B25"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 25,
+          "sheet": "Skrivanek"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Hungarian (Hungary)",
+        "target_locale": "hu-HU"
+      },
+      {
+        "hourly_rate_usd": 35,
+        "provenance": {
+          "hourly_cell": "C26",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A26",
+            "target": "B26"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 26,
+          "sheet": "Skrivanek"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Indonesian (Indonesia)",
+        "target_locale": "id-ID"
+      },
+      {
+        "hourly_rate_usd": 50,
+        "provenance": {
+          "hourly_cell": "C27",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A27",
+            "target": "B27"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 27,
+          "sheet": "Skrivanek"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Icelandic",
+        "target_locale": "is"
+      },
+      {
+        "hourly_rate_usd": 35,
+        "provenance": {
+          "hourly_cell": "C28",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A28",
+            "target": "B28"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 28,
+          "sheet": "Skrivanek"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Italian (Italy)",
+        "target_locale": "it-IT"
+      },
+      {
+        "hourly_rate_usd": 40,
+        "provenance": {
+          "hourly_cell": "C29",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A29",
+            "target": "B29"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 29,
+          "sheet": "Skrivanek"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Japanese (Japan)",
+        "target_locale": "ja-JP"
+      },
+      {
+        "hourly_rate_usd": 30,
+        "provenance": {
+          "hourly_cell": "C30",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A30",
+            "target": "B30"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 30,
+          "sheet": "Skrivanek"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Javanese (Indonesia)",
+        "target_locale": "jv-ID"
+      },
+      {
+        "hourly_rate_usd": 40,
+        "provenance": {
+          "hourly_cell": "C31",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A31",
+            "target": "B31"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 31,
+          "sheet": "Skrivanek"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Kazakh",
+        "target_locale": "kk"
+      },
+      {
+        "hourly_rate_usd": 40,
+        "provenance": {
+          "hourly_cell": "C32",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A32",
+            "target": "B32"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 32,
+          "sheet": "Skrivanek"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Khmer (Cambodia)",
+        "target_locale": "km-KH"
+      },
+      {
+        "hourly_rate_usd": 40,
+        "provenance": {
+          "hourly_cell": "C33",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A33",
+            "target": "B33"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 33,
+          "sheet": "Skrivanek"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Korean (South Korea)",
+        "target_locale": "ko-KR"
+      },
+      {
+        "hourly_rate_usd": 30,
+        "provenance": {
+          "hourly_cell": "C34",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A34",
+            "target": "B34"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 34,
+          "sheet": "Skrivanek"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Lithuanian",
+        "target_locale": "lt"
+      },
+      {
+        "hourly_rate_usd": 30,
+        "provenance": {
+          "hourly_cell": "C35",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A35",
+            "target": "B35"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 35,
+          "sheet": "Skrivanek"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Latvian",
+        "target_locale": "lv"
+      },
+      {
+        "hourly_rate_usd": 30,
+        "provenance": {
+          "hourly_cell": "C36",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A36",
+            "target": "B36"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 36,
+          "sheet": "Skrivanek"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Malay (Malaysia)",
+        "target_locale": "ms-MY"
+      },
+      {
+        "hourly_rate_usd": 35,
+        "provenance": {
+          "hourly_cell": "C37",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A37",
+            "target": "B37"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 37,
+          "sheet": "Skrivanek"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Burmese (Myanmar)",
+        "target_locale": "my-MM"
+      },
+      {
+        "hourly_rate_usd": 50,
+        "provenance": {
+          "hourly_cell": "C38",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A38",
+            "target": "B38"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 38,
+          "sheet": "Skrivanek"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Norwegian Bokmål",
+        "target_locale": "nb"
+      },
+      {
+        "hourly_rate_usd": 40,
+        "provenance": {
+          "hourly_cell": "C39",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A39",
+            "target": "B39"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 39,
+          "sheet": "Skrivanek"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Dutch (Netherlands)",
+        "target_locale": "nl-NL"
+      },
+      {
+        "hourly_rate_usd": 25,
+        "provenance": {
+          "hourly_cell": "C40",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A40",
+            "target": "B40"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 40,
+          "sheet": "Skrivanek"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Polish (Poland)",
+        "target_locale": "pl-PL"
+      },
+      {
+        "hourly_rate_usd": 35,
+        "provenance": {
+          "hourly_cell": "C41",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A41",
+            "target": "B41"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 41,
+          "sheet": "Skrivanek"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Portuguese",
+        "target_locale": "pt"
+      },
+      {
+        "hourly_rate_usd": 35,
+        "provenance": {
+          "hourly_cell": "C42",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A42",
+            "target": "B42"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 42,
+          "sheet": "Skrivanek"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Portuguese (Brazil)",
+        "target_locale": "pt-BR"
+      },
+      {
+        "hourly_rate_usd": 30,
+        "provenance": {
+          "hourly_cell": "C43",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A43",
+            "target": "B43"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 43,
+          "sheet": "Skrivanek"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Romanian (Romania)",
+        "target_locale": "ro-RO"
+      },
+      {
+        "hourly_rate_usd": 30,
+        "provenance": {
+          "hourly_cell": "C44",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A44",
+            "target": "B44"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 44,
+          "sheet": "Skrivanek"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Russian (Russia)",
+        "target_locale": "ru-RU"
+      },
+      {
+        "hourly_rate_usd": 30,
+        "provenance": {
+          "hourly_cell": "C45",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A45",
+            "target": "B45"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 45,
+          "sheet": "Skrivanek"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Slovak",
+        "target_locale": "sk"
+      },
+      {
+        "hourly_rate_usd": 35,
+        "provenance": {
+          "hourly_cell": "C46",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A46",
+            "target": "B46"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 46,
+          "sheet": "Skrivanek"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Slovenian",
+        "target_locale": "sl"
+      },
+      {
+        "hourly_rate_usd": 30,
+        "provenance": {
+          "hourly_cell": "C47",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A47",
+            "target": "B47"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 47,
+          "sheet": "Skrivanek"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Albanian",
+        "target_locale": "sq"
+      },
+      {
+        "hourly_rate_usd": 50,
+        "provenance": {
+          "hourly_cell": "C48",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A48",
+            "target": "B48"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 48,
+          "sheet": "Skrivanek"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Swedish (Sweden)",
+        "target_locale": "sv-SE"
+      },
+      {
+        "hourly_rate_usd": 40,
+        "provenance": {
+          "hourly_cell": "C49",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A49",
+            "target": "B49"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 49,
+          "sheet": "Skrivanek"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Swahili",
+        "target_locale": "sw"
+      },
+      {
+        "hourly_rate_usd": 30,
+        "provenance": {
+          "hourly_cell": "C50",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A50",
+            "target": "B50"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 50,
+          "sheet": "Skrivanek"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Thai (Thailand)",
+        "target_locale": "th-TH"
+      },
+      {
+        "hourly_rate_usd": 35,
+        "provenance": {
+          "hourly_cell": "C51",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A51",
+            "target": "B51"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 51,
+          "sheet": "Skrivanek"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Turkish (Turkey)",
+        "target_locale": "tr-TR"
+      },
+      {
+        "hourly_rate_usd": 30,
+        "provenance": {
+          "hourly_cell": "C52",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A52",
+            "target": "B52"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 52,
+          "sheet": "Skrivanek"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Ukrainian (Ukraine)",
+        "target_locale": "uk-UA"
+      },
+      {
+        "hourly_rate_usd": 30,
+        "provenance": {
+          "hourly_cell": "C53",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A53",
+            "target": "B53"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 53,
+          "sheet": "Skrivanek"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Urdu",
+        "target_locale": "ur"
+      },
+      {
+        "hourly_rate_usd": 40,
+        "provenance": {
+          "hourly_cell": "C54",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A54",
+            "target": "B54"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 54,
+          "sheet": "Skrivanek"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Uzbek",
+        "target_locale": "uz"
+      },
+      {
+        "hourly_rate_usd": 30,
+        "provenance": {
+          "hourly_cell": "C55",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A55",
+            "target": "B55"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 55,
+          "sheet": "Skrivanek"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Vietnamese (Vietnam)",
+        "target_locale": "vi-VN"
+      },
+      {
+        "hourly_rate_usd": 22,
+        "provenance": {
+          "hourly_cell": "C56",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A56",
+            "target": "B56"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 56,
+          "sheet": "Skrivanek"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Chinese (Simplified)",
+        "target_locale": "zh-Hans"
+      },
+      {
+        "hourly_rate_usd": 22,
+        "provenance": {
+          "hourly_cell": "C57",
+          "hourly_column": "Hourly Rate/USD",
+          "language_cells": {
+            "source": "A57",
+            "target": "B57"
+          },
+          "rate_cells": {},
+          "rate_columns": {},
+          "row": 57,
+          "sheet": "Skrivanek"
+        },
+        "source_language": "English",
+        "source_locale": "en",
+        "target_language": "Chinese (Traditional, Taiwan)",
+        "target_locale": "zh-Hant-TW"
+      }
+    ]
+  }
+}

@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>L10n TM Companion — Settings</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <div class="container">
+    <h1>L10n TM Companion Settings</h1>
+
+    <section class="card">
+      <h2>Starling TM</h2>
+      <p class="hint help-links">
+        AK/SK are tied to your personal account. Configure them once here; the popup will then load the projects your account can access.
+        <a href="https://starling.bytedance.net/personal_center#aksk" target="_blank">Apply for AK/SK on Starling →</a>
+      </p>
+      <div class="credential-field">
+        <label for="starlingAccessKey">Access Key (AK)</label>
+        <div class="secret-input-row">
+          <input id="starlingAccessKey" type="password" autocomplete="off" placeholder="Enter your full Access Key">
+          <button type="button" class="reveal-button" data-reveal-target="starlingAccessKey" aria-label="Show Access Key">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="2.5"/></svg>
+            <span class="reveal-label">Show</span>
+          </button>
+        </div>
+      </div>
+      <div class="credential-field">
+        <label for="starlingSecretKey">Secret Key (SK)</label>
+        <div class="secret-input-row">
+          <input id="starlingSecretKey" type="password" autocomplete="off" placeholder="Enter your full Secret Key">
+          <button type="button" class="reveal-button" data-reveal-target="starlingSecretKey" aria-label="Show Secret Key">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="2.5"/></svg>
+            <span class="reveal-label">Show</span>
+          </button>
+        </div>
+      </div>
+      <p class="hint security-note">
+        Full credentials are stored in both Chrome local storage and the official Starling CLI config. Chrome storage is plaintext to provide a recovery copy if the Native Host config is cleared; use this only in your managed browser profile.
+      </p>
+      <button type="button" id="save-starling-credentials" class="btn btn-primary">Save &amp; Verify</button>
+      <p id="starling-credentials-result" class="test-result"></p>
+      <button id="test-cli" class="btn-test">Test connection</button>
+      <p id="cli-test-result" class="test-result"></p>
+
+      <details class="advanced">
+        <summary>Advanced: Native Host and TM query mode</summary>
+        <p class="hint">Leave CLI path empty to auto-detect starling-cli. Vendor, projects, and target locale are selected in the popup for each run.</p>
+        <label>Starling CLI path (leave empty to auto-detect)
+          <input type="text" id="starlingCliPath" placeholder="Leave empty, no need to fill">
+        </label>
+        <label>TM query mode
+          <select id="starlingTmMode">
+            <option value="batch_ppe">Batch TM API in PPE (default, up to 10 texts per request)</option>
+            <option value="legacy_cli">Legacy single-text CLI query</option>
+          </select>
+        </label>
+        <p class="hint">Batch mode uses the PPE API verified in this project. It preserves all input order and sends three source texts per request until Starling confirms a larger sourceContents limit.</p>
+      </details>
+    </section>
+
+    <section class="card">
+      <h2>LLM API (optional)</h2>
+      <p class="hint help-links">
+        AI rewrite is off by default — TM queries work fine without it. To enable, fill in your own LLM credentials (company LLMBox or other compatible API).
+      </p>
+      <label class="toggle">
+        <input type="checkbox" id="enableAI">
+        <span>Enable AI rewrite (calls LLM to rewrite source when TM misses, to boost hit rate)</span>
+      </label>
+      <p class="hint">When off: TM hit uses TM, missed entries are left empty marked "AI disabled". When on, pick a provider below and fill in API Key.</p>
+      <label>LLM Provider
+        <select id="llmProvider">
+          <option value="inspire">Inspire Writer (recommended for company users)</option>
+          <option value="claude">Claude (Anthropic)</option>
+          <option value="deepseek">DeepSeek</option>
+          <option value="custom">Custom (manually fill endpoint/model)</option>
+        </select>
+      </label>
+      <div id="inspire-fields" class="provider-fields hidden">
+        <label>Inspire teamId
+          <input type="text" id="inspireTeamId" placeholder="LIVE CD teamId">
+        </label>
+        <p class="hint security-note">Personal <code>wak_…</code> Access Key is for local Demo use. Production distribution requires a tenant-signing backend; never put a tenant API Secret in the extension.</p>
+      </div>
+      <label>API Key
+        <input type="password" id="llmApiKey" placeholder="Enter API Key or Inspire wak_… Access Key">
+      </label>
+      <label>API endpoint (auto-filled by provider, editable for custom)
+        <input type="text" id="llmEndpoint" placeholder="Auto-filled by provider">
+      </label>
+      <label id="model-select-field">Model
+        <select id="llmModel">
+          <option value="gemini_3f">Gemini 3 Flash — fastest</option>
+          <option value="gemini-3.1-p-priority">Gemini 3.1 Pro — balanced quality</option>
+          <option value="gpt-5.4-mini-2026-03-17">GPT 5.4 mini — balanced OpenAI model</option>
+          <option value="gpt-5.4-2026-03-05">GPT 5.4 — highest quality, slowest</option>
+        </select>
+      </label>
+      <label id="custom-model-field" class="hidden">Custom model name
+        <input type="text" id="llmCustomModel" placeholder="Only required for Custom provider">
+      </label>
+      <label>Thinking level
+        <select id="llmThinkingLevel">
+          <option value="low">Low — fastest, recommended for UI copy rewrite</option>
+          <option value="medium">Medium — balanced</option>
+          <option value="high">High — slowest, complex review only</option>
+        </select>
+      </label>
+    </section>
+
+    <section class="card">
+      <h2>Feishu Spreadsheet</h2>
+      <p class="hint help-links">
+        Requires a Feishu custom app with <code>sheets:spreadsheet</code> permission.
+        <a href="https://open.feishu.cn/app" target="_blank">Create / manage app on Feishu Open Platform →</a>
+      </p>
+      <label>Feishu App ID
+        <input type="text" id="feishuAppId" placeholder="cli_xxxxxxxxxxxxxxxx">
+      </label>
+      <label>Feishu App Secret
+        <input type="password" id="feishuAppSecret" autocomplete="off" placeholder="Enter App Secret">
+      </label>
+      <p class="hint">
+        Open the Side Panel from a Feishu Spreadsheet to select it automatically. Spreadsheet, Sheet, source column, data start row, and output start column are configured in the Working spreadsheet section.
+      </p>
+      <p id="working-sheet-status" class="test-result"></p>
+      <button id="test-feishu" class="btn-test">Test Feishu connection</button>
+      <p id="feishu-test-result" class="test-result"></p>
+
+      <details>
+        <summary>Dynamic column layout</summary>
+        <p>The Side Panel detects standard source headers in the first 20 rows and lets you confirm or change the source column, data start row, and output start column for each Sheet.</p>
+        <p>The output occupies six consecutive columns: Best TM Match, Orig Match %, Rewritten Segment, New Match %, Reached 85%?, and CD review valid?.</p>
+      </details>
+
+      <label>ROI archive Bitable
+        <input type="url" id="roiArchiveUrl" placeholder="Paste a Feishu Wiki or /base/ Bitable link">
+      </label>
+      <p class="hint">This target stores ROI run history only. Spreadsheet write-back remains separate.</p>
+
+      <p class="hint security-note">App ID and App Secret are stored in this Chrome profile. Each user who installs the extension must enter their own approved app credentials.</p>
+    </section>
+
+    <div class="actions">
+      <button id="btn-save" class="btn btn-primary">Save settings</button>
+      <span id="save-result" class="test-result"></span>
+    </div>
+  </div>
+
+  <script type="module" src="options.js"></script>
+</body>
+</html>

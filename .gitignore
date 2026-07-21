@@ -1,0 +1,25 @@
+.DS_Store
+__pycache__/
+*.py[cod]
+
+# 本机环境与凭证
+.env
+.env.*
+!.env.example
+.starlingrc.json
+*.pem
+*.key
+*.crx
+
+# 本地运行产物
+node_modules/
+.venv/
+dist/
+temp/
+*.log
+*.sqlite
+*.db
+*.zip
+
+# 会话交接可能包含内部配置，只保留在本机
+handoff/

@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>L10n TM Companion</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header class="header">
+      <h1>L10n TM Companion</h1>
+      <div class="header-actions">
+        <label for="ui-language" class="sr-only">Interface language</label>
+        <select id="ui-language" class="language-select" aria-label="Interface language">
+          <option value="en">EN</option>
+          <option value="zh-CN" data-i18n="languageChinese">Chinese</option>
+        </select>
+      <button id="settings-btn" title="Settings" class="icon-btn" aria-label="Settings">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
+      </div>
+    </header>
+
+    <!-- Tab nav: main flow / results -->
+    <nav class="tabs">
+      <button id="tab-main" class="tab active" data-tab="main"><span data-i18n="workflow">Workflow</span></button>
+      <button id="tab-results" class="tab" data-tab="results"><span data-i18n="results">Results</span> <span id="results-badge" class="results-badge hidden"></span></button>
+    </nav>
+
+    <!-- ===== Tab: main flow ===== -->
+    <section id="view-main" class="tab-view">
+      <!-- Health check -->
+      <details id="health-details" class="collapse health-collapse">
+        <summary><span id="health-summary">Checking environment…</span></summary>
+        <div id="health" class="health"></div>
+      </details>
+
+      <!-- Run configuration: vendor、项目和整车 ROI 语言范围的唯一来源 -->
+      <details id="run-config-details" class="collapse run-config-collapse" open>
+        <summary><span id="run-config-summary">Run configuration · setup required</span></summary>
+        <div class="run-config-body">
+          <div id="setup-required" class="setup-required hidden">
+            <strong>Setup required</strong>
+            <span>Configure and verify your full Starling AK/SK before loading projects.</span>
+            <button type="button" id="setup-open-settings" class="btn btn-secondary">Open Settings</button>
+          </div>
+          <label class="feature-toggle" for="enable-roi">
+            <span>
+              <strong data-i18n="roiMode">ROI mode</strong>
+              <small data-i18n="roiHint">Off by default. Turn on only for all-language pricing and archive.</small>
+            </span>
+            <input type="checkbox" id="enable-roi" role="switch" aria-controls="roi-config roi-language-details">
+          </label>
+          <div id="roi-config" class="roi-config hidden">
+          <label for="run-vendor" data-i18n="vendor">Vendor</label>
+          <select id="run-vendor" required>
+            <option value="">Select a vendor</option>
+            <option value="RWS">RWS</option>
+            <option value="Pactera">Pactera</option>
+            <option value="Alconost">Alconost</option>
+            <option value="Skrivanek">Skrivanek</option>
+          </select>
+          </div>
+          <details id="run-project-details" class="run-subsection" open>
+            <summary><span data-i18n="projects">Projects</span> <span id="run-project-count">0/10</span></summary>
+            <div class="run-subsection-body">
+              <button type="button" id="refresh-projects" class="inline-button" data-i18n="refreshProjects">Refresh projects</button>
+              <div id="run-project-cards" class="run-project-cards"></div>
+              <p id="run-project-status" class="run-status"></p>
+            </div>
+          </details>
+          <label for="run-target-locale" data-i18n="fastTarget">Fast TM target language</label>
+          <select id="run-target-locale" required>
+            <option value="">Select projects first</option>
+          </select>
+          <p class="hint" data-i18n="fastTargetHint">The default path queries this language once across all selected projects.</p>
+          <details id="roi-language-details" class="run-subsection roi-only hidden">
+            <summary><span data-i18n="roiLanguages">ROI coverage languages</span> <span id="roi-scope-count" class="run-scope-count">0 scopes</span></summary>
+            <div class="run-subsection-body">
+              <div class="roi-language-actions">
+                <button type="button" id="roi-select-all" class="inline-button" data-i18n="selectAll">Select all</button>
+                <button type="button" id="roi-clear-all" class="inline-button" data-i18n="clearAll">Clear all</button>
+              </div>
+              <input id="roi-locale-filter" class="roi-locale-filter" type="search" placeholder="Search locale, e.g. fr or zh-Hans" autocomplete="off" />
+              <div id="roi-language-coverage" class="roi-language-coverage"></div>
+              <p class="hint" data-i18n="roiSharedHint">AI rewrites the English source in English. Choose the shared target languages once; every selected project is queried for the same languages. Only common languages with an exact vendor word rate are shown.</p>
+              <p id="run-pricing-status" class="run-status"></p>
+            </div>
+          </details>
+        </div>
+      </details>
+
+      <!-- Step 1: Source -->
+      <section class="step-panel" id="panel-1">
+        <div class="panel-label" data-i18n="source">1. Source</div>
+        <button id="btn-read-sheet" class="btn btn-primary btn-block" data-i18n="readSheet">Read configured source range</button>
+        <details class="collapse sub-actions">
+          <summary data-i18n="otherSources">Other sources (DOM extraction, may be noisy)</summary>
+          <div class="actions">
+            <button id="btn-extract-all" class="btn btn-secondary btn-block" data-i18n="extractAll">Extract all text</button>
+            <button id="btn-extract-sel" class="btn btn-secondary btn-block" data-i18n="extractSelection">Extract selection</button>
+          </div>
+          <p class="doc-info" id="doc-title">No Feishu doc detected</p>
+        </details>
+      </section>
+
+      <!-- Step 2: Working spreadsheet -->
+      <details id="working-sheet-details" class="collapse working-sheet-details">
+        <summary><span id="working-sheet-summary">② Working spreadsheet · detecting…</span></summary>
+        <section class="step-panel" id="panel-2">
+          <p id="working-sheet-help" class="hint">Detecting the current Feishu spreadsheet…</p>
+          <div id="sheet-context-config" class="sheet-context-config hidden">
+            <label for="working-sheet-select" data-i18n="sheet">Sheet</label>
+            <select id="working-sheet-select"></select>
+            <div class="sheet-layout-grid">
+              <label for="sheet-source-column">
+                <span data-i18n="sourceColumn">Source column</span>
+                <select id="sheet-source-column"></select>
+              </label>
+              <label for="sheet-data-start-row">
+                <span data-i18n="dataStartRow">Data start row</span>
+                <input id="sheet-data-start-row" type="number" min="2" step="1" inputmode="numeric">
+              </label>
+              <label for="sheet-output-start-column">
+                <span data-i18n="outputStartColumn">Output start column</span>
+                <select id="sheet-output-start-column"></select>
+              </label>
+            </div>
+            <p id="sheet-layout-status" class="run-status"></p>
+            <div id="sheet-range-summary" class="sheet-range-summary"></div>
+            <div class="sheet-preview-block">
+              <strong data-i18n="sourcePreview">Source preview (first 5 non-empty rows)</strong>
+              <ol id="sheet-source-preview" class="sheet-source-preview"></ol>
+            </div>
+            <button id="btn-confirm-sheet-layout" type="button" class="btn btn-secondary btn-block" data-i18n="confirmLayout">Confirm this layout</button>
+          </div>
+          <div id="dest-summary" class="dest-summary hidden"></div>
+          <details id="working-sheet-override" class="working-sheet-override">
+            <summary>Use a different spreadsheet</summary>
+            <p class="hint">This overrides automatic detection until you choose the current page again.</p>
+            <input id="dest-url" class="dest-input" type="text" placeholder="Paste a Feishu spreadsheet link" autocomplete="off" />
+            <button id="btn-set-dest" class="btn btn-secondary btn-block">Use this spreadsheet</button>
+            <button id="btn-use-current-sheet" class="btn btn-secondary btn-block hidden">Use current page instead</button>
+          </details>
+        </section>
+      </details>
+
+      <!-- Progress -->
+      <div id="progress" class="progress hidden">
+        <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+        <span id="progress-text">Processing...</span>
+      </div>
+
+      <!-- Status / error -->
+      <div id="status" class="status hidden"></div>
+
+      <!-- Destination preview (before/after write) -->
+      <div id="dest-preview" class="dest-preview hidden"></div>
+
+      <!-- Step 5: Write back -->
+      <footer class="footer">
+        <button id="btn-write-bitable" class="btn btn-success" disabled data-i18n="writeBack">Write back to sheet</button>
+        <span id="selected-count">Selected 0/0</span>
+      </footer>
+    </section>
+
+    <!-- ===== Tab: results ===== -->
+    <section id="view-results" class="tab-view hidden">
+      <div class="results-toolbar">
+        <span class="results-title" data-i18n="resultTitle">Extraction & processing results</span>
+        <button id="btn-back-main" class="btn-sm" data-i18n="back">Back to workflow</button>
+      </div>
+      <div id="multilingual-roi-summary" class="multilingual-roi-summary roi-only hidden"></div>
+      <div id="roi-archive-preview" class="dest-preview roi-only hidden"></div>
+      <div id="results" class="results"></div>
+      <!-- Write back: after reviewing results -->
+      <footer class="footer results-footer">
+        <button id="btn-write-results" class="btn btn-success" disabled data-i18n="writeBack">Write back to sheet</button>
+        <button id="btn-validate-final" class="btn btn-secondary roi-only hidden" disabled data-i18n="validateFinal" data-i18n-title="validateFinalTitle" title="Reads the confirmed final source and runs the third TM query.">Confirm final C and calculate Score C</button>
+        <button id="btn-write-roi-archive" class="btn btn-success roi-only hidden" disabled data-i18n="writeRoi">Write ROI archive</button>
+        <span id="selected-count-results">Selected 0/0</span>
+      </footer>
+    </section>
+  </div>
+
+  <!-- Focus overlay: single result detail view -->
+  <div id="focus-overlay" class="focus-overlay hidden">
+    <div class="focus-box">
+      <div class="focus-header">
+        <span class="focus-title" data-i18n="focusTitle">Result detail</span>
+        <span class="focus-nav">
+          <button id="focus-prev" class="focus-nav-btn" data-i18n="previous">Previous</button>
+          <span id="focus-pos"></span>
+          <button id="focus-next" class="focus-nav-btn" data-i18n="next">Next</button>
+        </span>
+        <button id="focus-close" class="focus-close" aria-label="Close">✕</button>
+      </div>
+      <div id="focus-body" class="focus-body"></div>
+    </div>
+  </div>
+
+  <script type="module" src="popup.js"></script>
+</body>
+</html>
