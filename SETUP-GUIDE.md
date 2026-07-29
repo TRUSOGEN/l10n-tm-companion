@@ -1,5 +1,7 @@
 # L10n TM Companion — 安装与使用指南（分享版）
 
+> 本文是历史版本，仅保留旧流程背景。当前线下安装、凭证申请链接、任意工作表选择与排障请以 [`docs/offline-install-manual.md`](docs/offline-install-manual.md) 为准；离线包已内置 Python、Node.js 与 Starling CLI。
+
 > Chrome 扩展：从飞书文档抓取英文原文 → 查 Starling TM 记忆库 → AI 改写提升 TM 命中率 → 算匹配度 → 写回飞书电子表格。
 > 纯客户端，无后端，全程在本机运行。
 
@@ -102,7 +104,7 @@ Popup 自动列出当前 AK/SK 有权访问的项目。选择一个 vendor、一
 5. 查看每条文案的 Best TM Match、Orig Match % 与来源
 6. 对未达标（<85%）的条目查看 AI 改写建议（Rewritten Segment）与 New Match %
 7. 查看对比结论 Comment（improved / same / different / no_tm）
-8. 在每张卡片选择「采纳AI」/「沿用TM」/「手动编辑」，可点「放大」查看详情
+8. 结果按 Sheet 原始行号显示；在每张卡片选择「保持原文 A」/「使用 AI 候选 B」/「手动编辑」，可点「放大」查看详情
 9. 点击「写回表格」，结果按真实行号写入飞书表格 B–F/H–J，G 列保留人工 CD review
 
 > 💡 wiki/doc 页若「抓取全文」抓不到，可选中文字用「抓取选中文字」（走 `window.getSelection()`，不依赖 DOM 选择器，几乎一定能抓到）。

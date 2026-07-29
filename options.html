@@ -9,12 +9,30 @@
   <div class="container">
     <h1>L10n TM Companion Settings</h1>
 
+    <section class="quick-setup" aria-labelledby="quick-setup-title">
+      <h2 id="quick-setup-title">Setup in 4 steps</h2>
+      <ol class="setup-steps">
+        <li>
+          <span class="setup-step-number">1</span>
+          <span><a href="https://starling.bytedance.net/personal_center#aksk" target="_blank">Open Starling personal center</a> → copy AK and SK → paste them below → <strong>Save &amp; Verify</strong>.</span>
+        </li>
+        <li>
+          <span class="setup-step-number">2</span>
+          <span><a href="https://inspire.bytedance.net" target="_blank">Open Inspire Writer</a> → get a personal <code>wak_…</code> key from the Inspire Pilot owner → paste it into <strong>API Key</strong>. Skip this step when AI rewrite is off.</span>
+        </li>
+        <li>
+          <span class="setup-step-number">3</span>
+          <span><strong>Feishu App Secret:</strong> get it from your team owner → below, expand <strong>Feishu App Secret</strong> → click <strong>Enter Feishu App Secret</strong> → paste it in the macOS dialog.</span>
+        </li>
+        <li>
+          <span class="setup-step-number">4</span>
+          <span>Return to <strong>Workflow</strong> → click <strong>Authorize</strong> → select projects → run.</span>
+        </li>
+      </ol>
+    </section>
+
     <section class="card">
       <h2>Starling TM</h2>
-      <p class="hint help-links">
-        AK/SK are tied to your personal account. Configure them once here; the popup will then load the projects your account can access.
-        <a href="https://starling.bytedance.net/personal_center#aksk" target="_blank">Apply for AK/SK on Starling →</a>
-      </p>
       <div class="credential-field">
         <label for="starlingAccessKey">Access Key (AK)</label>
         <div class="secret-input-row">
@@ -35,10 +53,8 @@
           </button>
         </div>
       </div>
-      <p class="hint security-note">
-        Full credentials are stored in both Chrome local storage and the official Starling CLI config. Chrome storage is plaintext to provide a recovery copy if the Native Host config is cleared; use this only in your managed browser profile.
-      </p>
       <button type="button" id="save-starling-credentials" class="btn btn-primary">Save &amp; Verify</button>
+      <p class="hint compact-note">Saved in Chrome local storage and the official Starling CLI config.</p>
       <p id="starling-credentials-result" class="test-result"></p>
       <button id="test-cli" class="btn-test">Test connection</button>
       <p id="cli-test-result" class="test-result"></p>
@@ -55,20 +71,17 @@
             <option value="legacy_cli">Legacy single-text CLI query</option>
           </select>
         </label>
-        <p class="hint">Batch mode uses the PPE API verified in this project. It preserves all input order and sends three source texts per request until Starling confirms a larger sourceContents limit.</p>
+        <p class="hint">Batch mode preserves input order, sends at most 10 source texts per request, and runs at most 5 request batches concurrently.</p>
       </details>
     </section>
 
     <section class="card">
       <h2>LLM API (optional)</h2>
-      <p class="hint help-links">
-        AI rewrite is off by default — TM queries work fine without it. To enable, fill in your own LLM credentials (company LLMBox or other compatible API).
-      </p>
+      <p class="hint">Leave AI rewrite off to use TM only.</p>
       <label class="toggle">
         <input type="checkbox" id="enableAI">
         <span>Enable AI rewrite (calls LLM to rewrite source when TM misses, to boost hit rate)</span>
       </label>
-      <p class="hint">When off: TM hit uses TM, missed entries are left empty marked "AI disabled". When on, pick a provider below and fill in API Key.</p>
       <label>LLM Provider
         <select id="llmProvider">
           <option value="inspire">Inspire Writer (recommended for company users)</option>
@@ -78,10 +91,8 @@
         </select>
       </label>
       <div id="inspire-fields" class="provider-fields hidden">
-        <label>Inspire teamId
-          <input type="text" id="inspireTeamId" placeholder="LIVE CD teamId">
-        </label>
-        <p class="hint security-note">Personal <code>wak_…</code> Access Key is for local Demo use. Production distribution requires a tenant-signing backend; never put a tenant API Secret in the extension.</p>
+        <a href="https://inspire.bytedance.net" target="_blank">Open Inspire Writer</a>
+        <span> → get a personal <code>wak_…</code> key from the Inspire Pilot owner → paste it below.</span>
       </div>
       <label>API Key
         <input type="password" id="llmApiKey" placeholder="Enter API Key or Inspire wak_… Access Key">
@@ -92,9 +103,9 @@
       <label id="model-select-field">Model
         <select id="llmModel">
           <option value="gemini_3f">Gemini 3 Flash — fastest</option>
-          <option value="gemini-3.1-p-priority">Gemini 3.1 Pro — balanced quality</option>
-          <option value="gpt-5.4-mini-2026-03-17">GPT 5.4 mini — balanced OpenAI model</option>
-          <option value="gpt-5.4-2026-03-05">GPT 5.4 — highest quality, slowest</option>
+          <option value="gemini-3.1-pro">Gemini 3.1 Pro — balanced quality</option>
+          <option value="gpt-5.4-mini">GPT 5.4 mini — balanced OpenAI model</option>
+          <option value="gpt-5.4">GPT 5.4 — highest quality, slowest</option>
         </select>
       </label>
       <label id="custom-model-field" class="hidden">Custom model name
@@ -111,22 +122,27 @@
 
     <section class="card">
       <h2>Feishu Spreadsheet</h2>
-      <p class="hint help-links">
-        Requires a Feishu custom app with <code>sheets:spreadsheet</code> permission.
-        <a href="https://open.feishu.cn/app" target="_blank">Create / manage app on Feishu Open Platform →</a>
-      </p>
-      <label>Feishu App ID
-        <input type="text" id="feishuAppId" placeholder="cli_xxxxxxxxxxxxxxxx">
-      </label>
-      <label>Feishu App Secret
-        <input type="password" id="feishuAppSecret" autocomplete="off" placeholder="Enter App Secret">
-      </label>
-      <p class="hint">
-        Open the Side Panel from a Feishu Spreadsheet to select it automatically. Spreadsheet, Sheet, source column, data start row, and output start column are configured in the Working spreadsheet section.
-      </p>
+      <div class="feishu-user-card">
+        <img id="feishu-user-avatar" class="feishu-user-avatar hidden" alt="">
+        <div class="feishu-user-copy">
+          <strong id="feishu-user-name">Not connected</strong>
+          <span id="feishu-user-detail">Authorize from the Workflow page before using Feishu write-back or ROI archive.</span>
+        </div>
+      </div>
       <p id="working-sheet-status" class="test-result"></p>
-      <button id="test-feishu" class="btn-test">Test Feishu connection</button>
       <p id="feishu-test-result" class="test-result"></p>
+
+      <details id="feishu-owner-setup" class="owner-setup">
+        <summary>3. Feishu App Secret</summary>
+        <p class="owner-secret-help">
+          Get the App Secret from your team owner. App administrators can copy it from
+          <a href="https://open.feishu.cn/app" target="_blank">Feishu Developer Console</a>
+          → Credentials &amp; Basic Info.
+        </p>
+        <button id="configure-feishu-app" type="button" class="btn btn-primary owner-secret-button">Enter Feishu App Secret</button>
+        <p class="owner-secret-note">Paste it in the macOS dialog. It is stored only in this Mac's Keychain.</p>
+        <p id="feishu-owner-result" class="test-result"></p>
+      </details>
 
       <details>
         <summary>Dynamic column layout</summary>
@@ -134,12 +150,7 @@
         <p>The output occupies six consecutive columns: Best TM Match, Orig Match %, Rewritten Segment, New Match %, Reached 85%?, and CD review valid?.</p>
       </details>
 
-      <label>ROI archive Bitable
-        <input type="url" id="roiArchiveUrl" placeholder="Paste a Feishu Wiki or /base/ Bitable link">
-      </label>
-      <p class="hint">This target stores ROI run history only. Spreadsheet write-back remains separate.</p>
-
-      <p class="hint security-note">App ID and App Secret are stored in this Chrome profile. Each user who installs the extension must enter their own approved app credentials.</p>
+      <p class="hint help-links">ROI archive: <a href="https://bytedance.larkoffice.com/wiki/J1RJwEf0FijMQQkceUkcZyqCnJc?table=tbls3B039S6J7zdT&amp;view=vewSwbY6Ry" target="_blank">open ROI_Test</a>.</p>
     </section>
 
     <div class="actions">

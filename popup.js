@@ -1,36 +1,38 @@
 /**
  * popup.js — Chrome Side Panel 工作台逻辑
  *
- * TM 优化流程：抓取 → Starling TM 查询(Orig Match %) → 判断是否达标(Reached 85%?)
- *           → 未达标则 AI 改写原文(Rewritten Segment) → 本地计算 New Match %
- *           → AI vs TM 对比(Comment) → 渲染卡片 → 写入飞书表格
+ * TM 优化流程：抓取 → Starling Top-3 TM → 对 50 ≤ Score A < 85 的 source 生成 AI 候选
+ *           → 逐候选查询真实 Post-TM 并执行安全门禁 → Focus 人工确认
+ *           → 查询 Final TM → 单条或批量写回飞书表格 → 按需归档整车 ROI
  */
 
 import {
   listProjects,
   pingNativeHost,
   queryFinalTmSnapshots,
-  queryPostRewriteTmSnapshots,
+  queryRewriteCandidateTmSnapshots,
   searchTM,
 } from './lib/starling-tm.js';
 import { rewriteSourceWithAI } from './lib/ai-translate.js';
 import { compareAIvsTM } from './lib/diff.js';
 import { TM_MATCH_THRESHOLD } from './lib/tm-threshold.js';
 import {
-  writeToSheet,
+  writeConfirmedReviewItems,
+  writeConfirmedReviewItem,
   listSourceSegments,
-  listFinalSourceSegments,
   listSpreadsheetSheets,
   inspectSheetLayout,
   testSheetsConnection,
   parseSheetsUrl,
   parseFeishuUrl,
+  resolveSpreadsheetReference,
 } from './lib/feishu-sheets.js';
 import { friendlyError } from './lib/errors.js';
 import {
   buildFastTmScope,
   buildLocaleScopes,
   normalizeProject,
+  paginateProjects,
   targetLocaleIntersection,
   toggleProjectSelection,
   validateRunConfig,
@@ -38,21 +40,52 @@ import {
 import { resolveWordRate } from './lib/pricing-rules.js';
 import { calculateRoiForItem } from './lib/roi-calculation.js';
 import { summarizeMultilingualRoi } from './lib/multilingual-roi.js';
-import { runFinalLocaleScopes, runLocaleScopes } from './lib/multilingual-runner.js';
-import { buildRoiArchivePayload, writeRoiArchive } from './lib/roi-bitable-archive.js';
+import {
+  completeDeferredLocaleScopes,
+  partitionPriorityScope,
+  runLocaleScopes,
+} from './lib/multilingual-runner.js';
+import {
+  FIXED_ROI_ARCHIVE_URL,
+  buildRoiArchivePayload,
+  writeRoiArchive,
+} from './lib/roi-bitable-archive.js';
 import { applyI18n, normalizeUiLanguage, t } from './lib/i18n.js';
+import {
+  authorizeFeishuUser,
+  getFeishuUserAuthorizationStatus,
+} from './lib/feishu-auth.js';
+import {
+  evaluateRewriteCandidate,
+  evaluateRewriteCandidates,
+  formatTmSourceForDisplay,
+} from './lib/source-rewrite-policy.js';
 import {
   buildSourcePreview,
   getOutputColumns,
   sheetLayoutStorageKey,
   validateSheetLayout,
 } from './lib/sheet-layout.js';
+import {
+  beginConfirmation,
+  buildFocusTmState,
+  completeConfirmation,
+  createReviewState,
+  dedupeAiCandidates,
+  editFinalText,
+  explainFocusAiAbsence,
+  failConfirmation,
+  filterReviewItems,
+  isAiCandidateSelected,
+  prepareBulkConfirmations,
+} from './lib/review-workflow.js';
 
 let extractedItems = [];
 let processedItems = [];
-let userChoices = {}; // itemId → 'ai' | 'tm' | 'manual'
+let userChoices = {}; // itemId → 'ai' | 'source' | 'manual'
 let accessibleProjects = [];
 let selectedProjectIds = [];
+let projectPageIndex = 0;
 let selectedRoiLocales = null;
 let runVendor = '';
 let rateCatalog = null;
@@ -63,15 +96,16 @@ let activeDisplayScopeKey = '';
 let finalValidationAttempted = false;
 let activeWorkflowContext = null;
 let localeFilterQuery = '';
+let reviewFilter = 'all';
 let roiEnabled = false;
-let fastTargetLocale = '';
 let uiLanguage = 'en';
 let workingSheets = [];
 let activeSheetLayout = null;
 let activeSheetInspectionRows = [];
 const ROI_WORKFLOW_SNAPSHOT_KEY = 'roiWorkflowSnapshot';
-const ROI_WORKFLOW_SNAPSHOT_VERSION = 1;
+const ROI_WORKFLOW_SNAPSHOT_VERSION = 2;
 const ROI_WORKFLOW_SNAPSHOT_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+const PROJECTS_PER_PAGE = 8;
 
 // ===== 配置加载 =====
 async function loadConfig() {
@@ -79,16 +113,14 @@ async function loadConfig() {
     chrome.storage.local.get(
       [
         'sheetsUrl', 'spreadsheetToken', 'sheetId', 'workingSheetMode', 'fieldMapping', 'sheetLayouts',
-        'roiArchiveUrl',
-        'feishuAppId', 'feishuAppSecret',
         'llmProvider', 'llmEndpoint', 'llmApiKey', 'llmModel',
         'starlingCliPath', 'starlingProjectId', 'starlingProjectIds',
         'starlingTmMode',
         'starlingAccessKey', 'starlingSecretKey', 'starlingCredentialState',
         'starlingProjectsCache', 'roiTargetLocales', 'roiLocalesByProject',
         'enableAI',
-        'enableROI', 'tmTargetLocale', 'uiLanguage',
-        'inspireTeamId', 'llmThinkingLevel',
+        'enableROI', 'uiLanguage',
+        'llmThinkingLevel',
         'vendor',
       ],
       (result) => {
@@ -113,11 +145,14 @@ document.getElementById('settings-btn').addEventListener('click', () => {
 document.getElementById('setup-open-settings').addEventListener('click', () => {
   chrome.runtime.openOptionsPage();
 });
+document.getElementById('connect-feishu-user').addEventListener('click', connectFeishuUserFromPopup);
 document.getElementById('refresh-projects').addEventListener('click', loadAccessibleProjects);
-document.getElementById('run-target-locale').addEventListener('change', async (event) => {
-  fastTargetLocale = event.target.value;
-  activeRunConfig = null;
-  await persistRunConfiguration();
+document.getElementById('project-page-previous').addEventListener('click', () => {
+  projectPageIndex -= 1;
+  renderRunConfiguration();
+});
+document.getElementById('project-page-next').addEventListener('click', () => {
+  projectPageIndex += 1;
   renderRunConfiguration();
 });
 document.getElementById('enable-roi').addEventListener('change', async (event) => {
@@ -133,6 +168,7 @@ document.getElementById('enable-roi').addEventListener('change', async (event) =
 document.getElementById('ui-language').addEventListener('change', async (event) => {
   uiLanguage = applyI18n(document, event.target.value);
   await chrome.storage.local.set({ uiLanguage });
+  await renderPopupFeishuAuthorizationStatus();
   renderRunConfiguration();
   if (processedItems.length) renderResults(processedItems);
 });
@@ -159,10 +195,24 @@ document.getElementById('btn-extract-sel').addEventListener('click', () =>
 // 从当前电子表格读 A 列原文（表格驱动入口，零噪声，比 DOM 抓取准）。
 document.getElementById('btn-read-sheet').addEventListener('click', readFromSheet);
 
-document.getElementById('btn-write-bitable').addEventListener('click', writeToFeishu);
-document.getElementById('btn-write-results').addEventListener('click', writeToFeishu);
-document.getElementById('btn-validate-final').addEventListener('click', validateFinalFromSheet);
 document.getElementById('btn-write-roi-archive').addEventListener('click', writeCurrentRoiArchive);
+document.getElementById('review-filter-all').addEventListener('click', () => {
+  reviewFilter = 'all';
+  renderResults(processedItems);
+});
+document.getElementById('review-filter-improved').addEventListener('click', () => {
+  reviewFilter = 'improved';
+  renderResults(processedItems);
+});
+document.getElementById('btn-confirm-remaining').addEventListener('click', async () => {
+  try {
+    await confirmRemainingReviewItems();
+  } catch (error) {
+    showError(error instanceof Error ? error.message : String(error));
+  } finally {
+    renderResults(processedItems);
+  }
+});
 
 // BX5：tab 切换（主流程 / 结果）
 function switchTab(name) {
@@ -204,17 +254,108 @@ document.addEventListener('keydown', (e) => {
   else if (e.key === 'ArrowRight') focusStep(1);
 });
 
-// 打开 Popup 时先建立运行配置，再检测当前飞书电子表格。
+// 打开 Popup 时先建立单开步骤，再检测运行配置与当前飞书电子表格。
+bindWorkflowAccordion();
 initializePopup();
+
+/** 让 Projects 与 Spreadsheet 保持单开，避免两个长配置区同时占满 Side Panel。 */
+function bindWorkflowAccordion() {
+  const sections = [
+    document.getElementById('run-config-details'),
+    document.getElementById('working-sheet-details'),
+  ];
+  sections.forEach((section) => {
+    section.addEventListener('toggle', () => {
+      if (!section.open) return;
+      sections.forEach((other) => {
+        if (other !== section) other.open = false;
+      });
+    });
+  });
+}
 
 /** 初始化 Popup 的运行配置与工作表。 */
 async function initializePopup() {
   await Promise.all([
     initializeRunConfiguration(),
     initializeWorkingSheet(),
+    renderPopupFeishuAuthorizationStatus(),
   ]);
   await runHealthCheck();
   await restoreWorkflowSnapshot();
+}
+
+/** 在首页展示当前飞书用户，并为普通使用者提供唯一授权入口。 */
+async function renderPopupFeishuAuthorizationStatus() {
+  const card = document.getElementById('feishu-auth-card');
+  const avatar = document.getElementById('feishu-auth-avatar');
+  const title = document.getElementById('feishu-auth-title');
+  const statusText = document.getElementById('feishu-auth-status');
+  const button = document.getElementById('connect-feishu-user');
+  const status = await getFeishuUserAuthorizationStatus();
+  card.classList.toggle('connected', status.connected);
+  card.classList.remove('error');
+  if (!status.connected) {
+    const missingScopes = Array.isArray(status.missingScopes) ? status.missingScopes : [];
+    avatar.classList.add('hidden');
+    title.textContent = t('feishuAuthorizationRequired', uiLanguage);
+    statusText.textContent = status.scopeVerified === false && status.profile
+      ? t('feishuReconnectScopeVerification', uiLanguage)
+      : (
+        missingScopes.length > 0 && status.profile
+          ? `${t('feishuReconnectMissingScope', uiLanguage)} ${missingScopes.join(', ')}`
+          : t('feishuAuthorizeHint', uiLanguage)
+      );
+    button.textContent = status.profile
+      ? t('reconnectFeishu', uiLanguage)
+      : t('authorizeFeishu', uiLanguage);
+    return;
+  }
+  const profile = status.profile || {};
+  title.textContent = profile.name || profile.enName || t('feishuConnected', uiLanguage);
+  statusText.textContent = [profile.enName, profile.userId || profile.openId]
+    .filter(Boolean)
+    .join(' · ') || t('feishuAuthorizationActive', uiLanguage);
+  button.textContent = t('reconnectFeishu', uiLanguage);
+  if (profile.avatarUrl) {
+    avatar.src = profile.avatarUrl;
+    avatar.alt = `${title.textContent} avatar`;
+    avatar.classList.remove('hidden');
+  } else {
+    avatar.classList.add('hidden');
+  }
+}
+
+/** 从首页启动用户 OAuth，成功后立即刷新用户卡片与环境检查。 */
+async function connectFeishuUserFromPopup() {
+  const card = document.getElementById('feishu-auth-card');
+  const statusText = document.getElementById('feishu-auth-status');
+  const button = document.getElementById('connect-feishu-user');
+  card.classList.remove('error');
+  button.disabled = true;
+  statusText.textContent = t('feishuAuthorizationWaiting', uiLanguage);
+  try {
+    const returnUrl = await getActiveReturnUrl();
+    await authorizeFeishuUser({ returnUrl });
+    await renderPopupFeishuAuthorizationStatus();
+    showStatus(t('feishuAuthorizationSucceeded', uiLanguage), 'info');
+  } catch (error) {
+    card.classList.add('error');
+    statusText.textContent = error.message;
+    showError(error);
+  } finally {
+    button.disabled = false;
+    await runHealthCheck();
+  }
+}
+
+/** 返回授权开始前的活动 HTTP(S) 页面，供 callback 关闭受限时回到原页面。 */
+async function getActiveReturnUrl() {
+  const tabs = await new Promise((resolve) => {
+    chrome.tabs.query({ active: true, currentWindow: true }, resolve);
+  });
+  const url = tabs[0]?.url || '';
+  return /^https?:\/\//i.test(url) ? url : '';
 }
 
 /**
@@ -297,19 +438,13 @@ async function restoreWorkflowSnapshot() {
   renderResults(processedItems);
   renderDestPreview(processedItems, config);
   setStep(4);
-  showStatus(
-    finalValidationAttempted
-      ? t('restoredArchive', uiLanguage)
-      : t('restoredFinal', uiLanguage),
-    'info',
-  );
+  switchTab('results');
 }
 
 /** 加载费率快照、已保存选择和当前凭证可访问项目。 */
 async function initializeRunConfiguration() {
   const config = await loadConfig();
   roiEnabled = config.enableROI === true;
-  fastTargetLocale = String(config.tmTargetLocale || '');
   uiLanguage = applyI18n(document, normalizeUiLanguage(config.uiLanguage));
   document.getElementById('ui-language').value = uiLanguage;
   runVendor = config.vendor || '';
@@ -375,16 +510,15 @@ async function loadAccessibleProjects() {
       throw new Error(response.error || 'Project query failed');
     }
     accessibleProjects = response.projects.map(normalizeProject).filter(Boolean);
+    projectPageIndex = 0;
     const availableIds = new Set(accessibleProjects.map((project) => project.id));
     selectedProjectIds = selectedProjectIds.filter((id) => availableIds.has(id));
     reconcileRoiLocaleSelections();
-    reconcileFastTargetLocale();
     activeRunConfig = null;
     await chrome.storage.local.set({
       starlingProjectsCache: accessibleProjects,
       starlingProjectIds: [...selectedProjectIds],
       ...(Array.isArray(selectedRoiLocales) ? { roiTargetLocales: selectedRoiLocales } : {}),
-      tmTargetLocale: fastTargetLocale,
     });
     status.textContent = accessibleProjects.length
       ? `${accessibleProjects.length} accessible project(s). Select 1–10.`
@@ -394,6 +528,7 @@ async function loadAccessibleProjects() {
   } catch (error) {
     accessibleProjects = [];
     selectedProjectIds = [];
+    projectPageIndex = 0;
     activeRunConfig = null;
     status.textContent = `Cannot load accessible projects: ${error.message}`;
     status.className = 'run-status error';
@@ -410,12 +545,6 @@ function selectedProjects() {
   return selectedProjectIds
     .map((id) => accessibleProjects.find((project) => project.id === id))
     .filter(Boolean);
-}
-
-/** 保留仍被全部所选项目支持的快速目标语言，否则选择共同语言中的第一个。 */
-function reconcileFastTargetLocale() {
-  const commonLocales = targetLocaleIntersection(selectedProjects());
-  if (!commonLocales.includes(fastTargetLocale)) fastTargetLocale = commonLocales[0] || '';
 }
 
 /** 将旧版按项目保存的语言配置迁移为所有项目共同选择的语言集合。 */
@@ -479,7 +608,6 @@ async function selectProject(projectId) {
   }
   selectedProjectIds = result.selectedIds;
   reconcileRoiLocaleSelections();
-  reconcileFastTargetLocale();
   activeRunConfig = null;
   await persistRunConfiguration();
   renderRunConfiguration();
@@ -490,10 +618,8 @@ async function persistRunConfiguration() {
   await chrome.storage.local.set({
     vendor: runVendor,
     enableROI: roiEnabled,
-    tmTargetLocale: fastTargetLocale,
     starlingProjectIds: [...selectedProjectIds],
     starlingProjectId: selectedProjectIds[0] || '',
-    targetLocale: fastTargetLocale,
     roiTargetLocales: selectedRoiLocales || [],
   });
 }
@@ -503,13 +629,17 @@ function renderRunConfiguration() {
   document.getElementById('enable-roi').checked = roiEnabled;
   document.getElementById('roi-config').classList.toggle('hidden', !roiEnabled);
   document.getElementById('roi-language-details').classList.toggle('hidden', !roiEnabled);
-  ['btn-validate-final', 'btn-write-roi-archive'].forEach((id) => {
-    document.getElementById(id).classList.toggle('hidden', !roiEnabled);
-  });
+  document.getElementById('btn-write-roi-archive').classList.toggle('hidden', !roiEnabled);
   document.getElementById('run-vendor').value = runVendor;
   const cards = document.getElementById('run-project-cards');
   cards.innerHTML = '';
-  accessibleProjects.forEach((project) => {
+  const projectPage = paginateProjects(
+    accessibleProjects,
+    projectPageIndex,
+    PROJECTS_PER_PAGE,
+  );
+  projectPageIndex = projectPage.pageIndex;
+  projectPage.items.forEach((project) => {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'run-project-card';
@@ -520,9 +650,21 @@ function renderRunConfiguration() {
     button.addEventListener('click', () => selectProject(project.id));
     cards.appendChild(button);
   });
+  const projectPagination = document.getElementById('run-project-pagination');
+  projectPagination.classList.toggle('hidden', projectPage.pageCount === 0);
+  document.getElementById('project-page-previous').disabled = !projectPage.hasPrevious;
+  document.getElementById('project-page-next').disabled = !projectPage.hasNext;
+  document.getElementById('project-page-status').textContent = t(
+    'projectPageStatus',
+    uiLanguage,
+    {
+      current: projectPage.pageNumber,
+      total: projectPage.pageCount,
+      count: projectPage.totalItems,
+    },
+  );
   document.getElementById('run-project-count').textContent = `${selectedProjectIds.length}/10`;
 
-  renderFastTargetLocale();
   if (roiEnabled) {
     renderLanguageCoverage();
     renderPricingStatus();
@@ -530,38 +672,14 @@ function renderRunConfiguration() {
 
   const localeConfig = roiEnabled
     ? buildLocaleScopes({ projects: accessibleProjects, projectIds: selectedProjectIds, selectedLocales: selectedRoiLocales || [] })
-    : buildFastTmScope({ projects: accessibleProjects, projectIds: selectedProjectIds, targetLocale: fastTargetLocale });
+    : buildFastTmScope({ projects: accessibleProjects, projectIds: selectedProjectIds });
   const ready = localeConfig.status === 'ready' && (!roiEnabled || runVendor);
   document.getElementById('run-config-summary').textContent = ready
     ? roiEnabled
-      ? `${runVendor} · ${localeConfig.sourceLocale} · ${localeConfig.scopes.length} ROI scopes · ${selectedProjectIds.length} ${selectedProjectIds.length === 1 ? 'project' : 'projects'}`
-      : `Fast TM · ${localeConfig.sourceLocale}→${fastTargetLocale} · ${selectedProjectIds.length} ${selectedProjectIds.length === 1 ? 'project' : 'projects'}`
-    : 'Run configuration · setup required';
-}
-
-/** 渲染全部所选项目共同支持的快速 TM 目标语言。 */
-function renderFastTargetLocale() {
-  const select = document.getElementById('run-target-locale');
-  const commonLocales = targetLocaleIntersection(selectedProjects());
-  select.innerHTML = '';
-  if (!commonLocales.length) {
-    const option = document.createElement('option');
-    option.value = '';
-    option.textContent = selectedProjectIds.length ? 'No common target language' : 'Select projects first';
-    select.appendChild(option);
-    select.disabled = true;
-    fastTargetLocale = '';
-    return;
-  }
-  select.disabled = false;
-  commonLocales.forEach((locale) => {
-    const option = document.createElement('option');
-    option.value = locale;
-    option.textContent = locale;
-    select.appendChild(option);
-  });
-  if (!commonLocales.includes(fastTargetLocale)) fastTargetLocale = commonLocales[0];
-  select.value = fastTargetLocale;
+      ? `1. Projects · ${runVendor} · ${localeConfig.sourceLocale} · ${localeConfig.scopes.length} ROI scopes · ${selectedProjectIds.length} selected`
+      : `1. Projects · ${localeConfig.sourceLocale} · ${selectedProjectIds.length} selected`
+    : '1. Projects · setup required';
+  syncWorkflowSteps();
 }
 
 /** 渲染一次选择、应用于全部项目的 ROI 覆盖语言，并立即持久化用户的勾选。 */
@@ -668,7 +786,6 @@ async function ensureWorkflowReady() {
     : buildFastTmScope({
       projects: accessibleProjects,
       projectIds: selectedProjectIds,
-      targetLocale: fastTargetLocale,
     });
   if (result.status !== 'ready') {
     const messages = {
@@ -676,8 +793,7 @@ async function ensureWorkflowReady() {
       vendor_required: 'Select one of the four vendors.',
       locale_scope_required: 'Select at least one ROI coverage language.',
       no_common_target_locale: 'All selected projects must share at least one priced target language for ROI.',
-      target_locale_required: 'Select one fast TM target language.',
-      target_locale_unavailable: 'All selected projects must support the fast TM target language.',
+      target_locale_unavailable: 'Selected projects do not support the same internal reference locale.',
       source_locale_mismatch: 'Selected projects must share one source locale.',
       project_unavailable: 'Refresh projects and reselect accessible projects.',
       max_projects: 'Select at most 10 projects.',
@@ -690,13 +806,6 @@ async function ensureWorkflowReady() {
     showStatus(messages[result.reason] || `Run configuration incomplete: ${result.reason}`, 'error');
     return null;
   }
-  if (roiEnabled && fastTargetLocale) {
-    result.scopes.sort((left, right) => {
-      const leftPrimary = left.targetLocale === fastTargetLocale ? 0 : 1;
-      const rightPrimary = right.targetLocale === fastTargetLocale ? 0 : 1;
-      return leftPrimary - rightPrimary;
-    });
-  }
   activeRunConfig = {
     ...result,
     roiEnabled,
@@ -707,31 +816,6 @@ async function ensureWorkflowReady() {
   return activeRunConfig;
 }
 
-// === 一次性配置迁移（2026-06-26 真机根因修复）===
-// 实测发现用户 storage 里的 spreadsheetToken 曾指向空表 Tjyfs3...(615 行 A 列全空)，
-// 导致 listSourceSegments 读 A2:A 全空 → 永远报「未读到原文」。
-// 真正的原文表是 wiki 链接 QmG4w6... 背后的电子表格（A 列 39 条原文）。
-// 这里仅在当前页无法自动识别工作表时执行旧配置修复。
-
-async function migrateWrongSheetToken() {
-  const cfg = await loadConfig();
-  const current = cfg.spreadsheetToken || '';
-  // 已知错误空表 token（A 列全空）：自动切到正确的原文表
-  const WRONG_TOKEN = 'Tjyfs3Tg5hYG6btMTiom3UA3yYd';
-  const CORRECT_URL = 'https://bytedance.larkoffice.com/wiki/QmG4w6EVIitUAlkT259clYFCndf';
-  if (current !== WRONG_TOKEN) return null;
-  const parsed = parseFeishuUrl(CORRECT_URL);
-  await new Promise((r) => {
-    chrome.storage.local.set({
-      sheetsUrl: CORRECT_URL,
-      spreadsheetToken: parsed.spreadsheetToken,
-      sheetId: '',
-      workingSheetMode: 'auto',
-    }, r);
-  });
-  return parsed;
-}
-
 /**
  * 初始化工作表选择。
  *
@@ -740,23 +824,19 @@ async function migrateWrongSheetToken() {
 async function initializeWorkingSheet() {
   const config = await loadConfig();
   const detection = await detectCurrentWorkingSheet();
-  let migrated = null;
   if (config.workingSheetMode !== 'manual') {
     if (detection.type === 'sheet') {
-      await saveWorkingSheet(detection.url, detection.parsed, 'auto');
-    } else {
-      migrated = await migrateWrongSheetToken();
+      try {
+        const resolved = await resolveSpreadsheetReference(detection.url, config);
+        await saveWorkingSheet(detection.url, resolved, 'auto');
+      } catch (error) {
+        showStatus(`Cannot use the current spreadsheet: ${error.message}`, 'error');
+      }
     }
   }
   await loadDestIntoInput();
-  await renderWorkingSheetGuidance(detection, migrated);
+  await renderWorkingSheetGuidance(detection);
   await refreshWorkingSheetContext();
-  if (migrated) {
-    showStatus(
-      '⚠️ Replaced a legacy empty sheet with the verified source sheet. Open that sheet page to use automatic detection.',
-      'info'
-    );
-  }
 }
 
 /**
@@ -770,7 +850,7 @@ async function detectCurrentWorkingSheet() {
   });
   const url = tabs?.[0]?.url || '';
   const parsed = parseFeishuUrl(url);
-  if (parsed?.type === 'sheet' && parsed.spreadsheetToken) {
+  if (parsed?.type === 'sheet') {
     return { type: 'sheet', url, parsed };
   }
   if (parsed?.type === 'bitable') return { type: 'bitable', url, parsed };
@@ -924,9 +1004,10 @@ function renderSheetLayoutControls(spreadsheetToken, selectedSheet) {
   }
   const mainSummary = document.getElementById('working-sheet-summary');
   mainSummary.textContent = confirmed
-    ? `② Working spreadsheet · ✓ ${selectedSheet.title} ready`
-    : `② Working spreadsheet · ${selectedSheet.title} layout confirmation required`;
+    ? `2. Spreadsheet · ✓ ${selectedSheet.title} ready`
+    : `2. Spreadsheet · ${selectedSheet.title} layout confirmation required`;
   document.getElementById('working-sheet-details').open = !confirmed;
+  syncWorkflowSteps();
 }
 
 /** 切换同一 Spreadsheet 内的 Sheet，并载入该 Sheet 自己的布局。 */
@@ -975,9 +1056,8 @@ async function confirmActiveSheetLayout() {
  * 根据自动检测、手动 override 与已保存配置渲染工作表操作提示。
  *
  * @param {{type: string, url: string}} detection 当前标签页检测结果。
- * @param {object|null} migrated 旧配置迁移结果。
  */
-async function renderWorkingSheetGuidance(detection, migrated) {
+async function renderWorkingSheetGuidance(detection) {
   const help = document.getElementById('working-sheet-help');
   const override = document.getElementById('working-sheet-override');
   const useCurrentButton = document.getElementById('btn-use-current-sheet');
@@ -993,33 +1073,33 @@ async function renderWorkingSheetGuidance(detection, migrated) {
   useCurrentButton.classList.toggle('hidden', detection.type !== 'sheet' || config.workingSheetMode !== 'manual');
   if (config.workingSheetMode === 'manual' && configured?.type === 'sheet') {
     help.textContent = 'Using your selected spreadsheet. Select a Sheet and confirm its source and output ranges below.';
-    summary.textContent = `② Working spreadsheet · ✓ Sheet ${shortSheet} ready`;
+    summary.textContent = `2. Spreadsheet · ✓ Sheet ${shortSheet} ready`;
     details.open = false;
     return;
   }
   if (detection.type === 'sheet') {
     help.textContent = 'Using the current Feishu spreadsheet automatically. Select a Sheet and confirm its source and output ranges below.';
     override.open = false;
-    summary.textContent = `② Working spreadsheet · ✓ Sheet ${shortSheet} ready`;
+    summary.textContent = `2. Spreadsheet · ✓ Sheet ${shortSheet} ready`;
     details.open = false;
     return;
   }
   if (detection.type === 'bitable') {
     help.textContent = 'The current page is a Bitable. This workflow needs a Spreadsheet or wiki-backed sheet, so choose one below.';
     override.open = true;
-    summary.textContent = '② Working spreadsheet · Spreadsheet required';
+    summary.textContent = '2. Spreadsheet · Spreadsheet required';
     details.open = true;
     return;
   }
-  if (migrated || configured?.type === 'sheet') {
+  if (configured?.type === 'sheet' || config.spreadsheetToken) {
     help.textContent = 'The current page is not a spreadsheet. Using the saved working spreadsheet; open a Spreadsheet page to switch automatically.';
-    summary.textContent = `② Working spreadsheet · ✓ Sheet ${shortSheet} ready`;
+    summary.textContent = `2. Spreadsheet · ✓ Sheet ${shortSheet} ready`;
     details.open = false;
     return;
   }
   help.textContent = 'No spreadsheet detected on this page. Choose a Spreadsheet below, then confirm its Sheet and ranges.';
   override.open = true;
-  summary.textContent = '② Working spreadsheet · setup required';
+  summary.textContent = '2. Spreadsheet · setup required';
   details.open = true;
 }
 
@@ -1032,9 +1112,11 @@ async function useCurrentPageAsWorkingSheet() {
     showStatus('Open a Feishu Spreadsheet or wiki-backed sheet page before using automatic detection.', 'error');
     return;
   }
-  await saveWorkingSheet(detection.url, detection.parsed, 'auto');
+  const config = await loadConfig();
+  const resolved = await resolveSpreadsheetReference(detection.url, config);
+  await saveWorkingSheet(detection.url, resolved, 'auto');
   await loadDestIntoInput();
-  await renderWorkingSheetGuidance(detection, null);
+  await renderWorkingSheetGuidance(detection);
   await refreshWorkingSheetContext();
   showStatus('✓ Current page selected as the working spreadsheet.', 'info');
   runHealthCheck();
@@ -1061,25 +1143,21 @@ async function confirmDestination() {
     updateWriteButtonsEnabled(false);
     return;
   }
-  const parsed = parseFeishuUrl(raw);
-  if (!parsed) {
+  let parsed;
+  try {
+    const config = await loadConfig();
+    parsed = await resolveSpreadsheetReference(raw, config);
+  } catch (error) {
     summaryEl.classList.remove('hidden');
     summaryEl.className = 'dest-summary dest-missing';
-    summaryEl.textContent = 'Cannot recognize this link. Paste a Feishu Spreadsheet or wiki-backed sheet link.';
-    updateWriteButtonsEnabled(false);
-    return;
-  }
-  if (parsed.type !== 'sheet') {
-    summaryEl.classList.remove('hidden');
-    summaryEl.className = 'dest-summary dest-missing';
-    summaryEl.textContent = 'Bitable is not supported for this workflow. Paste a Spreadsheet or wiki-backed sheet link.';
+    summaryEl.textContent = error.message;
     updateWriteButtonsEnabled(false);
     return;
   }
   await saveWorkingSheet(raw, parsed, 'manual');
   const cfg = await loadConfig();
   renderDestSummary(cfg);
-  await renderWorkingSheetGuidance({ type: 'other', url: '' }, null);
+  await renderWorkingSheetGuidance({ type: 'other', url: '' });
   await refreshWorkingSheetContext();
   showStatus(`✓ Using the selected spreadsheet: token=${cfg.spreadsheetToken ? cfg.spreadsheetToken.slice(0,12)+'…' : '(empty)'}.`, 'info');
   // 工作表变更后重跑 health check，避免状态显示过时。
@@ -1105,7 +1183,7 @@ function renderDestSummary(config) {
     document.getElementById('working-sheet-details').open = true;
     return;
   }
-  const token = parsed.spreadsheetToken || parsed.appToken || '';
+  const token = config.spreadsheetToken || parsed.spreadsheetToken || parsed.appToken || '';
   const selectedSheetId = config.sheetId || parsed.sheetId || '';
   const sheetInfo = selectedSheetId ? ` · Sheet ${selectedSheetId}` : '';
   if (parsed.type === 'bitable') {
@@ -1131,12 +1209,12 @@ function renderDestSummary(config) {
 /**
  * 从当前电子表格的已确认 source 列读取原文（表格驱动入口）。
  * 用 Sheets API 直接读单元格，零 DOM 噪声——原文在单元格里时这是正确路径。
- * 读到后走 processItems（TM → AI 改写 → New Match → 写回）。
+ * 读到后走 processItems（Top-3 TM → AI 候选 → Post-TM → Focus 审阅）。
  */
 async function readFromSheet() {
   if (!await ensureWorkflowReady()) return;
   await resetState();
-  setStep(1);
+  setStep(3);
   // 表格读路径不依赖页面 DOM 标题，明确告诉用户数据来源，避免「未检测到飞书文档」误导
   setDocTitle('Data source: configured Spreadsheet source column (independent of current page DOM)');
   showProgress('Reading source from the configured spreadsheet range...', 10);
@@ -1145,7 +1223,7 @@ async function readFromSheet() {
     // 兜底：用户正在手动 override 时，允许直接用输入框里的 URL 解析。
     if (!config.spreadsheetToken) {
       const inputUrl = (document.getElementById('dest-url').value || '').trim();
-      const parsed = parseFeishuUrl(inputUrl);
+      const parsed = await resolveSpreadsheetReference(inputUrl, config).catch(() => null);
       if (parsed?.spreadsheetToken) {
         config.spreadsheetToken = parsed.spreadsheetToken;
         config.sheetId = config.sheetId || parsed.sheetId || '';
@@ -1198,7 +1276,7 @@ async function readFromSheet() {
 async function triggerExtract(action) {
   if (!await ensureWorkflowReady()) return;
   await resetState();
-  setStep(1);
+  setStep(3);
   showProgress('Extracting text...', 10);
   try {
     // 抓取加 15 秒超时：巨型 DOM 上若 content.js 卡死，避免 popup 永久挂起。
@@ -1262,8 +1340,9 @@ async function processItems(items) {
       targetLang: scope.targetLocale,
     });
   };
+  const scopePartition = partitionPriorityScope(runConfig.scopes, activeDisplayScopeKey);
   const scopeRuns = await runLocaleScopes({
-    scopes: runConfig.scopes,
+    scopes: scopePartition.priority,
     items,
     onProgress: (scope, scopeIndex, total) => showProgress(
       `Querying ${scope.projectName} · ${scope.targetLocale} (${scopeIndex + 1}/${total})...`,
@@ -1277,10 +1356,21 @@ async function processItems(items) {
         sharedRewriteDecisions = config.enableAI === true
           ? await rewriteSourceWithAI(scopeItems, {
             ...config,
-            onAiProgress: ({ item, provider }) => showProgress(
-              `${provider === 'inspire' ? 'Inspire Writer' : 'AI'} rewriting ${item.location || item.id || 'source'}…`,
+            onAiProgress: ({ item, provider, finished, total, active, pollCount, phase }) => showProgress(
+              provider === 'inspire'
+                ? `Inspire Writer ${finished}/${total} finished · ${active} active · ${pollCount} poll(s)${phase === 'failed' ? ' · error recorded' : ''}…`
+                : `AI rewriting ${item.location || item.id || 'source'}…`,
               55,
             ),
+            onAiBatchComplete: ({ taskCount, taskAttemptCount, requestCount, pollCount }) => {
+              console.info('[Inspire Pilot usage]', {
+                taskCount, taskAttemptCount, requestCount, pollCount,
+              });
+              showStatus(
+                `Inspire completed ${taskCount}/${taskAttemptCount} task(s) with ${requestCount} HTTP request(s) and ${pollCount} status poll(s).`,
+                'info',
+              );
+            },
           }, TM_MATCH_THRESHOLD)
           : scopeItems.map((item) => ({ ...item, reached_threshold: (item.similarity || 0) >= TM_MATCH_THRESHOLD,
             ai_translation: '', reasoning: 'AI disabled (enableAI=off in settings).', reuse_tm: false }));
@@ -1292,13 +1382,31 @@ async function processItems(items) {
         reasoning: sharedRewriteDecisions[index]?.reasoning || '',
         reuse_tm: sharedRewriteDecisions[index]?.reuse_tm === true,
         ai_candidates: sharedRewriteDecisions[index]?.ai_candidates,
+        rewrite_eligible: sharedRewriteDecisions[index]?.rewrite_eligible === true,
         ai_task_id: sharedRewriteDecisions[index]?.ai_task_id,
         ai_duration_ms: sharedRewriteDecisions[index]?.ai_duration_ms,
+        ai_http_request_count: sharedRewriteDecisions[index]?.ai_http_request_count,
+        ai_poll_count: sharedRewriteDecisions[index]?.ai_poll_count,
       }));
     },
-    queryPostRewriteTm: (scopeItems, scope) => queryPostRewriteTmSnapshots(
-      scopeItems, scope.sourceLocale, scope.targetLocale, { ...tmOpts, projectIds: projectIdsForScope(scope) },
-    ),
+    queryPostRewriteTm: async (scopeItems, scope) => {
+      const nestedSnapshots = await queryRewriteCandidateTmSnapshots(
+        scopeItems,
+        scope.sourceLocale,
+        scope.targetLocale,
+        { ...tmOpts, projectIds: projectIdsForScope(scope) },
+      );
+      return scopeItems.map((item, index) => {
+        if (!Array.isArray(item.ai_candidates) || item.ai_candidates.length === 0) {
+          return { status: 'not_required' };
+        }
+        const evaluated = evaluateRewriteCandidates(item, nestedSnapshots[index]);
+        item.ai_candidates = evaluated.candidates;
+        item.ai_translation = evaluated.displayText;
+        item.ai_quality = evaluated;
+        return evaluated.representativePostTm;
+      });
+    },
     resolveRate: resolveRateForScope,
     calculateRoi: (item, rate) => roiEnabled
       ? calculateRoiForItem(item, rate)
@@ -1322,6 +1430,11 @@ async function processItems(items) {
     vendor: roiEnabled ? runVendor : '',
     roiEnabled,
     projectIds: [...selectedProjectIds],
+    roiScopes: runConfig.scopes.map((scope) => ({
+      ...scope,
+      projectIds: Array.isArray(scope.projectIds) ? [...scope.projectIds] : undefined,
+      projectNames: Array.isArray(scope.projectNames) ? [...scope.projectNames] : undefined,
+    })),
   };
   processedItems = buildProcessedDisplayItems(scopeRuns);
 
@@ -1330,6 +1443,7 @@ async function processItems(items) {
   renderResults(processedItems);
   renderDestPreview(processedItems, config);
   await persistWorkflowSnapshot();
+  switchTab('results');
 }
 
 /** 将当前展示 scope 的 A/B/C TM 快照与全部语言 scope 审计信息合成为结果卡片数据。 */
@@ -1347,36 +1461,18 @@ function buildProcessedDisplayItems(scopeRuns) {
         finalTm: scopeItems[itemIndex]?.final_tm,
         rewrittenSegment: scopeItems[itemIndex]?.ai_translation, roi: scopeItems[itemIndex]?.roi },
     ]));
-    return compareAIvsTM({
+    const displayItem = compareAIvsTM({
       ...item,
       new_match: item.post_rewrite_tm?.status === 'complete'
         ? item.post_rewrite_tm.score
         : (item.reached_threshold ? item.similarity : 0),
       scopeResults,
     });
-  }).sort(compareItemsByCurrentTmScore);
-}
-
-/**
- * 结果优先按当前阶段可用的真实 TM 分数升序排列。
- *
- * C 是 CD 确认后的最终版本，因此优先使用 Score C；未确认 C 时使用候选 B 的真实
- * Score B；两者均不可用时回退到原文 Score A。查询未完成的条目保留在列表最后，
- * 不能被当作最低分处理。
- */
-function compareItemsByCurrentTmScore(left, right) {
-  const leftScore = currentTmScore(left);
-  const rightScore = currentTmScore(right);
-  if (leftScore !== rightScore) return leftScore - rightScore;
-  return (left.row || Number.MAX_SAFE_INTEGER) - (right.row || Number.MAX_SAFE_INTEGER);
-}
-
-/** 返回结果卡片当前阶段最可信的真实 TM 分数，缺失时返回 Infinity。 */
-function currentTmScore(item) {
-  const finalScore = item?.final_tm?.status === 'complete' ? item.final_tm.score : null;
-  const postRewriteScore = item?.post_rewrite_tm?.status === 'complete' ? item.post_rewrite_tm.score : null;
-  const scores = [finalScore, postRewriteScore, item?.similarity];
-  return scores.find(Number.isFinite) ?? Infinity;
+    return {
+      ...displayItem,
+      ai_quality: item.ai_quality || evaluateRewriteCandidate(displayItem),
+    };
+  });
 }
 
 // ===== 渲染结果卡片 =====
@@ -1384,24 +1480,27 @@ function renderResults(items) {
   const container = document.getElementById('results');
   container.innerHTML = '';
   renderMultilingualRoiSummary(multilingualRoiSummary);
+  renderReviewFilter(items);
   if (items.length === 0) {
     container.innerHTML = '<div class="empty-hint">No results</div>';
     return;
   }
 
-  // 默认全部采纳 AI
   items.forEach((item) => {
-    if (userChoices[item.id]) return;
-    if (item.ai_vs_tm?.status === 'same') {
-      userChoices[item.id] = 'tm';
-    } else if (item.ai_translation) {
-      userChoices[item.id] = 'ai';
-    } else if (item.tm_match) {
-      userChoices[item.id] = 'tm';
-    }
+    if (item.review) return;
+    item.review = createReviewState({
+      sourceText: item.source_text,
+      initialText: item.ai_quality?.displayText || item.ai_translation || item.source_text,
+    });
+    item.review_status = item.review.status;
   });
 
-  items.forEach((item) => container.appendChild(renderCard(item)));
+  const visibleItems = filterReviewItems(items, reviewFilter);
+  if (visibleItems.length === 0) {
+    container.innerHTML = `<div class="empty-hint">${escapeHtml(t('noImprovedResults', uiLanguage))}</div>`;
+  } else {
+    visibleItems.forEach((item) => container.appendChild(renderCard(item)));
+  }
   applyI18n(document, uiLanguage);
   updateSelectedCount();
   // BX5：更新结果 tab 角标 + 自动切到结果 tab（处理完成后）
@@ -1411,21 +1510,27 @@ function renderResults(items) {
   (async () => {
     const cfg = await loadConfig();
     const parsed = parseFeishuUrl(cfg.sheetsUrl || cfg.spreadsheetToken);
-    updateWriteButtonsEnabled(
-      items.length > 0 && Boolean(activeDisplayScopeKey)
-      && destWritable(parsed) && cfg.sheetLayout?.confirmed === true,
-    );
     updateRoiArchiveButtonEnabled(
-      finalValidationAttempted
+      processedItems.some((item) => item.review_status === 'confirmed')
         && Boolean(multilingualRoiSummary)
-        && multilingualScopeRuns.length > 0
-        && Boolean(cfg.roiArchiveUrl)
-        && hasRoiArchiveAppCredentials(cfg),
+        && multilingualScopeRuns.length > 0,
     );
-    const finalButton = document.getElementById('btn-validate-final');
-    if (finalButton) finalButton.disabled = !destWritable(parsed) || multilingualScopeRuns.length === 0;
     renderDestSummary(cfg);
   })();
+}
+
+/** 同步 All / Improved 数量和可访问的选中状态。 */
+function renderReviewFilter(items = []) {
+  const container = document.getElementById('review-filter');
+  const allItems = Array.isArray(items) ? items : [];
+  const improvedItems = filterReviewItems(allItems, 'improved');
+  container.classList.toggle('hidden', allItems.length === 0);
+  document.getElementById('review-filter-all-count').textContent = allItems.length;
+  document.getElementById('review-filter-improved-count').textContent = improvedItems.length;
+  ['all', 'improved'].forEach((filter) => {
+    document.getElementById(`review-filter-${filter}`)
+      .setAttribute('aria-pressed', String(reviewFilter === filter));
+  });
 }
 
 /** ROI 金额只在 Bitable 公式字段中呈现，Popup 不显示金额或小计。 */
@@ -1452,68 +1557,29 @@ function renderCard(item) {
   card.className = 'result-card';
   card.dataset.id = item.id;
 
-  const choice = userChoices[item.id] || 'ai';
-  const tmSource = item.tm_source || item.tm_match || '';
-  // similarity 已是 0-100 百分制（starling score），不要再 ×100
   const sim = item.similarity ? Math.round(item.similarity) : 0;
+  const reviewStatus = item.review_status || item.review?.status || 'draft';
 
   card.innerHTML = `
     <div class="card-summary">
       <span class="source-text" data-focus="${item.id}">"${escapeHtml(truncate(item.source_text, 60))}"</span>
-      <div class="badges">
-        ${tmSource ? `<span class="badge tm-badge">TM ${sim}%</span>` : ''}
-        ${item.ai_translation ? `<span class="badge ai-badge">${t('aiRewrite', uiLanguage)}</span>` : ''}
-        ${postRewriteTmBadge(item.post_rewrite_tm)}
-        ${finalTmBadge(item.final_tm)}
+      <div class="score-rail" aria-label="TM score flow">
+        <span class="score-stage tm">TM ${sim}%</span>
+        <span class="score-arrow" aria-hidden="true">→</span>
+        ${postRewriteTmBadge(item.post_rewrite_tm, item.similarity)}
+        <span class="score-arrow" aria-hidden="true">→</span>
+        ${finalTmBadge(item.final_tm, item.similarity)}
+        ${reviewStatusTag(reviewStatus)}
       </div>
     </div>
     <div class="card-actions">
-      <button class="btn-sm btn-ai ${choice === 'ai' ? 'active' : ''}" data-choice="ai">${t('useAi', uiLanguage)}</button>
-      <button class="btn-sm btn-tm ${choice === 'tm' ? 'active' : ''}" data-choice="tm">${t('useTm', uiLanguage)}</button>
-      <button class="btn-sm btn-manual ${choice === 'manual' ? 'active' : ''}" data-choice="manual">${t('manual', uiLanguage)}</button>
-      <button class="btn-sm btn-detail" aria-expanded="false">${t('detail', uiLanguage)}</button>
       <button class="btn-sm btn-focus">${t('focus', uiLanguage)}</button>
-    </div>
-    <div class="card-detail hidden">
-      ${detailSection(t('sourceDetail', uiLanguage), escapeHtml(item.source_text))}
-      ${tmSource ? detailSection(t('tmSource', uiLanguage), escapeHtml(tmSource), `Source: ${escapeHtml(item.origin || 'Unknown')}${item.tm_method ? ` · Method: ${escapeHtml(item.tm_method)}` : ''}`) : ''}
-      ${item.tm_match && item.tm_match !== tmSource ? detailSection(t('tmTarget', uiLanguage), escapeHtml(item.tm_match)) : ''}
-      ${item.ai_translation ? detailSection(t('aiRewrite', uiLanguage), escapeHtml(item.ai_translation), escapeHtml(item.reasoning || '')) : ''}
-      ${renderAiCandidates(item.ai_candidates)}
-      ${renderPostRewriteTmSnapshot(item.post_rewrite_tm)}
-      ${renderFinalTmSnapshot(item.final_tm)}
-      ${renderScopeResults(item.scopeResults)}
-      ${renderComparison(item.ai_vs_tm)}
-      ${choice === 'manual' ? `<textarea class="manual-input" placeholder="${escapeHtml(t('manualPlaceholder', uiLanguage))}">${escapeHtml(item.manual_translation || '')}</textarea>` : ''}
     </div>
   `;
 
-  // 选项切换
-  card.querySelectorAll('.btn-sm[data-choice]').forEach((btn) => {
-    btn.addEventListener('click', () => setChoice(card, item, btn.dataset.choice));
-  });
-
-  // 放大查看（聚焦）+ 点原文也可进入
   const openFocus = () => openFocusView(item.id);
   card.querySelector('.btn-focus').addEventListener('click', openFocus);
   card.querySelector('[data-focus]').addEventListener('click', openFocus);
-
-  // 详情展开
-  card.querySelector('.btn-detail').addEventListener('click', (event) => {
-    const detail = card.querySelector('.card-detail');
-    const expanded = detail.classList.toggle('hidden') === false;
-    event.currentTarget.setAttribute('aria-expanded', String(expanded));
-    event.currentTarget.textContent = t(expanded ? 'hideDetail' : 'detail', uiLanguage);
-  });
-
-  // 手动输入
-  const manualInput = card.querySelector('.manual-input');
-  if (manualInput) {
-    manualInput.addEventListener('input', () => {
-      item.manual_translation = manualInput.value;
-      void persistWorkflowSnapshot();
-    });
-  }
 
   return card;
 }
@@ -1535,21 +1601,32 @@ function renderAiCandidates(candidates) {
  * @param {object|undefined} snapshot 改写后二次 TM 查询快照。
  * @returns {string} 可安全插入卡片 badge 区域的 HTML。
  */
-function postRewriteTmBadge(snapshot) {
+function postRewriteTmBadge(snapshot, baseline) {
   if (snapshot?.status === 'complete') {
-    return `<span class="badge tm-badge">Post-TM ${Math.round(snapshot.score)}%</span>`;
+    return `<span class="score-stage post">Post ${Math.round(snapshot.score)}% <small>${scoreDelta(snapshot.score, baseline)}</small></span>`;
   }
   if (snapshot?.status === 'incomplete') {
-    return '<span class="badge tm-badge">Post-TM incomplete</span>';
+    return '<span class="score-stage post incomplete">Post incomplete</span>';
   }
-  return '';
+  return '<span class="score-stage post pending">Post —</span>';
 }
 
 /** 渲染 CD 最终 C 的第三次真实 TM score。 */
-function finalTmBadge(snapshot) {
-  if (snapshot?.status === 'complete') return `<span class="badge tm-badge">Final TM ${Math.round(snapshot.score)}%</span>`;
-  if (snapshot?.status === 'incomplete') return '<span class="badge tm-badge">Final TM incomplete</span>';
-  return '';
+function finalTmBadge(snapshot, baseline) {
+  if (snapshot?.status === 'complete') {
+    return `<span class="score-stage final">Final ${Math.round(snapshot.score)}% <small>${scoreDelta(snapshot.score, baseline)}</small></span>`;
+  }
+  if (snapshot?.status === 'incomplete') return '<span class="score-stage final incomplete">Final incomplete</span>';
+  return '<span class="score-stage final pending">Final —</span>';
+}
+
+/** 将审阅状态显示为紧凑、可区分的标签。 */
+function reviewStatusTag(status) {
+  const normalized = ['draft', 'confirming', 'confirmed', 'dirty', 'error'].includes(status)
+    ? status
+    : 'draft';
+  const label = normalized.charAt(0).toUpperCase() + normalized.slice(1);
+  return `<span class="review-status-tag status-${normalized}">${escapeHtml(label)}</span>`;
 }
 
 /**
@@ -1614,7 +1691,8 @@ function renderScopeResults(scopeResults = {}) {
 let focusIndex = -1;
 
 function openFocusView(itemId) {
-  focusIndex = processedItems.findIndex((it) => it.id === itemId);
+  const visibleItems = filterReviewItems(processedItems, reviewFilter);
+  focusIndex = visibleItems.findIndex((it) => it.id === itemId);
   if (focusIndex < 0) return;
   renderFocus();
   document.getElementById('focus-overlay').classList.remove('hidden');
@@ -1626,75 +1704,161 @@ function closeFocusView() {
 }
 
 function focusStep(delta) {
-  const n = processedItems.length;
+  const n = filterReviewItems(processedItems, reviewFilter).length;
   if (n === 0) return;
   focusIndex = (focusIndex + delta + n) % n;
   renderFocus();
 }
 
 function renderFocus() {
-  const item = processedItems[focusIndex];
+  const visibleItems = filterReviewItems(processedItems, reviewFilter);
+  const item = visibleItems[focusIndex];
   if (!item) return;
   const body = document.getElementById('focus-body');
-  const choice = userChoices[item.id] || 'ai';
+  if (!item.review) {
+    item.review = createReviewState({
+      sourceText: item.source_text,
+      initialText: item.ai_quality?.displayText || item.ai_translation || item.source_text,
+    });
+  }
   const sim = item.similarity ? Math.round(item.similarity) : 0;
-  const tmSource = item.tm_source || item.tm_match || '';
-  const postRewriteTmDetail = renderPostRewriteTmSnapshot(item.post_rewrite_tm);
+  const tmState = buildFocusTmState(item);
+  const validAiCandidates = dedupeAiCandidates(item.ai_quality?.validCandidates || []);
+  const tmRows = tmState.candidates.length
+    ? tmState.candidates.map((candidate, index) => `
+      <li><strong>${escapeHtml(candidate.source || '')} · ${Math.round(Number(candidate.score) || 0)}%</strong></li>`).join('')
+    : `<li>${escapeHtml(tmState.message)}</li>`;
+  const tmNotice = tmState.status === 'legacy_single'
+    ? `<div class="focus-meta error">${escapeHtml(tmState.message)}</div>`
+    : '';
+  const aiAbsence = explainFocusAiAbsence(item);
+  const bestPostScore = item.post_rewrite_tm?.status === 'complete'
+    ? `${Math.round(item.post_rewrite_tm.score)}% ${scoreDelta(item.post_rewrite_tm.score, item.similarity)}`
+    : '—';
+  const aiRows = validAiCandidates.length
+    ? `<div class="ai-candidate-stack">${validAiCandidates.map((candidate, index) => {
+      const selected = isAiCandidateSelected(item.review, candidate);
+      const postScore = Math.round(Number(candidate.post_rewrite_tm?.score) || 0);
+      const candidateDelta = scoreDelta(candidate.post_rewrite_tm?.score, item.similarity);
+      return `
+      <button
+        type="button"
+        class="ai-candidate-choice${selected ? ' is-selected' : ''}"
+        data-ai-candidate="${index}"
+        aria-pressed="${selected}"
+      >
+        <span class="candidate-copy">${escapeHtml(candidate.ai_translation)}</span>
+        <span class="candidate-meta">
+          <span>Candidate ${index + 1}</span>
+          <span class="candidate-score">Post-TM ${postScore}% ${candidateDelta}</span>
+          <span class="candidate-select-indicator">${selected ? 'Selected' : 'Select'}</span>
+        </span>
+      </button>`;
+    }).join('')}</div>`
+    : `<div class="focus-text">None</div>
+       <div class="focus-meta error">${escapeHtml(aiAbsence)}</div>`;
+  const aiDisclosureOpen = validAiCandidates.length <= 1 ? ' open' : '';
 
-  document.getElementById('focus-pos').textContent = `${focusIndex + 1} / ${processedItems.length}`;
+  document.getElementById('focus-pos').textContent = `${focusIndex + 1} / ${visibleItems.length}`;
   body.innerHTML = `
     <div class="focus-section focus-source">
       <div class="focus-label">${t('sourceDetail', uiLanguage)}</div>
       <div class="focus-text">${escapeHtml(item.source_text)}</div>
     </div>
-    <div class="focus-grid">
-      <div class="focus-section focus-tm">
-        <div class="focus-label">${t('tmSource', uiLanguage)} ${tmSource ? `<span class="focus-pct">Match ${sim}%</span>` : ''}</div>
-        <div class="focus-text">${escapeHtml(tmSource || t('noTm', uiLanguage))}</div>
-        ${item.origin ? `<div class="focus-meta">Source: ${escapeHtml(item.origin)}${item.tm_method ? ` · Method: ${escapeHtml(item.tm_method)}` : ''}</div>` : ''}
-      </div>
-      <div class="focus-section focus-ai">
-        <div class="focus-label">${t('aiRewrite', uiLanguage)}</div>
-        <div class="focus-text">${escapeHtml(item.ai_translation || '(No AI rewrite)')}</div>
-        ${item.reasoning ? `<div class="focus-meta">${escapeHtml(item.reasoning)}</div>` : ''}
-      </div>
+    <div class="score-rail focus-score-rail" aria-label="TM score flow">
+      <span class="score-stage tm">TM ${sim}%</span>
+      <span class="score-arrow" aria-hidden="true">→</span>
+      ${postRewriteTmBadge(item.post_rewrite_tm, item.similarity)}
+      <span class="score-arrow" aria-hidden="true">→</span>
+      ${finalTmBadge(item.final_tm, item.similarity)}
+      ${reviewStatusTag(item.review.status)}
     </div>
-    ${item.tm_match && item.tm_match !== tmSource ? `<div class="focus-section"><div class="focus-label">${t('tmTarget', uiLanguage)}</div><div class="focus-text">${escapeHtml(item.tm_match)}</div></div>` : ''}
-    ${item.ai_candidates?.length > 1 ? `<div class="focus-section">${renderAiCandidates(item.ai_candidates)}</div>` : ''}
-    ${postRewriteTmDetail ? `<div class="focus-section">${postRewriteTmDetail}</div>` : ''}
-    ${renderComparison(item.ai_vs_tm) ? `<div class="focus-section">${renderComparison(item.ai_vs_tm)}</div>` : ''}
-    ${choice === 'manual' ? `<textarea class="manual-input focus-manual" placeholder="${escapeHtml(t('manualPlaceholder', uiLanguage))}">${escapeHtml(item.manual_translation || '')}</textarea>` : ''}
+    <details class="focus-disclosure focus-tm-disclosure">
+      <summary>
+        <span>Top-3 TM</span>
+        <span class="disclosure-summary-meta">TM ${sim}% · ${tmState.candidates.length || 0} match(es)</span>
+      </summary>
+      <div class="focus-disclosure-body">
+        <ol class="ai-candidate-list">${tmRows}</ol>
+        ${tmNotice}
+      </div>
+    </details>
+    <div class="focus-flow-arrow" aria-hidden="true">↓</div>
+    <details class="focus-disclosure focus-ai-disclosure"${aiDisclosureOpen}>
+      <summary>
+        <span>${t('aiRewrite', uiLanguage)}</span>
+        <span class="disclosure-summary-meta">${validAiCandidates.length} candidate(s) · Best Post ${bestPostScore}</span>
+      </summary>
+      <div class="focus-disclosure-body">
+        ${aiRows}
+      </div>
+    </details>
+    <div class="focus-flow-arrow" aria-hidden="true">↓</div>
+    <div class="focus-section focus-final">
+      <div class="focus-label">
+        <span>Final copy</span>
+        ${reviewStatusTag(item.review.status)}
+      </div>
+      <textarea rows="6" class="manual-input focus-manual" placeholder="${escapeHtml(t('manualPlaceholder', uiLanguage))}">${escapeHtml(item.review.finalText)}</textarea>
+      <div class="focus-meta">Final TM ${item.final_tm?.status === 'complete' ? `${Math.round(item.final_tm.score)}% ${scoreDelta(item.final_tm.score, item.similarity)}` : '—'}</div>
+      ${item.review.error ? `<div class="focus-meta error">${escapeHtml(item.review.error)}</div>` : ''}
+    </div>
     <div class="focus-actions">
-      <button class="btn-sm btn-ai ${choice === 'ai' ? 'active' : ''}" data-focus-choice="ai">${t('useAi', uiLanguage)}</button>
-      <button class="btn-sm btn-tm ${choice === 'tm' ? 'active' : ''}" data-focus-choice="tm">${t('useTm', uiLanguage)}</button>
-      <button class="btn-sm btn-manual ${choice === 'manual' ? 'active' : ''}" data-focus-choice="manual">${t('manual', uiLanguage)}</button>
+      <button class="btn btn-success" data-confirm-review>
+        ${item.review.status === 'dirty'
+    ? t('reconfirmReview', uiLanguage)
+    : t('confirmReview', uiLanguage)}
+      </button>
     </div>
   `;
 
-  // 聚焦视图内选择切换（同步回卡片状态）
-  body.querySelectorAll('[data-focus-choice]').forEach((btn) => {
+  body.querySelectorAll('[data-ai-candidate]').forEach((btn) => {
     btn.addEventListener('click', () => {
-      const c = btn.dataset.focusChoice;
-      userChoices[item.id] = c;
+      const candidate = validAiCandidates[Number(btn.dataset.aiCandidate)];
+      item.review = editFinalText(item.review, candidate.ai_translation);
+      item.review_status = item.review.status;
       void persistWorkflowSnapshot();
-      // 同步刷新对应卡片的 active 状态
-      const cardEl = document.querySelector(`.result-card[data-id="${item.id}"]`);
-      if (cardEl) {
-        cardEl.querySelectorAll('.btn-sm[data-choice]').forEach((b) => {
-          b.classList.toggle('active', b.dataset.choice === c);
-        });
-      }
       renderFocus();
     });
   });
 
   const manual = body.querySelector('.focus-manual');
-  if (manual) {
-    manual.addEventListener('input', () => {
-      item.manual_translation = manual.value;
-      void persistWorkflowSnapshot();
-    });
-  }
+  autoSizeTextarea(manual);
+  manual.addEventListener('input', () => {
+    autoSizeTextarea(manual);
+    item.review = editFinalText(item.review, manual.value);
+    item.review_status = item.review.status;
+    void persistWorkflowSnapshot();
+  });
+  body.querySelector('[data-confirm-review]').addEventListener('click', async (event) => {
+    event.currentTarget.disabled = true;
+    try {
+      await confirmReviewItem(item);
+    } catch (error) {
+      showError(error instanceof Error ? error.message : String(error));
+    }
+    renderResults(processedItems);
+    const refreshed = processedItems.find((entry) => entry.id === item.id);
+    if (refreshed) openFocusView(refreshed.id);
+  });
+}
+
+/** 让 Final copy 保持可读，同时给超长文案保留内部滚动。 */
+function autoSizeTextarea(textarea) {
+  if (!textarea) return;
+  textarea.style.height = 'auto';
+  textarea.style.height = `${Math.min(Math.max(textarea.scrollHeight, 132), 320)}px`;
+}
+
+/** 格式化相对原始 Score A 的统一箭头与差值。 */
+function scoreDelta(score, baseline) {
+  const current = Number(score);
+  const original = Number(baseline);
+  if (!Number.isFinite(current) || !Number.isFinite(original)) return '';
+  const delta = Math.round((current - original) * 100) / 100;
+  if (delta > 0) return `↑${delta}`;
+  if (delta < 0) return `↓${Math.abs(delta)}`;
+  return '→0';
 }
 
 function setChoice(card, item, choice) {
@@ -1736,173 +1900,273 @@ function renderComparison(aiVsTm) {
     </div>`;
 }
 
-// ===== 写入飞书 =====
-async function writeToFeishu() {
+/**
+ * 对 Focus 中的一条最终文案执行 Final TM、Sheet 同步和确认状态提交。
+ *
+ * 当前展示 scope 的 Final TM 与 Sheet 写入决定交互确认是否成功；ROI mode 的其他
+ * scope 同步查询并保留真实 complete/incomplete 结果，用于正式 A-C 汇总。
+ */
+async function confirmReviewItem(item) {
   const config = await loadConfig();
-  if (!activeDisplayScopeKey) {
-    showStatus('No complete language scope is available for Sheet write-back.', 'error');
-    return;
+  if (!config.spreadsheetToken || !config.sheetId || config.sheetLayout?.confirmed !== true) {
+    throw new Error('Confirm a writable Spreadsheet layout before confirming this item.');
   }
-  // BX3：未填写输出目标时禁止写回
-  const parsed = parseFeishuUrl(config.sheetsUrl || config.spreadsheetToken);
-  if (!destWritable(parsed)) {
-    renderDestSummary(config);
-    const reason = parsed?.type === 'bitable'
-      ? 'The current working sheet is a Bitable, which does not support write-back. Use a Spreadsheet (/sheets/) link.'
-      : 'No working sheet set. Open the source Spreadsheet page, or choose a different spreadsheet in Step 2.';
-    showStatus(reason, 'error');
-    return;
-  }
-  if (!config.sheetId || config.sheetLayout?.confirmed !== true) {
-    document.getElementById('working-sheet-details').open = true;
-    showStatus('Confirm the active Sheet layout before writing results.', 'error');
-    return;
-  }
+  const runConfig = activeRunConfig || await ensureWorkflowReady();
+  if (!runConfig) throw new Error('run_configuration_incomplete');
+  item.review = beginConfirmation(item.review);
+  item.review_status = item.review.status;
+  const finalText = item.review.finalText;
+  const tmOpts = {
+    cliPath: config.starlingCliPath,
+    tmMode: config.starlingTmMode === 'legacy_cli' ? 'legacy' : 'batch',
+    usePpe: config.starlingTmMode !== 'legacy_cli',
+    accessKey: runConfig.accessKey,
+    secretKey: runConfig.secretKey,
+  };
 
-  const itemsToWrite = processedItems.map((item) => {
-    const choice = userChoices[item.id] || 'ai';
-    if (choice === 'tm') {
-      item.final_translation = item.tm_match || '';
-    } else if (choice === 'manual') {
-      item.final_translation = item.manual_translation || '';
-    } else {
-      item.final_translation = item.ai_translation || '';
-    }
-    return item;
-  });
-
-  // BX5：写回是主流程动作，切回主流程 tab 看摘要
-  switchTab('main');
-  setStep(5);
-  renderDestSummary(config); // 写回前展示目标摘要
-  setWriteButtonsState(true, 'Writing...');
+  let displayScopeItem = null;
   try {
-    await writeToSheet(itemsToWrite, config);
-    showWriteResult(itemsToWrite, config, true);
-  } catch (e) {
-    showWriteResult(itemsToWrite, config, false, e.message);
-  } finally {
-    setWriteButtonsState(false, 'Write back to sheet');
+    showProgress('Querying Final TM for this source...', 55);
+    for (const scopeRun of multilingualScopeRuns) {
+      const scopeItem = scopeRun.items.find((entry) => (
+        entry.id === item.id || (entry.row != null && entry.row === item.row)
+      ));
+      if (!scopeItem) continue;
+      scopeItem.final_source_text = finalText;
+      const [snapshot] = await queryFinalTmSnapshots(
+        [{ ...scopeItem, final_source_text: finalText }],
+        scopeRun.scope.sourceLocale,
+        scopeRun.scope.targetLocale,
+        { ...tmOpts, projectIds: projectIdsForScope(scopeRun.scope) },
+      );
+      scopeItem.final_tm = snapshot;
+      scopeItem.review_status = 'confirming';
+      scopeItem.review = item.review;
+      scopeItem.roi = roiEnabled
+        ? calculateRoiForItem(scopeItem, scopeRun.rate)
+        : { status: 'not_requested', reason: 'roi_disabled' };
+      if (scopeRun.scope.key === activeDisplayScopeKey) displayScopeItem = scopeItem;
+    }
+    if (displayScopeItem?.final_tm?.status !== 'complete') {
+      throw new Error(
+        displayScopeItem?.final_tm?.error
+        || displayScopeItem?.final_tm?.reason
+        || 'final_tm_incomplete',
+      );
+    }
+    await writeConfirmedReviewItem({
+      ...displayScopeItem,
+      final_source_text: finalText,
+    }, config);
+    const confirmed = completeConfirmation(item.review, {
+      finalTm: displayScopeItem.final_tm,
+      sheetWriteSucceeded: true,
+    });
+    multilingualScopeRuns.forEach((scopeRun) => {
+      const scopeItem = scopeRun.items.find((entry) => (
+        entry.id === item.id || (entry.row != null && entry.row === item.row)
+      ));
+      if (!scopeItem) return;
+      scopeItem.review = confirmed;
+      scopeItem.review_status = 'confirmed';
+    });
+    multilingualRoiSummary = roiEnabled
+      ? summarizeMultilingualRoi(multilingualScopeRuns)
+      : null;
+    finalValidationAttempted = true;
+    processedItems = buildProcessedDisplayItems(multilingualScopeRuns);
+    await persistWorkflowSnapshot();
+    hideProgress();
+    showStatus('Final TM and Sheet sync completed for this source.', '');
+  } catch (error) {
+    hideProgress();
+    const failed = failConfirmation(item.review, error);
+    item.review = failed;
+    item.review_status = failed.status;
+    multilingualScopeRuns.forEach((scopeRun) => {
+      const scopeItem = scopeRun.items.find((entry) => (
+        entry.id === item.id || (entry.row != null && entry.row === item.row)
+      ));
+      if (!scopeItem) return;
+      scopeItem.review = failed;
+      scopeItem.review_status = failed.status;
+    });
+    processedItems = buildProcessedDisplayItems(multilingualScopeRuns);
+    await persistWorkflowSnapshot();
+    throw error;
   }
+}
+
+/** 跨语言 scope 使用稳定行号或条目 ID 对齐同一条 source。 */
+function reviewItemKey(item) {
+  return item?.row != null ? `row:${item.row}` : `id:${item?.id}`;
+}
+
+/** 将一条审阅状态同步到全部语言 scope，防止恢复运行时状态分叉。 */
+function syncReviewStateToScopes(item, review) {
+  const key = reviewItemKey(item);
+  multilingualScopeRuns.forEach((scopeRun) => {
+    const scopeItem = scopeRun.items.find((entry) => reviewItemKey(entry) === key);
+    if (!scopeItem) return;
+    scopeItem.review = review;
+    scopeItem.review_status = review.status;
+  });
 }
 
 /**
- * 从 Spreadsheet 读取 CD 确认的 C，执行第三次 Starling TM，并生成正式 A−C ROI。
+ * 确认并写入全部尚未确认的默认结果。
  *
- * D 列只有在同一行 G 列为 Yes 时才被视为最终 C；未确认行保留为 incomplete，
- * 以便 Bitable 清楚呈现缺口，而不是用 B 的结果替代。
+ * 本地门禁失败的条目进入 error，其余条目按 scope 批量查询真实 Final TM；展示 scope
+ * 完成 Final TM 的条目再按连续 Sheet 行批量写入。任一步失败都不会伪造 confirmed。
  */
-async function validateFinalFromSheet() {
+async function confirmRemainingReviewItems() {
   const config = await loadConfig();
-  if (!roiEnabled) {
-    showStatus('ROI mode is off. Turn it on before confirming final C for pricing.', 'error');
-    return;
-  }
-  if (multilingualScopeRuns.length === 0) {
-    showStatus(t('finalNeedsAb', uiLanguage), 'error');
-    return;
-  }
-  const parsed = parseFeishuUrl(config.sheetsUrl || config.spreadsheetToken);
-  if (!destWritable(parsed)) {
-    showStatus(t('finalNeedsSheet', uiLanguage), 'error');
-    return;
-  }
-  if (!config.sheetId || config.sheetLayout?.confirmed !== true) {
-    document.getElementById('working-sheet-details').open = true;
-    showStatus('Confirm the active Sheet layout before reading final C.', 'error');
-    return;
+  if (!config.spreadsheetToken || !config.sheetId || config.sheetLayout?.confirmed !== true) {
+    throw new Error('Confirm a writable Spreadsheet layout before confirming remaining items.');
   }
   const runConfig = activeRunConfig || await ensureWorkflowReady();
-  if (!runConfig) return;
+  if (!runConfig) throw new Error('run_configuration_incomplete');
 
-  const button = document.getElementById('btn-validate-final');
-  button.disabled = true;
-  button.textContent = t('finalReadingButton', uiLanguage);
-  showProgress(t('finalReadingProgress', uiLanguage), 30);
-  try {
-    const finalRows = await listFinalSourceSegments(config);
-    const confirmedCount = finalRows.filter((item) => item.final_source_text).length;
-    if (confirmedCount === 0) {
-      throw new Error(t('finalNone', uiLanguage));
-    }
-    const finalByRow = new Map(finalRows.map((item) => [item.row, item.final_source_text]));
-    const tmOpts = {
-      cliPath: config.starlingCliPath,
-      tmMode: config.starlingTmMode === 'legacy_cli' ? 'legacy' : 'batch',
-      usePpe: config.starlingTmMode !== 'legacy_cli',
-      accessKey: runConfig.accessKey,
-      secretKey: runConfig.secretKey,
-    };
-    const finalRuns = await runFinalLocaleScopes({
-      scopeRuns: multilingualScopeRuns,
-      finalSourceForItem: (item) => finalByRow.get(item.row) || '',
-      queryFinalTm: (scopeItems, scope) => queryFinalTmSnapshots(
-        scopeItems,
-        scope.sourceLocale,
-        scope.targetLocale,
-        { ...tmOpts, projectIds: projectIdsForScope(scope) },
-      ),
-      calculateRoi: calculateRoiForItem,
-      onProgress: (scope, scopeIndex, total) => showProgress(
-        t('finalQueryProgress', uiLanguage, {
-          projects: scope.projectName,
-          locale: scope.targetLocale,
-          current: scopeIndex + 1,
-          total,
-        }),
-        35 + Math.round((scopeIndex / total) * 60),
-      ),
-    });
-    multilingualScopeRuns = finalRuns;
-    multilingualRoiSummary = summarizeMultilingualRoi(finalRuns);
-    finalValidationAttempted = true;
-    processedItems = buildProcessedDisplayItems(finalRuns);
-    hideProgress();
-    renderResults(processedItems);
+  const plan = prepareBulkConfirmations(processedItems);
+  plan.failed.forEach(({ item, review }) => {
+    item.review = review;
+    item.review_status = review.status;
+    syncReviewStateToScopes(item, review);
+  });
+  plan.ready.forEach(({ item, review }) => {
+    item.review = review;
+    item.review_status = review.status;
+    syncReviewStateToScopes(item, review);
+  });
+  if (plan.ready.length === 0) {
+    processedItems = buildProcessedDisplayItems(multilingualScopeRuns);
     await persistWorkflowSnapshot();
+    const message = plan.failed.length
+      ? `${plan.failed.length} item(s) need attention before confirmation.`
+      : 'All items are already confirmed.';
+    showStatus(message, plan.failed.length ? 'error' : '');
+    return;
+  }
+
+  const button = document.getElementById('btn-confirm-remaining');
+  button.disabled = true;
+  const readyByKey = new Map(plan.ready.map((entry) => [reviewItemKey(entry.item), entry]));
+  const tmOpts = {
+    cliPath: config.starlingCliPath,
+    tmMode: config.starlingTmMode === 'legacy_cli' ? 'legacy' : 'batch',
+    usePpe: config.starlingTmMode !== 'legacy_cli',
+    accessKey: runConfig.accessKey,
+    secretKey: runConfig.secretKey,
+  };
+
+  try {
+    for (let scopeIndex = 0; scopeIndex < multilingualScopeRuns.length; scopeIndex += 1) {
+      const scopeRun = multilingualScopeRuns[scopeIndex];
+      const pending = scopeRun.items.filter((entry) => readyByKey.has(reviewItemKey(entry)));
+      if (pending.length === 0) continue;
+      showProgress(
+        `Querying Final TM · ${scopeIndex + 1}/${multilingualScopeRuns.length} scope(s) · ${pending.length} item(s)…`,
+        45 + Math.round(((scopeIndex + 1) / multilingualScopeRuns.length) * 35),
+      );
+      const queryItems = pending.map((scopeItem) => {
+        const planned = readyByKey.get(reviewItemKey(scopeItem));
+        scopeItem.final_source_text = planned.review.finalText;
+        scopeItem.review = planned.review;
+        scopeItem.review_status = 'confirming';
+        return { ...scopeItem, final_source_text: planned.review.finalText };
+      });
+      const snapshots = await queryFinalTmSnapshots(
+        queryItems,
+        scopeRun.scope.sourceLocale,
+        scopeRun.scope.targetLocale,
+        { ...tmOpts, projectIds: projectIdsForScope(scopeRun.scope) },
+      );
+      pending.forEach((scopeItem, index) => {
+        scopeItem.final_tm = snapshots[index] || {
+          status: 'incomplete',
+          reason: 'final_tm_result_missing',
+        };
+        scopeItem.roi = roiEnabled
+          ? calculateRoiForItem(scopeItem, scopeRun.rate)
+          : { status: 'not_requested', reason: 'roi_disabled' };
+      });
+    }
+
+    const displayRun = multilingualScopeRuns.find(
+      (run) => run.scope.key === activeDisplayScopeKey,
+    ) || multilingualScopeRuns[0];
+    const writable = [];
+    plan.ready.forEach((planned) => {
+      const displayItem = displayRun?.items.find(
+        (entry) => reviewItemKey(entry) === reviewItemKey(planned.item),
+      );
+      if (displayItem?.final_tm?.status === 'complete'
+        && Number.isFinite(Number(displayItem.final_tm.score))) {
+        writable.push({ planned, displayItem });
+        return;
+      }
+      const error = new Error(
+        displayItem?.final_tm?.error
+        || displayItem?.final_tm?.reason
+        || 'final_tm_incomplete',
+      );
+      const failed = failConfirmation(planned.review, error);
+      syncReviewStateToScopes(planned.item, failed);
+    });
+
+    if (writable.length > 0) {
+      showProgress(`Writing ${writable.length} confirmed item(s) to Spreadsheet…`, 90);
+      await writeConfirmedReviewItems(
+        writable.map(({ planned, displayItem }) => ({
+          ...displayItem,
+          final_source_text: planned.review.finalText,
+        })),
+        config,
+      );
+      writable.forEach(({ planned, displayItem }) => {
+        const confirmed = completeConfirmation(planned.review, {
+          finalTm: displayItem.final_tm,
+          sheetWriteSucceeded: true,
+        });
+        syncReviewStateToScopes(planned.item, confirmed);
+      });
+    }
+
+    multilingualRoiSummary = roiEnabled
+      ? summarizeMultilingualRoi(multilingualScopeRuns)
+      : null;
+    finalValidationAttempted = true;
+    processedItems = buildProcessedDisplayItems(multilingualScopeRuns);
+    await persistWorkflowSnapshot();
+    const confirmedCount = writable.length;
+    const failedCount = plan.failed.length + plan.ready.length - writable.length;
     showStatus(
-      t('finalComplete', uiLanguage, { count: confirmedCount }),
-      '',
+      failedCount > 0
+        ? `Confirmed and wrote ${confirmedCount} item(s); ${failedCount} item(s) need attention.`
+        : `Confirmed and wrote ${confirmedCount} remaining item(s).`,
+      failedCount > 0 ? 'error' : '',
     );
   } catch (error) {
-    hideProgress();
-    finalValidationAttempted = false;
-    showError(error instanceof Error ? error.message : String(error));
+    plan.ready.forEach(({ item, review }) => {
+      const currentScopeItem = multilingualScopeRuns[0]?.items.find(
+        (entry) => reviewItemKey(entry) === reviewItemKey(item),
+      );
+      if (currentScopeItem?.review_status !== 'confirming') return;
+      syncReviewStateToScopes(item, failConfirmation(review, error));
+    });
+    processedItems = buildProcessedDisplayItems(multilingualScopeRuns);
+    await persistWorkflowSnapshot();
+    throw error;
   } finally {
-    button.textContent = t('finalButton', uiLanguage);
-    const current = await loadConfig();
-    const currentParsed = parseFeishuUrl(current.sheetsUrl || current.spreadsheetToken);
-    button.disabled = !destWritable(currentParsed) || multilingualScopeRuns.length === 0;
+    hideProgress();
+    updateBulkReviewButton();
   }
-}
-
-// BX5：同步两个写回按钮（主流程 tab + 结果 tab）的状态
-function setWriteButtonsState(disabled, text) {
-  ['btn-write-bitable', 'btn-write-results'].forEach((id) => {
-    const b = document.getElementById(id);
-    if (!b) return;
-    b.disabled = disabled;
-    b.textContent = text;
-  });
 }
 
 /** 同步 ROI 归档按钮状态，归档不依赖当前单语言 Sheet 查看 scope。 */
 function updateRoiArchiveButtonEnabled(enabled) {
   const button = document.getElementById('btn-write-roi-archive');
   if (button) button.disabled = !enabled;
-}
-
-/** 判断 Settings 是否已保存可用于 tenant token 的飞书应用凭证。 */
-function hasFeishuAppCredentials(config) {
-  return Boolean(
-    typeof config?.feishuAppId === 'string' && config.feishuAppId.trim()
-    && typeof config?.feishuAppSecret === 'string' && config.feishuAppSecret.trim(),
-  );
-}
-
-/** ROI archive 与 Spreadsheet 共用同一对 App ID / App Secret。 */
-function hasRoiArchiveAppCredentials(config) {
-  return hasFeishuAppCredentials(config);
 }
 
 /** 生成可读且全局唯一的 ROI 运行标识。 */
@@ -1918,7 +2182,7 @@ function showRoiArchiveResult(ok, detail) {
   if (ok) {
     preview.className = 'dest-preview';
     preview.innerHTML = `<span class="dest-label">ROI archive written:</span>
-      <span class="dest-target">Run ${escapeHtml(detail.runId)} · ${detail.scopeRecordCount} scope(s) · ${escapeHtml(detail.status)}</span>`;
+      <span class="dest-target">Run ${escapeHtml(detail.runId)} · ${detail.scopeRecordCount} scope(s) · ${detail.itemRecordCount} item(s) · ${escapeHtml(detail.status)}</span>`;
     showStatus(`ROI archive written: ${detail.status}`, '');
     return;
   }
@@ -1928,7 +2192,105 @@ function showRoiArchiveResult(ok, detail) {
   showError(detail);
 }
 
-/** 将当前整车 ROI 结果追加写入用户确认的 Bitable Run/Scope 归档表。 */
+/**
+ * 在 ROI 归档前补齐首屏刻意延后的语言 scope。
+ *
+ * Review 只等待展示 scope；本函数复用同一次 Inspire 决策，对其余语言受控并发执行
+ * A/B/C TM。失败结果保留为 incomplete，不能使用展示语言分数填充。
+ */
+async function completeDeferredRoiScopesForArchive(config) {
+  const allScopes = Array.isArray(activeWorkflowContext?.roiScopes)
+    ? activeWorkflowContext.roiScopes
+    : multilingualScopeRuns.map((run) => run.scope);
+  const completedKeys = new Set(multilingualScopeRuns.map((run) => run.scope?.key));
+  const remainingCount = allScopes.filter((scope) => !completedKeys.has(scope?.key)).length;
+  if (remainingCount === 0) return;
+  if (!config.starlingAccessKey || !config.starlingSecretKey) {
+    throw new Error('Starling credentials are required to complete deferred ROI scopes.');
+  }
+  const catalog = rateCatalog || await loadRateCatalog();
+  if (!catalog) throw new Error('Pricing catalog is unavailable.');
+  const tmOpts = {
+    cliPath: config.starlingCliPath,
+    tmMode: config.starlingTmMode === 'legacy_cli' ? 'legacy' : 'batch',
+    usePpe: config.starlingTmMode !== 'legacy_cli',
+    accessKey: config.starlingAccessKey,
+    secretKey: config.starlingSecretKey,
+    // 三个 scope 并发时每个 scope 只保留一个 Batch 请求，形成全局最多三个请求。
+    batchConcurrency: 1,
+  };
+  const finalByKey = new Map(
+    processedItems.map((item) => [reviewItemKey(item), item]),
+  );
+  const vendor = activeWorkflowContext?.vendor || runVendor;
+  multilingualScopeRuns = await completeDeferredLocaleScopes({
+    allScopes,
+    existingScopeRuns: multilingualScopeRuns,
+    sourceItems: extractedItems,
+    concurrency: 3,
+    onProgress: (phase, scope, index, total) => showProgress(
+      phase === 'initial'
+        ? `Calculating ROI TM · ${scope.targetLocale} · ${index + 1}/${total} deferred scope(s)…`
+        : `Calculating ROI Final TM · ${scope.targetLocale} · ${index + 1}/${total} deferred scope(s)…`,
+      phase === 'initial'
+        ? 30 + Math.round(((index + 1) / total) * 30)
+        : 65 + Math.round(((index + 1) / total) * 20),
+    ),
+    queryOriginalTm: (texts, scope) => searchTM(
+      texts,
+      scope.sourceLocale,
+      scope.targetLocale,
+      { ...tmOpts, projectIds: projectIdsForScope(scope) },
+    ),
+    queryPostRewriteTm: async (scopeItems, scope) => {
+      const nestedSnapshots = await queryRewriteCandidateTmSnapshots(
+        scopeItems,
+        scope.sourceLocale,
+        scope.targetLocale,
+        { ...tmOpts, projectIds: projectIdsForScope(scope) },
+      );
+      return scopeItems.map((item, index) => {
+        if (!Array.isArray(item.ai_candidates) || item.ai_candidates.length === 0) {
+          return { status: 'not_required' };
+        }
+        const evaluated = evaluateRewriteCandidates(item, nestedSnapshots[index]);
+        item.ai_candidates = evaluated.candidates;
+        item.ai_translation = evaluated.displayText;
+        item.ai_quality = evaluated;
+        return evaluated.representativePostTm;
+      });
+    },
+    resolveRate: (scope) => resolveWordRate(catalog, {
+      vendor,
+      sourceLang: scope.sourceLocale,
+      targetLang: scope.targetLocale,
+    }),
+    calculateRoi: (item, rate) => calculateRoiForItem(item, rate),
+    decorateItem: (item) => {
+      item.new_match = item.post_rewrite_tm?.status === 'complete'
+        ? item.post_rewrite_tm.score
+        : (item.reached_threshold ? item.similarity : 0);
+    },
+    finalSourceForItem: (item) => {
+      const reviewItem = finalByKey.get(reviewItemKey(item));
+      return reviewItem?.review_status === 'confirmed'
+        ? String(reviewItem.review?.finalText || '').trim()
+        : '';
+    },
+    queryFinalTm: (scopeItems, scope) => queryFinalTmSnapshots(
+      scopeItems,
+      scope.sourceLocale,
+      scope.targetLocale,
+      { ...tmOpts, projectIds: projectIdsForScope(scope) },
+    ),
+  });
+  multilingualRoiSummary = summarizeMultilingualRoi(multilingualScopeRuns);
+  processedItems = buildProcessedDisplayItems(multilingualScopeRuns);
+  finalValidationAttempted = true;
+  await persistWorkflowSnapshot();
+}
+
+/** 将当前整车 ROI 结果追加写入产品固定的 Bitable Run/Scope/Item 归档表。 */
 async function writeCurrentRoiArchive() {
   const config = await loadConfig();
   if (!roiEnabled) {
@@ -1939,83 +2301,55 @@ async function writeCurrentRoiArchive() {
     showStatus(t('archiveNeedsFinal', uiLanguage), 'error');
     return;
   }
-  if (!config.roiArchiveUrl) {
-    showStatus('Configure ROI archive Bitable in Settings before writing.', 'error');
-    return;
-  }
-  if (!hasRoiArchiveAppCredentials(config)) {
-    showStatus('Configure Feishu App ID and App Secret in Settings before writing ROI archive.', 'error');
-    return;
-  }
-  const runId = createRoiArchiveRunId();
-  const payload = buildRoiArchivePayload({
-    runId,
-    startedAt: new Date().toISOString(),
-    vendor: activeWorkflowContext?.vendor || runVendor,
-    sourceSegmentCount: extractedItems.length,
-    projects: activeWorkflowContext?.projectIds || selectedProjectIds,
-    summary: multilingualRoiSummary,
-    scopeRuns: multilingualScopeRuns,
-  });
+  const confirmedCount = processedItems.filter((item) => item.review_status === 'confirmed').length;
+  const plannedScopeCount = Array.isArray(activeWorkflowContext?.roiScopes)
+    ? activeWorkflowContext.roiScopes.length
+    : multilingualScopeRuns.length;
   const confirmed = window.confirm(
-    `Write ROI archive to:\n${config.roiArchiveUrl}\n\n`
-    + 'Tables: L10n ROI Runs and L10n ROI Scopes\n'
-    + `Records: 1 Run and ${payload.scopes.length} Scope(s)`,
+    `Write ROI archive to:\n${FIXED_ROI_ARCHIVE_URL}\n\n`
+    + 'Tables: L10n ROI Runs, L10n ROI Scopes, and L10n ROI Items\n'
+    + `Sources: ${processedItems.length}; confirmed: ${confirmedCount}; unconfirmed: ${processedItems.length - confirmedCount}\n`
+    + `Records: 1 Run, ${plannedScopeCount} Scope(s), and ${processedItems.length} source Item(s)`,
   );
   if (!confirmed) return;
 
   const button = document.getElementById('btn-write-roi-archive');
   button.disabled = true;
-  button.textContent = 'Writing ROI archive...';
+  button.textContent = 'Preparing ROI archive...';
   try {
+    let feishuUser = await getFeishuUserAuthorizationStatus();
+    if (!feishuUser.connected) {
+      showStatus('Waiting for Feishu authorization...', '');
+      const returnUrl = await getActiveReturnUrl();
+      feishuUser = await authorizeFeishuUser({ returnUrl });
+    }
+    await completeDeferredRoiScopesForArchive(config);
+    const runId = createRoiArchiveRunId();
+    const payload = buildRoiArchivePayload({
+      runId,
+      startedAt: new Date().toISOString(),
+      vendor: activeWorkflowContext?.vendor || runVendor,
+      sourceSegmentCount: extractedItems.length,
+      projects: activeWorkflowContext?.projectIds || selectedProjectIds,
+      summary: multilingualRoiSummary,
+      scopeRuns: multilingualScopeRuns,
+      reviewItems: processedItems,
+      operator: feishuUser.profile,
+      displayScopeKey: activeDisplayScopeKey,
+    });
+    button.textContent = 'Writing ROI archive...';
     const result = await writeRoiArchive({ config, payload });
     showRoiArchiveResult(true, { runId, ...result });
   } catch (error) {
     showRoiArchiveResult(false, error instanceof Error ? error.message : String(error));
   } finally {
+    hideProgress();
     button.textContent = 'Write ROI archive';
     updateRoiArchiveButtonEnabled(
-      finalValidationAttempted
+      processedItems.some((item) => item.review_status === 'confirmed')
         && Boolean(multilingualRoiSummary)
-        && Boolean(config.roiArchiveUrl)
-        && hasRoiArchiveAppCredentials(config),
+        && multilingualScopeRuns.length > 0,
     );
-  }
-}
-
-// BX5：同步两个写回按钮的启用状态（有结果且目标可写）
-function updateWriteButtonsEnabled(enabled) {
-  ['btn-write-bitable', 'btn-write-results'].forEach((id) => {
-    const b = document.getElementById(id);
-    if (b) b.disabled = !enabled;
-  });
-}
-
-// ===== 写入后结果展示（告诉用户写到了哪里）=====
-function showWriteResult(items, config, ok, errMsg) {
-  const el = document.getElementById('dest-preview');
-  const parsed = parseFeishuUrl(config.sheetsUrl || config.spreadsheetToken);
-  const token = parsed?.spreadsheetToken || config.spreadsheetToken;
-  const sheetId = config.sheetId || parsed?.sheetId || '(default first sheet)';
-  const rows = items.map((i) => i.row).filter((r) => r != null);
-  let loc = rows.length
-    ? (rows.length > 1 ? `rows ${Math.min(...rows)}-${Math.max(...rows)}` : `row ${rows[0]}`)
-    : `${items.length} item(s)`;
-  const typeLabel = parsed?.type === 'bitable' ? 'Bitable' : 'Spreadsheet (Sheet)';
-
-  el.classList.remove('hidden');
-  if (ok) {
-    el.className = 'dest-preview';
-    el.innerHTML = `<span class="dest-label">Written (${items.length} item(s)) to:</span>
-      <span class="dest-target">${typeLabel} / ${token} / ${sheetId} / ${loc}</span>`;
-    showStatus(`Write succeeded, ${items.length} item(s)`, '');
-  } else {
-    el.className = 'dest-preview dest-error';
-    const fe = friendlyError(errMsg || 'Unknown error', uiLanguage);
-    el.innerHTML = `<span class="dest-label">Write failed:</span>
-      <span class="dest-target">${escapeHtml(fe.title)}</span>
-      <span class="status-action">${escapeHtml(fe.action)}</span>`;
-    showError(errMsg || 'Write failed');
   }
 }
 
@@ -2024,6 +2358,7 @@ async function resetState() {
   await clearWorkflowSnapshot();
   extractedItems = [];
   processedItems = [];
+  reviewFilter = 'all';
   userChoices = {};
   multilingualRoiSummary = null;
   multilingualScopeRuns = [];
@@ -2031,28 +2366,45 @@ async function resetState() {
   finalValidationAttempted = false;
   activeWorkflowContext = null;
   document.getElementById('results').innerHTML = '';
+  document.getElementById('review-filter').classList.add('hidden');
   renderMultilingualRoiSummary(null);
   document.getElementById('status').classList.add('hidden');
   document.getElementById('dest-preview').classList.add('hidden');
-  updateWriteButtonsEnabled(false);
   updateRoiArchiveButtonEnabled(false);
-  const finalButton = document.getElementById('btn-validate-final');
-  if (finalButton) finalButton.disabled = true;
   // BX5：清结果角标、回到主流程 tab
   updateResultsBadge(0);
   switchTab('main');
+  syncWorkflowSteps();
 }
 
 function setDocTitle(title) {
   document.getElementById('doc-title').textContent = title || 'No Feishu doc detected';
 }
 
-// 步骤指示器：1 选择来源 → 2 确认目标 → 3 查询 TM → 4 查看结果 → 5 写回
+/** 根据项目、工作表与运行结果同步四步工作流的当前步骤。 */
+function syncWorkflowSteps() {
+  const localeConfig = roiEnabled
+    ? buildLocaleScopes({
+      projects: accessibleProjects,
+      projectIds: selectedProjectIds,
+      selectedLocales: selectedRoiLocales || [],
+    })
+    : buildFastTmScope({ projects: accessibleProjects, projectIds: selectedProjectIds });
+  const projectsReady = localeConfig.status === 'ready' && (!roiEnabled || Boolean(runVendor));
+  let currentStep = projectsReady ? 2 : 1;
+  if (projectsReady && activeSheetLayout?.confirmed === true) currentStep = 3;
+  if (processedItems.length > 0) currentStep = 4;
+  setStep(currentStep);
+}
+
+/** 渲染 1 项目、2 工作表、3 运行、4 审阅的真实步骤状态。 */
 function setStep(n) {
-  document.querySelectorAll('#steps .step').forEach((el) => {
+  document.querySelectorAll('#workflow-steps .step').forEach((el) => {
     const step = Number(el.dataset.step);
     el.classList.toggle('active', step === n);
     el.classList.toggle('done', step < n);
+    if (step === n) el.setAttribute('aria-current', 'step');
+    else el.removeAttribute('aria-current');
   });
 }
 
@@ -2093,16 +2445,22 @@ async function runHealthCheck() {
     document.getElementById('run-config-details').open = true;
   }
 
-  // 2. 飞书应用凭证
-  if (!hasFeishuAppCredentials(config)) {
-    tally(rows.feishuToken, 'bad', 'Not configured — open Settings and enter Feishu App ID and App Secret');
+  // 2. 飞书用户授权
+  let feishuAuthorized = false;
+  try {
+    feishuAuthorized = (await getFeishuUserAuthorizationStatus()).connected;
+  } catch (_error) {
+    feishuAuthorized = false;
+  }
+  if (!feishuAuthorized) {
+    tally(rows.feishuToken, 'bad', 'Not authorized — click Authorize above');
   } else {
-    tally(rows.feishuToken, 'ok', 'App credentials configured');
+    tally(rows.feishuToken, 'ok', 'Current Feishu user authorized');
   }
 
   // 3. 电子表格 token + 可访问性
   const parsed = parseSheetsUrl(config.sheetsUrl || config.spreadsheetToken);
-  const token = parsed?.spreadsheetToken || config.spreadsheetToken;
+  const token = config.spreadsheetToken || parsed?.spreadsheetToken;
   if (!token) {
     tally(rows.sheetAccess, 'bad', 'No working spreadsheet — open the source Spreadsheet page for automatic detection');
     tally(rows.destination, 'bad', 'No working spreadsheet — choose a different spreadsheet in Step 2 if needed');
@@ -2111,7 +2469,7 @@ async function runHealthCheck() {
     document.getElementById('working-sheet-details').open = true;
     return;
   }
-  if (hasFeishuAppCredentials(config)) {
+  if (feishuAuthorized) {
     const res = workingSheets.length > 0
       ? { ok: true }
       : await testSheetsConnection(config, token);
@@ -2121,10 +2479,10 @@ async function runHealthCheck() {
       tally(rows.sheetAccess, 'bad', `No permission — ${res.error} (check your sheet access and the app's sheets:spreadsheet permission)`);
       document.getElementById('working-sheet-details').open = true;
       document.getElementById('working-sheet-summary').textContent =
-        '② Working spreadsheet · no view permission';
+        '2. Spreadsheet · no view permission';
     }
   } else {
-    tally(rows.sheetAccess, 'bad', 'Enter Feishu App ID and App Secret before verifying Spreadsheet access');
+    tally(rows.sheetAccess, 'bad', 'Authorize your Feishu account above before verifying access');
   }
 
   // 4. 当前 Sheet 与布局
@@ -2220,11 +2578,29 @@ function showError(err) {
 }
 
 function updateSelectedCount() {
-  const txt = `${t('selected', uiLanguage)} ${processedItems.length}/${processedItems.length}`;
+  const confirmedCount = processedItems.filter(
+    (item) => (item.review_status || item.review?.status) === 'confirmed',
+  ).length;
+  const txt = t('confirmedCount', uiLanguage, {
+    confirmed: confirmedCount,
+    total: processedItems.length,
+  });
   const a = document.getElementById('selected-count');
   const b = document.getElementById('selected-count-results');
   if (a) a.textContent = txt;
   if (b) b.textContent = txt;
+  updateBulkReviewButton();
+}
+
+/** 同步批量确认按钮的剩余数量与可用状态。 */
+function updateBulkReviewButton() {
+  const button = document.getElementById('btn-confirm-remaining');
+  if (!button) return;
+  const remaining = processedItems.filter(
+    (item) => (item.review_status || item.review?.status) !== 'confirmed',
+  ).length;
+  button.disabled = remaining === 0;
+  button.textContent = t('confirmRemaining', uiLanguage, { remaining });
 }
 
 function detailSection(title, body, small = '') {

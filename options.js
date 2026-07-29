@@ -11,7 +11,16 @@ import {
   pingNativeHost,
   saveStarlingCredentials,
 } from './lib/starling-tm.js';
-import { parseSheetsUrl, testSheetsConnection } from './lib/feishu-sheets.js';
+import { parseSheetsUrl } from './lib/feishu-sheets.js';
+import {
+  configureFeishuApplication,
+  getFeishuCredentialStatus,
+  getFeishuUserAuthorizationStatus,
+} from './lib/feishu-auth.js';
+import {
+  INSPIRE_MODEL_OPTIONS,
+  normalizeInspireModelId,
+} from './lib/inspire-models.js';
 
 const GENERAL_KEYS = [
   'starlingCliPath',
@@ -22,10 +31,6 @@ const GENERAL_KEYS = [
   'llmModel',
   'llmCustomModel',
   'llmThinkingLevel',
-  'inspireTeamId',
-  'roiArchiveUrl',
-  'feishuAppId',
-  'feishuAppSecret',
   'enableAI',
 ];
 
@@ -62,12 +67,7 @@ const LLM_PRESETS = {
 };
 const LLM_DEFAULT_PROVIDER = 'inspire';
 const LLM_MODELS = Object.freeze({
-  inspire: [
-    { value: 'gemini_3f', label: 'Gemini 3 Flash — fastest' },
-    { value: 'gemini-3.1-p-priority', label: 'Gemini 3.1 Pro — balanced quality' },
-    { value: 'gpt-5.4-mini-2026-03-17', label: 'GPT 5.4 mini — balanced OpenAI model' },
-    { value: 'gpt-5.4-2026-03-05', label: 'GPT 5.4 — highest quality, slowest' },
-  ],
+  inspire: INSPIRE_MODEL_OPTIONS,
   claude: [
     { value: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6' },
   ],
@@ -94,12 +94,22 @@ export function credentialsFromStorage(data) {
 
 /** 加载设置并按“Chrome 优先、Host 补全”规则回填完整 AK/SK。 */
 async function load() {
+  await chrome.storage.local.remove(['inspireTeamId', 'roiArchiveUrl']);
   const data = await chrome.storage.local.get(READ_KEYS);
+  await chrome.storage.local.remove(['feishuAppId', 'feishuAppSecret']);
   const defaults = {
     starlingTmMode: 'batch_ppe',
     llmProvider: LLM_DEFAULT_PROVIDER,
     ...LLM_PRESETS[LLM_DEFAULT_PROVIDER],
   };
+  const provider = data.llmProvider || LLM_DEFAULT_PROVIDER;
+  if (provider === 'inspire' && data.llmModel) {
+    const migratedModel = normalizeInspireModelId(data.llmModel);
+    if (migratedModel !== data.llmModel) {
+      data.llmModel = migratedModel;
+      await chrome.storage.local.set({ llmModel: migratedModel });
+    }
+  }
 
   GENERAL_KEYS.forEach((key) => {
     const element = document.getElementById(key);
@@ -114,7 +124,61 @@ async function load() {
   renderProviderFields(data.llmModel || defaults.llmModel);
   applyProviderDefaults();
   renderWorkingSheetStatus(data);
+  await renderFeishuUserStatus();
+  await renderFeishuApplicationStatus();
   await loadCredentials(data);
+}
+
+/** 显示当前飞书 OAuth 用户资料和短期授权状态。 */
+async function renderFeishuUserStatus() {
+  const result = document.getElementById('feishu-test-result');
+  const name = document.getElementById('feishu-user-name');
+  const detail = document.getElementById('feishu-user-detail');
+  const avatar = document.getElementById('feishu-user-avatar');
+  try {
+    const status = await getFeishuUserAuthorizationStatus();
+    if (!status.connected) {
+      name.textContent = status.profile?.name || status.profile?.enName || 'Not connected';
+      detail.textContent = 'Authorize from the Workflow page to use Feishu access.';
+      avatar.classList.add('hidden');
+      result.textContent = 'Feishu authorization required.';
+      result.className = 'test-result err';
+      return;
+    }
+    name.textContent = status.profile?.name || status.profile?.enName || 'Connected Feishu user';
+    detail.textContent = [status.profile?.enName, status.profile?.userId || status.profile?.openId]
+      .filter(Boolean)
+      .join(' · ');
+    if (status.profile?.avatarUrl) {
+      avatar.src = status.profile.avatarUrl;
+      avatar.alt = `${name.textContent} avatar`;
+      avatar.classList.remove('hidden');
+    } else {
+      avatar.classList.add('hidden');
+    }
+    result.textContent = `Authorized until ${new Date(status.expiresAt).toLocaleString()}.`;
+    result.className = 'test-result ok';
+  } catch (error) {
+    result.textContent = error.message;
+    result.className = 'test-result err';
+  }
+}
+
+/** 显示本机 App Secret 的 Keychain 配置状态，并同步按钮动作名称。 */
+async function renderFeishuApplicationStatus() {
+  const result = document.getElementById('feishu-owner-result');
+  const button = document.getElementById('configure-feishu-app');
+  try {
+    const status = await getFeishuCredentialStatus();
+    result.textContent = status.configured
+      ? 'Feishu App Secret is saved in macOS Keychain.'
+      : 'Feishu App Secret has not been entered on this Mac.';
+    result.className = status.configured ? 'test-result ok' : 'test-result err';
+    button.textContent = status.configured ? 'Replace Feishu App Secret' : 'Enter Feishu App Secret';
+  } catch (error) {
+    result.textContent = error.message;
+    result.className = 'test-result err';
+  }
 }
 
 /** 按当前 provider 补齐未配置的 endpoint 与 model。 */
@@ -309,29 +373,28 @@ async function testCli() {
   result.className = 'test-result err';
 }
 
-/** 测试 App ID / Secret 是否能获得 tenant token，并验证当前工作表访问。 */
-async function testFeishu() {
-  const result = document.getElementById('feishu-test-result');
-  result.textContent = 'Testing...';
+/** 通过 Native Host 系统隐藏输入框保存 App Secret，不让 Secret 经过 Chrome。 */
+async function configureFeishuAppOwner() {
+  const result = document.getElementById('feishu-owner-result');
+  const button = document.getElementById('configure-feishu-app');
+  const originalLabel = button.textContent;
+  button.disabled = true;
+  button.textContent = 'Waiting for macOS dialog…';
+  result.textContent = 'Paste the Feishu App Secret in the macOS dialog.';
   result.className = 'test-result';
-  const stored = await chrome.storage.local.get([
-    'sheetsUrl', 'spreadsheetToken', 'feishuAppId', 'feishuAppSecret',
-  ]);
-  const parsed = parseSheetsUrl(stored.sheetsUrl || stored.spreadsheetToken || '');
-  const spreadsheetToken = parsed?.spreadsheetToken || stored.spreadsheetToken || '';
-  const response = await testSheetsConnection(
-    { feishuAppId: stored.feishuAppId, feishuAppSecret: stored.feishuAppSecret },
-    spreadsheetToken,
-  );
-  if (response.ok) {
-    result.textContent = spreadsheetToken
-      ? 'Feishu connected, spreadsheet accessible'
-      : 'Feishu connected. Select a working spreadsheet in the popup to verify sheet access.';
+  try {
+    const configured = await configureFeishuApplication();
+    if (!configured.configured) throw new Error('Feishu App Secret was not saved.');
+    result.textContent = 'Feishu App Secret is saved in macOS Keychain.';
     result.className = 'test-result ok';
-    return;
+    button.textContent = 'Replace Feishu App Secret';
+  } catch (error) {
+    result.textContent = error.message;
+    result.className = 'test-result err';
+    button.textContent = originalLabel;
+  } finally {
+    button.disabled = false;
   }
-  result.textContent = response.error;
-  result.className = 'test-result err';
 }
 
 /** 渲染 Popup 中唯一工作表入口的只读摘要。 */
@@ -351,7 +414,7 @@ function renderWorkingSheetStatus(data) {
 document.getElementById('btn-save').addEventListener('click', save);
 document.getElementById('save-starling-credentials').addEventListener('click', saveCredentials);
 document.getElementById('test-cli').addEventListener('click', testCli);
-document.getElementById('test-feishu').addEventListener('click', testFeishu);
+document.getElementById('configure-feishu-app').addEventListener('click', configureFeishuAppOwner);
 document.getElementById('llmProvider').addEventListener('change', onProviderChange);
 document.querySelectorAll('[data-reveal-target]').forEach((button) => {
   button.addEventListener('click', () => toggleCredentialVisibility(button));

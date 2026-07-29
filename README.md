@@ -1,22 +1,24 @@
 # L10n TM Companion
 
-Chrome MV3 Side Panel 扩展：从输入源读英文原文 A → 查 Starling TM → AI 改写候选 B 并查询第二次真实 TM；按需开启 ROI 后，CD 在表格中编辑确认最终 C → 查询 C 的第三次真实 TM → 将 A−C ROI 原始输入归档到 ROI_Test。个人 Access Key 模式的 Inspire Writer 和其余流程均在用户本机执行；生产分发 Inspire 时需要租户签名代理。
+当前线下交付版本为 **1.3.3**：Review 首屏只等待一个展示语言 scope，完整多语言 A/B/C ROI 在用户确认归档后以最多三个 scope 受控并发补齐；ROI_Test 增量升级为 Runs、Scopes、Items 三层审计，并自动补齐六个基础视图与写入前容量检查。OAuth 同时请求“特定记录读取”`base:record:read` 与“列出/查询记录”`base:record:retrieve`；插件只信任飞书 token 响应实际返回的 scope，1.3.2 及更早保存的 scope 状态会要求一次性重新授权。
 
-当前 TM 达标门槛为 **85%**：`Orig Match % >= 85` 直接复用 TM，`< 85` 才进入 AI 改写。该边界已与主端及当前 vendor 计费口径对齐。
+Chrome MV3 Side Panel 扩展：从输入源读取英文原文 A → 查询 Starling Top-3 TM → 仅对 `50 ≤ Score A < 85` 的 source 创建一个 Inspire task → 最多生成三个结构化候选并逐个查询真实 Post-TM → 在 Focus 中人工编辑最终 C → 单条确认或批量确认其余默认结果 → 查询 Final TM 并同步当前 Sheet 行 → 按需将正式 A−C ROI 归档到 ROI_Test。个人 Access Key 模式的 Inspire Writer 和其余流程均在用户本机执行；生产分发 Inspire 时需要租户签名代理。
 
-默认运行是快速 CD 路径：选择一个共同 target locale 后，对全部已选项目执行一次 Batch TM scope；ROI 默认关闭，不加载费率、不展开多语言 scope，也不显示最终 C 与归档操作。只有用户显式开启 ROI mode，插件才把同一组共享 target locales 应用于全部项目并运行多语言计价链路。
+AI 候选链路使用半开区间 **`50 ≤ Score A < 85`**：`49.99` 不创建 Inspire task，`50` 与 `84.99` 创建，`85` 不创建。Score A 低于 50 时缺少足够可靠的 TM 证据，85 及以上已经达标；两类条目仍可进入 Focus 人工编辑。
+
+默认运行是快速 CD 路径：程序确定一个内部共同 target locale，对全部已选项目执行一次 Batch TM scope；ROI 默认关闭，不加载费率、不展开多语言 scope，也不显示归档操作。用户显式开启 ROI mode 后，Review 仍只等待一个展示 scope；其余共享 target locales 在确认写入 ROI_Test 后补算，避免 18 条 source × 35 个语言让首屏和 Confirm 同步等待。
 
 ## 功能
 
 - 📥 从飞书文档/电子表格抓取原文（全文 / 选中文字）
 - 🔄 调用 Starling 批量 TM Match API 查询 TM 记忆（Orig Match%，默认 PPE）
-- 🤖 AI 改写只参考英文 `tm_source`；Inspire Writer 使用异步 tasks/copies 接口，最多三条并发，默认选择最高分 revision 并保留全部候选
-- 📌 对实际生成的 AI rewrite 再调用 Starling Batch TM，保存版本 B 的真实 Score B 与失败状态
-- ✅ 读取 CD 在当前布局的 `Rewritten Segment` 列确认的版本 C（`CD review valid?` 为 Yes），第三次调用 Starling Batch TM 保存真实 Score C
+- 🤖 每条满足 50–85 门禁的 source 只创建一个 Inspire task；prompt 在首尾固定 Writer revision 协议，Inspire 原生返回最多三个普通改写 revision，客户端再将其包装为结构化候选并执行安全门禁与真实 Post-TM
+- 🛡️ 每个候选依次经过结构、placeholder/token、URL、数字、Glossary、Legal、语义状态与风险校验；随后用真实 Post-TM 验证 `Score B > Score A`，失败候选保留审计信息但不进入可选列表
+- ✅ Focus 是唯一编辑入口：CD 可采用通过门禁的 AI 候选或手动编辑 C；例外项可单条 Confirm，其余默认结果可一键批量确认。两种入口都按 `本地校验 → Final TM → Sheet 写入 → confirmed` 完成，任一步失败都保持未确认
 - 🔀 对比生成 Comment（`no_tm` / `same` / `improved` / `different`）
 - ⚠️ Starling 查询失败时明确展示错误并停止流程，避免把接口失败伪装成「无 TM 命中」
-- 📤 写回飞书电子表格 Sheets（按真实行号定位，不错位）
-- 💵 每个共享目标语言生成一个携带全部已选 `projectIds` 的 scope，并解析冻结的 `local rate` 快照；ROI_Test 的 Runs 直接记录本车金额，`Saving USD` 严格为正式 `TM cost(A) - TM cost(C)`，缺失费率或最终 C 时严格标记 incomplete
+- 📤 已确认条目按真实行号写入六列：`Best TM Match`、`Orig Match %`、`Rewritten Segment`、`Post-TM %`、`Reached 85%?`、`Final TM %`
+- 💵 每个共享目标语言生成一个携带全部已选 `projectIds` 的 scope，并解析冻结的 `local rate` 快照；ROI_Test 的 Runs 记录整车金额，Scopes 记录语言金额与覆盖漏斗，Items 按 source 记录 A/B/C 审计且不与 locale 做笛卡尔积；`Saving USD` 严格为正式 `TM cost(A) - TM cost(C)`
 - ⚙️ Settings 直接保存并完整回填 Starling AK/SK；Side Panel 支持中英文切换、快速 TM target 与按需 ROI mode
 
 ## 架构
@@ -24,41 +26,43 @@ Chrome MV3 Side Panel 扩展：从输入源读英文原文 A → 查 Starling TM
 ```
 输入源（飞书 Sheets 已确认 source 范围 / 文档抓取）
    ↓
-① 读原文（飞书 Sheets API，以配置的 App ID / Secret 换取 tenant_access_token 鉴权）
+① 读原文（飞书 Sheets API，以当前用户 OAuth 的 user_access_token 鉴权）
    ↓
 ② 查 TM：原文 → background.js（Service Worker）
         → Native Messaging → 本地 Python starling-bridge.py
-        → 每 10 条组成批次 → starling-batch-client.js
+        → 每 10 条组成批次，最多 5 个批次并发 → starling-batch-client.js
         → Chrome AK/SK 注入单次子进程（或读取官方配置）
         → 官方 Starling Core 签名 → PPE 批量 TM 服务
         → 返回 {TM译文, TM库原文, Orig Match%}
         （失败时 → UI 展示真实错误并停止）
    ↓
-③ AI 改写：对 Orig% < 85 的条目改写英文原文
+③ AI 改写：只对 50 ≤ Orig% < 85 的条目创建一个 Inspire task
+   → 最多三个结构化候选；49.99 / 85 等边界严格跳过
    （Inspire Writer 直连 OpenAPI；Claude/OpenAI-compatible 继续经本机桥接）
    ↓
-④ 二次查 TM：仅对实际生成 rewrite 的未达标条目再次调用 Starling Batch TM
-   → 保存 post-rewrite 真实 score；查询失败标记 incomplete，不伪造 0 分
+④ 候选安全校验与二次 TM：逐个校验结构、token、URL、数字、Glossary、Legal 和语义
+   → 对结构有效候选批量查询真实 Post-TM；只有安全且 Score B > Score A 的候选可选
    ↓
-⑤ 从用户选择的输出起始列连续写五列结果，第六列保留给 CD review
+⑤ 结果卡片只提供 Focus 入口；展示 Top-3 TM、有效 AI 候选、Post-TM 分数与差值
    ↓
-⑥ CD 编辑 Rewritten Segment 形成最终 C，并在 CD review valid? 列选择 Yes
+⑥ CD 在 Focus 中选择候选或编辑最终 C
    ↓
-⑦ 点击“确认最终 C，计算 Score C”：读取已确认的 Rewritten Segment，查询第三次 TM，保存 Score C，并生成正式 A-C ROI
-⑧ 结果卡片按当前可用 TM Score 从低到高排列：优先 Score C，其次 Score B，最后 Score A；没有可用分数的条目排在最后
+⑦ 单条 Confirm 或 `Confirm & write remaining`：校验最终 C → 查询 Final TM → 写入当前 Sheet 的六列 → 标记 confirmed
    ↓
-⑧ 点击 Write ROI archive：Runs 直接显示本车正式 A−C 节省
+⑧ 至少一条确认后可点击 Write ROI archive：用户先确认记录数，再补齐延后语言并顺序写入 Runs → Scopes → Items
 ```
 
-纯客户端，无后端服务器。TM/LLM 调用经 Native Messaging Host 走本机 Python 桥接（绕浏览器 CORS）。
+当前版本是纯客户端，无后端服务器。TM/LLM 调用经 Native Messaging Host 走本机 Python 桥接（绕浏览器 CORS）。本机 Owner 测试可通过 macOS 系统隐藏输入框把 App Secret 保存到 Keychain，再由 Native Host 调用飞书官方 `authen/v2/oauth/token`；不得把 Secret 打进扩展或安装包。多人分发必须增加服务端 OAuth broker，由 broker 保存 Secret 并完成授权码兑换。用户身份直写 ROI_Test 时，飞书还要求该用户本人拥有 ROI_Test 编辑权限；“可以写入但不能打开 ROI_Test”的私有分发目标必须增加由应用身份写入的受信任代理。
 
-## 三个本机依赖（分发限制）
+## 本机依赖与分发限制
 
-给别人用前，对方机器必须装齐，否则 TM/LLM 功能不可用：
+给别人用时，对方机器只需要 macOS、Chrome、公司网络或 VPN。离线 Installer.app 内置 universal Python、Node.js LTS 与固定版本 Starling CLI，不读取、覆盖、升级或卸载用户已经安装的开发环境；Chrome 仍要求用户本人确认加载未打包扩展。
 
-1. `starling-cli` 运行时（AK/SK 在扩展 Settings 中配置）
-2. Python 桥接脚本 `native-host/starling-bridge.py`
-3. Native Messaging Host 注册到 Chrome（`~/Library/Application Support/Google/Chrome/NativeMessagingHosts/`，`allowed_origins` 绑扩展 ID）
+安装器负责以下项目：
+
+1. 检查或安装 `starling-cli` 1.1.24；AK/SK 仍由用户在 Settings 配置
+2. 自检 `native-host/starling-bridge.py`
+3. 根据 manifest 公钥计算固定扩展 ID，并原子注册 Native Messaging Host
 
 ## 安装
 
@@ -66,32 +70,25 @@ Chrome MV3 Side Panel 扩展：从输入源读英文原文 A → 查 Starling TM
 
 ```bash
 starling-cli --version
-./native-host/register-native-host.sh <扩展ID>
+./native-host/install.sh --dry-run --no-open
+./native-host/install.sh --no-open
+./scripts/build-offline-package.sh
 for f in test/*.test.js; do node "$f"; done
 python3 -m unittest test/test_export_local_rates.py test/starling-credentials-test.py -v
 ```
 
-### 1. 加载扩展
+### 推荐安装
 
-1. 打开 `chrome://extensions`
-2. 开启「开发者模式」
-3. 点击「加载已解压的扩展程序」，选择本目录 `l10n-tm-companion/`
-4. 记录扩展 ID（地址栏中可见，形如 `bgnakecphongbinlnmgnhoefgjecdang`）
+1. 对普通用户分发 `L10n-TM-Companion-线下安装包/L10n-TM-Companion-macOS.zip`；解压后双击 `安装 L10n TM Companion.app`，首次被 macOS 拦截时右键选择“打开”
+2. 自包含安装器把内置插件复制到 `~/L10n TM Companion - Chrome 加载这个文件夹`，自检 bridge、注册 Native Host，并在桌面创建同名可点击入口
+3. 开启“开发者模式”，点击“加载已解压的扩展程序”；在文件窗口左侧点击“桌面”，选择 `L10n TM Companion - Chrome 加载这个文件夹`
+4. `Cmd+Q` 完全退出 Chrome 并重开，然后进入扩展 Settings 完成凭证配置
 
-### 2. 注册 Native Messaging Host（macOS）
+维护者运行 `./scripts/build-offline-package.sh` 可重复生成仅含 Installer.app、简明手册和分享 ZIP 的交付目录；浏览器运行文件与 Native Host 封装在 App 的 `Contents/Resources/extension` 中，测试、handoff、临时文件和历史教程不会进入交付包。源码目录中的开发版 Installer.app 仍支持原地安装。
 
-```bash
-cd native-host
-./register-native-host.sh <你的扩展ID>
-```
+固定扩展 ID 为 `bgbodpcofifiloekhfjiffmchcaiiicm`。当前 App 只有 ad-hoc 完整性签名，尚未使用 Apple Developer ID 签名与 notarization；Chrome 的加载确认也不能由安装器代替。完整依赖下载链接、逐步配置、健康检查和排障见[面向非技术用户的安装与使用手册](docs/offline-install-manual.md)。
 
-脚本会：
-- 把 `starling-bridge.py` 设为可执行
-- 在 `~/Library/Application Support/Google/Chrome/NativeMessagingHosts/` 写入注册清单
-
-> ⚠️ 注册清单中 `path` 必须是绝对路径，且 `allowed_origins` 绑扩展 ID。重装导致 ID 变化时需重新注册，否则 TM/LLM 失联。
-
-### 3. 配置参数
+### 配置参数
 
 点击扩展图标 → ⚙️ 设置，填写：
 
@@ -101,42 +98,44 @@ cd native-host
 | Save & Verify | 同时写入 Chrome 副本与 Starling 官方配置，并真实验证项目权限 |
 | Starling CLI 路径 | 通常留空自动检测，排障时填绝对路径 |
 | TM 查询模式 | 默认「Batch TM API in PPE」；只有排障时才切回旧的单条 CLI 查询 |
-| LLM Provider / Endpoint / Key / Model | Inspire Writer、Claude 或 OpenAI-compatible；Inspire 填个人 `wak_…` Access Key 与 teamId，模型从 OpenAPI 支持列表选择，再选择 thinking level |
-| Feishu App ID / App Secret | 填写自建应用凭证；Spreadsheet 与 ROI archive 均以该应用的 tenant token 访问 |
+| LLM Provider / Endpoint / Key / Model | Inspire Writer、Claude 或 OpenAI-compatible；Inspire 入口为 [inspire.bytedance.net](https://inspire.bytedance.net)，填写个人 `wak_…` Access Key；LIVE CD teamId 已固定，再选择 OpenAPI 支持的模型与 thinking level |
+| Feishu account | App ID 固定；普通用户在 Side Panel 首页点击 `Authorize`；插件读取姓名、英文名、user ID、open ID 与头像用于 ROI Operator |
+| ROI archive Bitable | 固定写入 [ROI_Test](https://bytedance.larkoffice.com/wiki/J1RJwEf0FijMQQkceUkcZyqCnJc?table=tbls3B039S6J7zdT&view=vewSwbY6Ry)，用户无需配置 URL |
 
-应用 Owner 需要在飞书开放平台为自建应用开通并发布 `sheets:spreadsheet`；使用 Wiki ROI archive 时还需开通 `wiki:wiki:readonly` 和归档所需的 Bitable scope。每个安装扩展的 Chrome profile 都需要填写获准使用的 App ID 与 App Secret；该应用也必须作为目标 Spreadsheet 与 ROI archive Bitable 的可编辑协作者。
+应用 Owner 需要在飞书开放平台为用户身份开通并发布 `sheets:spreadsheet.meta:read`、`sheets:spreadsheet:read`、`sheets:spreadsheet:write_only`、`wiki:node:read`、`base:table:read`、`base:table:create`、`base:field:read`、`base:field:create`、`base:record:read`、`base:record:retrieve`、`base:record:create`、`base:record:update`、`base:view:read`、`base:view:write_only`、`contact:user.base:readonly` 与 `contact:user.employee_id:readonly`，并登记 `http://localhost:39641/l10n-tm-companion/oauth/callback`。新增 scope 发布后，旧用户必须在 Side Panel 首页重新授权一次。本机 Owner 测试需先在 Settings 的 `Application owner setup` 通过系统隐藏输入框配置 Keychain；正式多人分发需改用服务端 OAuth broker，普通用户只在首页点击授权。发布应用、上传插件或分享 ROI_Test 都不会自动产生用户，只有安装插件并实际授权的账号才会出现在 ROI Operator。Working spreadsheet 支持当前页面自动选择，也支持用户粘贴任意已授权的 `/sheets/` 或 `/wiki/` 链接；Wiki node 会先解析为真实 `obj_token`。
 
-日常运行配置放在 Side Panel：项目从 AK/SK 当前有权访问的列表中选择一至十个，`Fast TM target language` 只显示全部已选项目共同支持的语言。ROI mode 关闭时，vendor、费率和 coverage languages 不参与运行。开启 ROI mode 后选择 vendor，语言选择器只显示全部已选项目共同支持且当前 vendor 存在精确按字费率的 `targetLocales`；用户只选择一次共享语言集合，每个语言生成一个携带全部已选 `projectIds` 的 scope。两个项目与二十一个共享语言显示并查询二十一个 scope。Projects 与 ROI coverage languages 使用独立折叠区，语言支持搜索和全局 All/None。AI 始终执行 English-to-English rewrite；同一车只生成一组 B 候选，再在各 ROI scope 查询真实 Score B，避免按语言重复调用 LLM。
+日常运行配置放在 Side Panel，并按 `1 Projects → 2 Spreadsheet → 3 Run → 4 Review` 展示真实操作顺序；Projects 与 Spreadsheet 同时只展开一个，长内容在最高 380px 的区域内滚动，运行完成或恢复有效历史运行后自动进入 Review。飞书授权有效时首页只保留头像与姓名，运行写入目标和确认数量也只在 Review 展示。插件先分页调用 Starling `/projects`，完整发现当前 AK/SK 有权访问的项目，再由 CD 选择一至十个项目；界面每页展示八个项目，只有一页时也显示 `Page 1/1`，翻页保留跨页选择，十个上限对全部页面合并生效。项目发现与 `/gateway/openapi/corpus/tm/match/batch` 的实际 TM 查询是两个独立阶段。ROI mode 关闭时，程序从全部所选项目的共同 target locales 中确定性选择第一个内部参考 locale，用于满足 Starling Batch TM 协议；该实现参数不在 CD 界面展示，vendor、费率和 coverage languages 也不参与普通运行。开启 ROI mode 后选择 vendor，语言选择器只显示全部已选项目共同支持且当前 vendor 存在精确按字费率的 `targetLocales`；用户只选择一次共享语言集合，每个语言生成一个携带全部已选 `projectIds` 的 scope。Review 首轮只查询第一个展示 scope，单条与批量 Confirm 也只查询该 scope；点击归档并确认后，其余 scope 以最多三个并发补齐真实 A/B/C TM。AI 始终执行 English-to-English rewrite；同一车只创建一组 Inspire task 决策，再在各 ROI scope 查询真实 Score B，避免按语言重复调用 LLM。
 
 ROI 费率只来自随插件发布的 `data/local-rates.json`。RWS 与 Pactera 按当前 source-target
 语言对显示 AIPE 和 T-only 单价；Alconost 与 Skrivanek 当前原表只有 hourly rate，
 按字 ROI 会明确显示 `missing_word_rate`。正式 ROI 是每个 scope 的 `TM cost(A) - TM cost(C)`，版本 B
-只供 CD 审阅，不能进入金额。整车金额只在 ROI_Test 的 `L10n ROI Runs` 的金额列和 `Pricing notes` 中显示；Popup 与
+只供 CD 审阅，不能进入金额。整车金额只在 ROI_Test 的 `L10n ROI Runs` 的金额列和 `Pricing notes` 中显示；Side Panel 与
 Spreadsheet 均不显示 ROI 金额。最终 C 缺失、G 不为 Yes、第三次 TM 失败或费率不完整时，记录保持
 `incomplete`，金额与 `Pricing notes` 显示所有可计算文案的小计；完全没有可计算的最终 C 时金额留空。完整翻译基线仍是本地英文词数乘 AIPE 单价的参考字段；TM 成本按真实 score
-估算，0–75（含 75）走 AIPE，(75,85]、(85,95]、(95,99] 分别按 T-only 的 60%、40%、20%。Starling
+估算，0–75（含 75）走 AIPE，(75,85]、(85,95]、(95,100) 分别按 T-only 的 60%、40%、20%；100% 按命中分类或保守规则处理。Starling
 未返回 100% 命中的计费分类时，插件按 T-only 的 20% 做保守估算，并标记
 `exact_unclassified_conservative`。预估不能替代 Elasticsearch 结算结果。
 
-### 4. 配置 Spreadsheet、Sheet 与列布局
+### 配置 Spreadsheet、Sheet 与列布局
 
 Side Panel 默认采用当前 Spreadsheet，也可在 `Working spreadsheet` 粘贴另一份表格链接。同一 Spreadsheet 的全部可见 Sheet 会显示在下拉框中；来源列、数据起始行和输出起始列按 `spreadsheetToken + sheetId` 独立保存。
 
-插件读取 A-Z 前二十行，唯一命中 `Original Source Segment`、`English Source` 或 `Source` 时自动采用该列与下一行；无唯一表头时展示候选并要求确认。输出起始列连续占六列：`Best TM Match`、`Orig Match %`、`Rewritten Segment`、`New Match %`、`Reached 85%?`、`CD review valid?`。最后一列只创建 Yes/No 下拉，不自动写值。来源列与输出区域重叠、未知表头或空表头下已有数据时停止写回。
+插件读取 A-Z 前二十行，唯一命中 `Original Source Segment`、`English Source` 或 `Source` 时自动采用该列与下一行；无唯一表头时展示候选并要求确认。输出起始列连续占六列：`Best TM Match`、`Orig Match %`、`Rewritten Segment`、`Post-TM %`、`Reached 85%?`、`Final TM %`。空白输出区会初始化；旧六列表头的 `CD review valid?` 数据区为空时可迁移，存在任意人工 review 值时正确失败，避免覆盖历史确认状态。
 
 展开 Working spreadsheet 可以查看完整 Spreadsheet、Sheet、读取范围、写入范围与前五条非空 source 预览。空白 source 行会跳过，但结果保留真实行号，写回不会错位。
 
 ## 使用
 
 1. 在 Settings 填写完整 AK/SK，点击 `Save & Verify`
-2. 打开 Side Panel，选择一至十个权限项目和 `Fast TM target language`；普通运行保持 ROI mode 关闭
+2. 打开 Side Panel，选择一至十个权限项目；普通 CD 运行保持 ROI mode 关闭，内部参考 locale 由程序自动选择
 3. 在飞书电子表格中将本扩展所用飞书应用添加为协作者，授予可编辑权限
 4. 从当前 Spreadsheet 打开 Side Panel，选择 Sheet，确认来源列、数据起始行和输出起始列；需要其他表格时展开 `Use a different spreadsheet`
-5. 点击 `Read configured source range`；文档 DOM 抓取位于折叠的 `Other sources`
-6. 自动触发 Starling TM，得到 Score A、候选 B 与真实 Score B
-7. 点击「写回表格」，结果按真实行号写入当前六列输出区；CD 编辑 `Rewritten Segment` 为最终 C，并在 `CD review valid?` 选择 Yes
-8. 需要整车 ROI 时，在运行前开启 ROI mode、选择 vendor 与 coverage languages；CD 确认后点击“确认最终 C，计算 Score C”
-9. 点击 `Write ROI archive`；ROI_Test 的 `L10n ROI Runs` 直接显示本车 A−C ROI
+5. 点击 `Read source → Query TM → AI rewrite`；文档 DOM 抓取位于折叠的 `Other sources`
+6. 自动触发 Top-3 TM；只有 `50 ≤ Score A < 85` 且 AI 已开启的 source 创建 Inspire task，并最多产生三个候选
+7. 在结果卡片点击 `Focus`，查看 Top-3 TM、通过安全门禁的 AI 候选及真实 Post-TM；没有有效 AI 时显示 `None`
+8. 只修改需要人工调整的最终 C；例外项可在 Focus 单条 Confirm，其余项点击 `Confirm & write remaining` 批量完成。Final TM 与对应六列全部写入成功后才显示 confirmed
+9. 需要整车 ROI 时，在运行前开启 ROI mode、选择 vendor 与 coverage languages；至少确认一条后归档会保留未确认缺口和所有有效小计
+10. 点击 `Write ROI archive`；ROI_Test 的 `L10n ROI Runs` 保存本车 A−C ROI 与 pre-AI / after-AI / after-review 漏斗指标
 
 > 💡 wiki/doc 页若「抓取全文」抓不到，可选中文字用「抓取选中文字」（走 `window.getSelection()`，不依赖 DOM 选择器，几乎一定能抓到）。
 
@@ -159,9 +158,11 @@ l10n-tm-companion/
 │   ├── tm-bm25.js             # 历史本地词法匹配工具，主流程不再自动调用
 │   ├── ai-translate.js        # AI 改写原文 + LLM 调用
 │   ├── inspire-writer.js      # Inspire 异步 task、轮询与 revisions 解析
+│   ├── inspire-models.js      # Inspire 正式模型枚举与历史 ID 迁移
 │   ├── i18n.js                # Side Panel 运行时中英文文案
 │   ├── sheet-layout.js        # Sheet 表头检测、列换算、范围映射与冲突校验
-│   ├── new-match-scoring.js   # 确定性 New Match% 打分（固定权重，无 LLM）
+│   ├── source-rewrite-policy.js # AI 候选结构、安全与真实 Post-TM 门禁
+│   ├── review-workflow.js     # Focus 编辑、确认状态机与失败恢复
 │   ├── diff.js                # AI vs TM 对比（生成 Comment）
 │   ├── feishu-sheets.js       # 飞书电子表格读写（按行号定位写回）
 │   ├── feishu-bitable.js      # 飞书应用身份 token 与 Bitable 工具
@@ -201,7 +202,7 @@ node test/starling-credentials-client.test.js
 python3 -m unittest test/starling-credentials-test.py -v
 ```
 
-测试覆盖内容抓取、流程逻辑、错误展示、飞书读写、New Match、改写后二次 TM 快照的成功与失败语义、历史 BM25 工具、批量请求参数转发、批量客户端入口，以及 Python 的批量协议解析。
+测试覆盖内容抓取、49.99 / 50 / 84.99 / 85 边界、每条单 task、Top-3 TM、最多三个结构化候选、安全门禁、逐候选 Post-TM、Focus 确认状态机、单行与连续区间六列写入、ROI 漏斗、批量请求参数转发，以及 Python 的批量协议解析。
 
 ## 调试
 
@@ -227,16 +228,16 @@ cat /tmp/l10n-bridge-debug.log     # 看 PATH/which starling-cli/收到的 actio
 
 - **批量上限**：`projectIds` 与 `sourceContents` 均按已确认的最多 10 条执行；更长文案列表由 bridge 按 10 条分批。
 - **PPE 依赖**：默认批量模式发送 `x-use-ppe: 1` 与 `x-tt-env: ppe_openapi_integ`；上线生产环境前需由 Starling 确认路由与鉴权要求。
-- **ROI Bitable 归档**：只追加 `L10n ROI Runs` / `L10n ROI Scopes` 两张审计表，不替代普通 Sheet 动态布局写回；Runs 直接写入 `Full translation USD`、`TM estimated USD` 与 `Saving USD`，其中 Saving 严格为 A−C 节省，Scopes 只保存一个多项目语言 scope 的覆盖与失败原因，无需配置 Formula。
+- **ROI Bitable 归档**：目标固定为 [ROI_Test](https://bytedance.larkoffice.com/wiki/J1RJwEf0FijMQQkceUkcZyqCnJc?table=tbls3B039S6J7zdT&view=vewSwbY6Ry)，用户不能用历史设置覆盖；顺序追加 `L10n ROI Runs` / `L10n ROI Scopes` / `L10n ROI Items`，不替代普通 Sheet 写回。Runs 保存整车金额，Scopes 保存 target locale 金额和漏斗，Items 每个 source 只保存一条 CD 审计。插件幂等创建基础视图，并在写入前检查飞书每表 20,000 条记录上限；复杂分组、筛选和仪表盘由 ROI_Test Owner 在飞书界面一次性维护。
 - **抓取需真机验证**：飞书 wiki/doc 真实 DOM 结构未实测，`content.js` 选择器基于推断；已加全文段落兜底保证不返回空，但段落质量需真机确认。
 
 ## 安全
 
 - Starling AK/SK 同时保存在 `chrome.storage.local` 与 `~/.starling-cli/.starlingrc.json`；两处均为本机持久化，不承诺硬件级加密
 - AK/SK 默认遮挡但可完整回填；console、Native Host 日志、错误与飞书写回禁止记录凭证明文
-- 飞书 App ID 与 App Secret 保存在 `chrome.storage.local`，用于换取短期 `tenant_access_token`；Options 默认遮挡 Secret，日志与错误信息不回显凭证明文
-- A/B/C 运行快照仅保存在 `chrome.storage.local`，用于 Popup 关闭后恢复结果、确认最终 C 和 ROI archive；快照不含任何凭证，启动新运行时清除，最长保留七天
-- 该模式要求每个 Chrome profile 填写获准凭证，并将应用添加为目标 Spreadsheet 与 ROI archive Bitable 的可编辑协作者
+- 飞书 App ID 固定在程序中；普通用户从 Side Panel 首页使用 OAuth + PKCE。新版 token 接口要求 App Secret，本机 Owner 测试由 Native Host 系统隐藏输入框写入 macOS Keychain，多人分发由服务端 OAuth broker 持有；短期 user token 与最小用户资料保存在扩展本地存储，日志与错误信息不回显 token
+- A/B/C 运行快照仅保存在 `chrome.storage.local`，用于 Side Panel 关闭后恢复候选、逐条确认状态和 ROI archive；快照不含任何凭证，启动新运行时清除，最长保留七天
+- 当前纯客户端模式要求每个 Chrome profile 单独授权，并要求当前用户对目标 Spreadsheet 与 ROI_Test 具有相应访问权限；严格的 ROI 私有可见性需要应用身份代理
 - TM 数据留在用户本地机器
 - 高风险内容（金钱/法律/未成年人相关）请人工确认后再写入表格
 
@@ -420,7 +421,7 @@ Settings 直接接收完整 AK/SK，并通过官方 Starling Core 双存储到 C
 6. **starling-cli login SK 不落盘**：非交互 TTY 下只存 AK 不存 SK。手动写 `~/.starling-cli/.starlingrc.json`。
 7. **源语言**：项目 TikTok_Client (385) 源语言是英文，`sourceLocale` 必须用 `en` 不是 `zh`，否则全空。
 8. **项目范围**：merchant 类 key（`ttlsMerchant_` 前缀）在 Project 278，不在默认 385。要查哪个项目的 key 就在 Options 切 Project ID。
-9. **未打包扩展 ID 不可控**：manifest 的 key 字段对「加载已解压扩展程序」不生效，Chrome 给随机 ID。重装导致 ID 变化时需重新注册 native host。
+9. **未打包扩展 ID 必须固定**：manifest 的 `key` 字段会让“加载已解压的扩展程序”生成稳定 ID。安装器从同一公钥计算并注册 `bgbodpcofifiloekhfjiffmchcaiiicm`；若手动覆盖 ID 或加载另一份目录，需重新运行安装器。
 10. **搜索词容错要客户端做**：`/project/search` 接口大小写不敏感（默认 caseSensitive=false），但**不支持 fuzzy/拼写/符号容错**。用户原文带标点（`gold-medal!`）和库里存的（`Gold Medal`）精确匹配会漏。解决：`_normalize_loose`（lowercase + 去非字母数字后比较）做宽松精确判断，覆盖符号/大小写差异。
 11. **多项目要并发 + 取最优**：同一原文在多项目都可能命中 key，逐项目串行查太慢。bridge 用 `ThreadPoolExecutor` 并发 + `_pick_best`（exact 优先 → score 优先 → 跳过空 key）取最优一个，结果带 project 来源写 J 列。
 

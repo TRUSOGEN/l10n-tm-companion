@@ -6,6 +6,7 @@ import path from 'node:path';
 const root = path.resolve(import.meta.dirname, '..');
 const html = fs.readFileSync(path.join(root, 'popup.html'), 'utf8');
 const source = fs.readFileSync(path.join(root, 'popup.js'), 'utf8');
+const styles = fs.readFileSync(path.join(root, 'popup.css'), 'utf8');
 
 let passed = 0;
 let failed = 0;
@@ -20,6 +21,14 @@ function assert(name, condition) {
 }
 
 console.log('\n=== popup: run configuration ===');
+assert('主流程展示四步导航', html.includes('id="workflow-steps"')
+  && [1, 2, 3, 4].every((step) => html.includes(`data-step="${step}"`)));
+const projectsStep = html.indexOf('id="run-config-details"');
+const spreadsheetStep = html.indexOf('id="working-sheet-details"');
+const runStep = html.indexOf('id="panel-3"');
+assert('主流程按项目、工作表、运行顺序排列',
+  projectsStep >= 0 && projectsStep < spreadsheetStep && spreadsheetStep < runStep);
+assert('结果 Tab 明确标记为第 4 步', html.includes('class="tab-step-number">4</span>'));
 assert('主 UI 有 vendor', html.includes('id="run-vendor"'));
 assert('主 UI 有 ROI 语言覆盖容器', html.includes('id="roi-language-coverage"'));
 assert('ROI 语言支持一键全选', html.includes('id="roi-select-all"'));
@@ -27,7 +36,10 @@ assert('ROI 语言支持一键取消全部', html.includes('id="roi-clear-all"')
 assert('ROI 语言支持按 locale 搜索', html.includes('id="roi-locale-filter"'));
 assert('项目选择器可独立折叠', html.includes('id="run-project-details"'));
 assert('ROI 语言区可独立折叠', html.includes('id="roi-language-details"'));
-assert('普通路径有快速 TM target locale', html.includes('id="run-target-locale"'));
+assert('CD 主界面不展示 Fast TM target language', !html.includes('id="run-target-locale"')
+  && !html.includes('Fast TM target language'));
+assert('CD 的 Top-3 TM 只展示英文 source，不展示 target translation',
+  !source.includes("${escapeHtml(candidate.target || '')}"));
 assert('主 UI 有 ROI 开关', html.includes('id="enable-roi"'));
 assert('ROI 配置可整体隐藏', html.includes('id="roi-config"'));
 assert('vendor 可计费共同语言范围说明', html.includes('Only common languages with an exact vendor word rate are shown'));
@@ -40,6 +52,8 @@ assert('缺凭证可打开 Settings', source.includes('chrome.runtime.openOption
 assert('自动加载权限项目', source.includes('async function loadAccessibleProjects'));
 assert('运行前统一门禁', source.includes('async function ensureWorkflowReady'));
 assert('ROI 关闭时构建单一快速 scope', source.includes('buildFastTmScope('));
+assert('CD 快速路径自动选择内部参考 locale', !source.includes('fastTargetLocale')
+  && !source.includes('tmTargetLocale'));
 assert('ROI 关闭时不解析费率', source.includes('if (!roiEnabled) return null'));
 assert('即时保存项目选择', source.includes('starlingProjectIds: [...selectedProjectIds]'));
 assert('即时保存共享 ROI 语言选择', source.includes('roiTargetLocales'));
@@ -57,10 +71,31 @@ assert('运行配置构建共享语言 scope', source.includes('buildLocaleScope
 assert('汇总多语言 ROI', source.includes('summarizeMultilingualRoi('));
 assert('结果页存在 ROI archive 按钮', html.includes('id="btn-write-roi-archive"'));
 assert('存在 ROI archive 预览区域', html.includes('id="roi-archive-preview"'));
-assert('归档读取独立配置', source.includes('roiArchiveUrl'));
+assert('Popup 使用固定 ROI archive 常量', source.includes('FIXED_ROI_ARCHIVE_URL'));
+assert('Popup 不从 storage 读取 ROI archive URL', !source.includes("'roiArchiveUrl'"));
+assert('归档按钮不依赖用户配置 URL', !source.includes('Boolean(config.roiArchiveUrl)')
+  && !source.includes('Boolean(cfg.roiArchiveUrl)'));
 assert('归档调用 ROI writer', source.includes('writeRoiArchive('));
-assert('归档确认只说明 Runs 与 Scopes 两张表', !source.includes('L10n ROI Items'));
-assert('原 Sheet 写回仍调用 writeToSheet', source.includes('await writeToSheet(itemsToWrite, config)'));
+assert('归档确认说明 Runs、Scopes 与 Items 三张表', source.includes('L10n ROI Items'));
+assert('Items payload 标记当前 CD 展示 scope', source.includes('displayScopeKey: activeDisplayScopeKey'));
+assert('归档成功摘要展示 Scope 与 Item 数量', source.includes('detail.itemRecordCount'));
+const archiveStart = source.indexOf('async function writeCurrentRoiArchive()');
+const archiveEnd = source.indexOf('// ===== UI 辅助 =====', archiveStart);
+const archiveFlow = source.slice(archiveStart, archiveEnd);
+assert(
+  '用户确认发生在延后语言计算之前',
+  archiveFlow.indexOf('window.confirm(') < archiveFlow.indexOf('completeDeferredRoiScopesForArchive('),
+);
+assert('逐条确认写回调用单条 adapter', source.includes('await writeConfirmedReviewItem('));
+assert('AI 候选渲染前去重', source.includes('dedupeAiCandidates('));
+assert('AI 候选具有可访问的选择状态', source.includes('aria-pressed='));
+assert('AI 候选显示明确的 Selected 状态', source.includes('candidate-select-indicator'));
+assert('AI 候选根据 Final copy 标记选中', source.includes('isAiCandidateSelected('));
+assert('AI 候选使用现代卡片样式', styles.includes('.ai-candidate-choice')
+  && styles.includes('.ai-candidate-choice.is-selected'));
+assert('AI 候选键盘焦点清晰可见', styles.includes('.ai-candidate-choice:focus-visible'));
+assert('ROI 归档前获取用户身份', source.includes('authorizeFeishuUser('));
+assert('ROI payload 写入当前 Operator', source.includes('operator: feishuUser.profile'));
 
 const otherStart = html.indexOf('Other sources (DOM extraction, may be noisy)');
 const otherEnd = html.indexOf('</details>', otherStart);
@@ -76,9 +111,19 @@ assert('工作表显示真实读写范围', html.includes('id="sheet-range-summa
 assert('工作表预览前五条 source', html.includes('id="sheet-source-preview"'));
 assert('不确定布局需要显式确认', html.includes('id="btn-confirm-sheet-layout"'));
 assert('工作表布局按 token 和 sheetId 保存', source.includes('sheetLayoutStorageKey('));
+assert('Wiki 自动解析真实 Spreadsheet obj_token', source.includes('resolveSpreadsheetReference'));
+assert('不再把历史用户强制迁移到固定 Wiki', !source.includes('migrateWrongSheetToken') && !source.includes('CORRECT_URL'));
+assert('当前页面自动选择前先解析 Wiki', /resolveSpreadsheetReference\(detection\.url/.test(source));
+assert('手动粘贴目标前先解析 Wiki', /resolveSpreadsheetReference\(raw/.test(source));
 assert('切换 Sheet 会刷新对应布局', source.includes('async function changeWorkingSheet'));
-assert('结果卡片渲染详情展开按钮', source.includes('class="btn-sm btn-detail"'));
+assert('结果卡片删除详情展开按钮', !source.includes('class="btn-sm btn-detail"'));
+assert('结果页删除两个全局写回按钮', !html.includes('id="btn-write-bitable"') && !html.includes('id="btn-write-results"'));
+assert('结果页删除全局 Final C 按钮', !html.includes('id="btn-validate-final"'));
 assert('Side Panel 顶部提供中英文切换', html.includes('id="ui-language"'));
+const restoreStart = source.indexOf('async function restoreWorkflowSnapshot()');
+const restoreEnd = source.indexOf('/** 加载费率快照', restoreStart);
+const restoreFlow = source.slice(restoreStart, restoreEnd);
+assert('恢复历史运行后直接进入第 4 步审阅结果', restoreFlow.includes("switchTab('results')"));
 
 console.log(`\npopup run-config 测试: ${passed} 通过 / ${failed} 失败`);
 process.exit(failed ? 1 : 0);

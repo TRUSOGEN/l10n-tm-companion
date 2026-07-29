@@ -48,7 +48,7 @@ AI 关闭或 CD 未确认时，没有可用的最终 C，正式 ROI 必须保持
 
 - 缺少精确语言对或仅有 hourly rate。
 - 首轮或最终 C TM 查询失败、返回异常或 score 非法。
-- 当前 Sheet 布局的 `Rewritten Segment` 为空，或 `CD review valid?` 未被 CD 设为 `Yes`，因而没有最终 C。
+- 当前 source 尚未在 Focus 完成 Final TM 与单行 Sheet 写入，因而 review 状态不是 `confirmed`。
 - 原文无法得到有效可计费词数。
 
 Starling 当前不返回 100% 命中的 ICE、重复或审核计费分类。为使整车预估可用，缺分类的 100% 命中按 T-only 的 20% 计算，这是已知分类中成本最高的保守值，并标记为 `exact_unclassified_conservative`。
@@ -62,39 +62,44 @@ Popup 将 ROI 配置分为两层：
 1. 项目选择确定共同 target locale 交集。
 2. Shared ROI target languages 允许用户选择一次共享语言集合，默认全选，再按语言生成 scope；每个 scope 携带全部项目 ID。
 
-单语言 TM 查看仍保留为结果明细能力，不再决定整车 ROI 的计费范围。运行摘要应展示 vendor、项目数、已选语言 scope 数和完成/总 scope 数；处理时展示当前项目与语言，避免将多语言批处理伪装为瞬时操作。
+单语言 TM 查看仍保留为结果明细能力，不再决定整车 ROI 的计费范围。Review 首屏和 Confirm 只执行一个展示 scope；其余已选语言 scope 在用户确认 ROI 归档后，以最多三个 scope 并发补齐真实 A/B/C TM。运行摘要应展示 vendor、项目数、已选语言 scope 数和完成/总 scope 数；补算时展示当前语言与进度，避免将多语言批处理伪装为瞬时操作。
 
-普通 Sheet 使用用户确认的动态布局，且不显示任何 ROI 费率、成本、saving、coverage 或状态。插件将 AI 候选 B 写入 `Rewritten Segment`、将 Score B 写入 `New Match %`；CD 编辑候选形成最终 C，并在 `CD review valid?` 选择 `Yes`。结果页的“确认最终 C，计算 Score C”只读取已确认的最终文案，执行第三次 TM 并生成正式 A−C ROI。
+普通 Sheet 使用用户确认的动态布局，且不显示任何 ROI 费率、成本、saving、coverage 或状态。AI 候选只在 Focus 中展示；CD 选择候选或编辑最终 C，并逐条 Confirm。插件完成 protected-token 校验、Final TM 与单行六列写入后才把该条标为 confirmed，正式 ROI 使用该 Final TM。
 
-需要跨运行审计时，用户可在 Settings 单独配置 ROI archive Bitable（Wiki 或 `/base/` 链接）。应用 Owner 需开通并发布 Sheets、Wiki 与 Bitable 所需权限；每个使用者在自己的 Settings 填写获准使用的 App ID 与 App Secret。Spreadsheet、Wiki Node 解析、Bitable 表、字段和记录操作均使用该应用换取的短期 `tenant_access_token`，并要求将应用添加为对应文档的可编辑协作者。结果页不显示 ROI 金额，`Write ROI archive` 只会在 C 验证后启用；它向同一 Bitable App 追加 `L10n ROI Runs` 与 `L10n ROI Scopes` 两张专用表。Runs 保存运行范围、覆盖状态、完整翻译参考成本、原始 A 的 TM 预估成本与正式 A−C 节省；Scopes 每行只保存一个携带全部项目 ID 的 target locale scope 覆盖与失败原因。两张表以文本 `Run ID` 关联，不改动用户已有表、视图或 Spreadsheet 输出目标。
+需要跨运行审计时，插件固定写入 [ROI_Test](https://bytedance.larkoffice.com/wiki/J1RJwEf0FijMQQkceUkcZyqCnJc?table=tbls3B039S6J7zdT&view=vewSwbY6Ry)，Settings 不提供归档 URL 配置，历史 `roiArchiveUrl` 也不能覆盖该目标。结果页不显示 ROI 金额，`Write ROI archive` 在至少一条 confirmed 后启用；Runs 保存整车范围、金额、Operator 与三阶段漏斗，Scopes 每行保存一个 target locale 的覆盖、金额、漏斗与失败原因，Items 每行保存一个 source 的 A/B/C 审核轨迹。Items 不随 locale 复制，避免 source × locale 笛卡尔积。已有表缺少新字段时插件只增量创建缺失字段，同名字段类型冲突时正确失败。
 
-归档不再依赖 Bitable Formula。首次归档会创建两张原始表并直接写入；插件把完整整车的 A−C 节省写到 Run 的 `Pricing notes`，不完整整车写所有可计算文案的小计，完全没有可计算文案时金额留空。归档写入先创建 Run 为 `writing`，成功追加全部 Scope 后更新为 `complete` 或 `incomplete`。若写入或最终状态更新失败，系统尝试将已创建的 Run 标为 `write_failed`，并写入真实失败原因；既有表的字段名或字段类型不符合固定契约时，归档直接停止，禁止静默补字段或改变用户 schema。
+ROI_Test 的查看权限完全由飞书分享设置控制，发布应用、上传插件或分享安装包不会自动产生用户记录。当前纯客户端使用 `user_access_token` 直接写入，因此写入者必须拥有 ROI_Test 编辑权限；如果要让插件用户只能提交而不能查看，生产方案必须改为应用身份代理持有 App Secret 并代写。ROI_Test 的显示名可修改，固定 URL token 和三张内部表名保持不变即可。
+
+归档不依赖 Bitable Formula。首次归档会创建三张原始表和六个基础 grid view；插件把完整整车的 A−C 节省写到 Run，不完整整车写所有可计算文案的小计，完全没有可计算文案时金额留空。写入前分别读取三张表的记录总数，任一表在追加后超过 20,000 条就停止；写入按 `Run(writing) → Scopes → Items → Run(complete|incomplete)` 顺序执行。若写入或最终状态更新失败，系统尝试将已创建的 Run 标为 `write_failed` 并写入真实失败原因；既有同名字段类型不符合固定契约时归档直接停止。
 
 ## 执行流程
 
 ```mermaid
 flowchart TD
   A[选择项目与共享 ROI 语言] --> B[每个共享语言生成一个多项目 scope]
-  B --> C[每个 scope 查询原文 Starling TM]
-  C --> D[以主审阅 scope 决定是否 AI rewrite]
-  D --> E[复用同一候选 B 并在每个 scope 查询二次 TM]
-  E --> F[Sheet 写入 A/B 与候选 B]
-  F --> G[CD 编辑 Rewritten Segment 形成 C 并确认 review]
-  G --> H[每个 scope 查询最终 C 的第三次 TM]
-  H --> I[逐条逐语言计算正式 A-C ROI]
-  I --> J[ROI_Test Runs 显示整车金额与缺失清单]
-  I --> K[用户确认后追加 Bitable Run/Scope 归档]
+  B --> C[Review 只查询展示 scope 的原文 Starling TM]
+  C --> D[以展示 scope 的 50–85 门禁决定是否 AI rewrite]
+  D --> E[一个 task 生成最多三个候选并逐个查询 Post-TM]
+  E --> F[Focus 展示 Top-3 TM 与有效 AI 候选]
+  F --> G[CD 编辑 C 并逐条 Confirm]
+  G --> H[展示 scope 查询 Final TM 并写入当前 Sheet 行]
+  H --> I[用户确认归档记录数]
+  I --> J[最多三个 scope 并发补齐其余语言 A/B/C]
+  J --> K[逐条逐语言计算正式 A-C ROI]
+  K --> L[Runs 写整车金额与漏斗]
+  K --> M[Scopes 写语言金额与异常]
+  K --> N[Items 按 source 写审核轨迹]
 ```
 
-每个 locale scope 继续遵守 Batch TM 的限制：一次请求至多十条 source 文案、至多十个 project ID。多语言执行按 scope 串行处理，确保 UI 能准确报告当前语言并避免不透明的并发放大；任何接口错误均按对应 scope 正确失败。
+每个 locale scope 继续遵守 Batch TM 的限制：一次请求至多十条 source 文案、至多十个 project ID。补算最多同时运行三个 scope，每个 scope 内只保留一个 Batch 请求并发；任何接口错误均按对应 scope 正确失败。
 
 ## 验收标准
 
 1. 单项目默认生成该项目所有可计费目标语言的 scope，用户可取消任意语言。
 2. 多项目只展示全部项目共同支持且 vendor 有精确费率的目标语言；每个已选共享语言只生成一个携带全部项目 ID 的 scope。
 3. 每个 scope 分别发起真实 TM 查询，并按自己的 target locale 和 vendor 费率计价。
-4. 只有 `CD review valid?=Yes` 的 `Rewritten Segment` 才成为最终 C；未确认 C 或第三次 TM 失败时 ROI 为 `incomplete`，绝不回退到 B。
+4. 只有 Final TM 和当前行六列写入均成功的 source 才成为 confirmed C；未确认 C 或任一步失败时 ROI 为 `incomplete`，绝不回退到 B。
 5. 正式 ROI 严格为 A 的 TM 成本减 C 的 TM 成本；B 的 score 仅用于审阅。
 6. Sheet 只保留当前动态 TM/CD 输出区，不写任何 ROI 字段或金额；Popup 也不显示 ROI 金额。
-7. 归档后 `L10n ROI Runs` 的 `Pricing notes` 直接显示本车 A−C 节省；`L10n ROI Scopes` 每行只保存一个包含全部项目 ID 的 target locale scope 覆盖与失败原因。
-8. 自动化测试覆盖 A/B/C、CD 确认门禁、第三次 TM、费率缺失、Sheet 无 ROI 写入和无公式的 Bitable 两表归档。
+7. 归档后 Runs 保存整车 A−C 节省与漏斗，Scopes 保存每个 target locale 的金额与异常，Items 按 source 保存一次审核轨迹。
+8. 自动化测试覆盖 A/B/C、CD 确认门禁、第三次 TM、延后 scope 并发、费率缺失、Sheet 无 ROI 写入、三层归档、基础视图与容量边界。

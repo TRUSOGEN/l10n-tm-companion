@@ -1,0 +1,115 @@
+#!/bin/bash
+# Finder 双击入口：把内置插件复制到稳定目录，再执行统一安装与自检。
+
+set -euo pipefail
+
+APP_BUNDLE="$(cd "$(dirname "$0")/../.." && pwd)"
+EMBEDDED_EXTENSION="$APP_BUNDLE/Contents/Resources/extension"
+SOURCE_EXTENSION="$(cd "$APP_BUNDLE/.." && pwd)"
+INSTALL_ROOT="$HOME/Library/Application Support/L10n TM Companion"
+INSTALLED_EXTENSION="$HOME/L10n TM Companion - Chrome 加载这个文件夹"
+PREVIOUS_EXTENSION="$INSTALL_ROOT/extension.previous"
+LEGACY_EXTENSION="$INSTALL_ROOT/extension"
+DESKTOP_SHORTCUT="$HOME/Desktop/L10n TM Companion - Chrome 加载这个文件夹"
+INSTALL_LOG="/tmp/l10n-tm-companion-installer.log"
+PROGRESS_HELPER="$APP_BUNDLE/Contents/MacOS/l10n-progress"
+PROGRESS_FILE="$(mktemp /tmp/l10n-install-progress.XXXXXX)"
+DONE_FILE="$(mktemp /tmp/l10n-install-done.XXXXXX)"
+PROGRESS_PID=""
+PROGRESS_FINISHED=0
+NO_UI="${L10N_TM_INSTALLER_NO_UI:-0}"
+
+report_progress() {
+  printf '%s|%s\n' "$1" "$2" > "$PROGRESS_FILE"
+}
+
+finish_progress() {
+  [ "$PROGRESS_FINISHED" -eq 0 ] || return 0
+  PROGRESS_FINISHED=1
+  printf '%s\n' "$1" > "$DONE_FILE"
+  if [ -n "$PROGRESS_PID" ]; then
+    wait "$PROGRESS_PID" 2>/dev/null || true
+  fi
+  /bin/rm -f "$PROGRESS_FILE" "$DONE_FILE"
+}
+
+trap 'finish_progress 1' EXIT
+report_progress 4 "准备安装文件"
+if [ "$NO_UI" != "1" ] && [ -x "$PROGRESS_HELPER" ]; then
+  "$PROGRESS_HELPER" "$PROGRESS_FILE" "$DONE_FILE" &
+  PROGRESS_PID=$!
+fi
+
+show_error() {
+  /usr/bin/osascript -e "display alert \"L10n TM Companion 安装失败\" message \"$1\" as critical"
+}
+
+install_embedded_extension() {
+  local staging_dir
+  mkdir -p "$INSTALL_ROOT"
+  staging_dir="$(mktemp -d "$INSTALL_ROOT/.extension.XXXXXX")"
+  /usr/bin/ditto --noqtn "$EMBEDDED_EXTENSION" "$staging_dir"
+  report_progress 16 "复制插件私有运行环境"
+
+  # 目标限定在本插件的 Application Support 目录；保留一份上次版本便于恢复。
+  if [ -e "$PREVIOUS_EXTENSION" ]; then
+    /bin/rm -rf "$PREVIOUS_EXTENSION"
+  fi
+  if [ -e "$INSTALLED_EXTENSION" ]; then
+    /bin/mv "$INSTALLED_EXTENSION" "$PREVIOUS_EXTENSION"
+  elif [ -e "$LEGACY_EXTENSION" ]; then
+    /bin/mv "$LEGACY_EXTENSION" "$PREVIOUS_EXTENSION"
+  fi
+  /bin/mv "$staging_dir" "$INSTALLED_EXTENSION"
+
+  # 桌面只放一个指向稳定安装目录的入口，方便在 Chrome 文件窗口中手动点击。
+  mkdir -p "$HOME/Desktop"
+  if [ -L "$DESKTOP_SHORTCUT" ]; then
+    /bin/rm -f "$DESKTOP_SHORTCUT"
+  elif [ -e "$DESKTOP_SHORTCUT" ]; then
+    show_error "桌面已存在同名文件：L10n TM Companion - Chrome 加载这个文件夹。请先改名后重试。"
+    exit 1
+  fi
+  /bin/ln -s "$INSTALLED_EXTENSION" "$DESKTOP_SHORTCUT"
+  report_progress 24 "创建桌面加载入口"
+}
+
+if [ -f "$EMBEDDED_EXTENSION/manifest.json" ]; then
+  install_embedded_extension
+  EXTENSION_ROOT="$INSTALLED_EXTENSION"
+else
+  # 源码目录中的开发版 App 仍可直接使用，便于维护者本机验证。
+  EXTENSION_ROOT="$SOURCE_EXTENSION"
+fi
+
+INSTALL_SCRIPT="$EXTENSION_ROOT/native-host/install.sh"
+if [ ! -x "$INSTALL_SCRIPT" ]; then
+  show_error "安装包不完整：找不到安装脚本。请重新下载安装包。"
+  exit 1
+fi
+
+set +e
+INSTALL_ARGS=(--progress-file "$PROGRESS_FILE" --extension-dir "$EXTENSION_ROOT")
+if [ "$NO_UI" = "1" ]; then
+  INSTALL_ARGS+=(--no-open)
+fi
+"$INSTALL_SCRIPT" "${INSTALL_ARGS[@]}" >"$INSTALL_LOG" 2>&1
+INSTALL_STATUS=$?
+set -e
+finish_progress "$INSTALL_STATUS"
+trap - EXIT
+
+if [ "$INSTALL_STATUS" -eq 0 ]; then
+  if [ "$NO_UI" != "1" ]; then
+    printf '%s' "$EXTENSION_ROOT" | /usr/bin/pbcopy || true
+    /usr/bin/open -R "$DESKTOP_SHORTCUT" 2>/dev/null || true
+    /usr/bin/osascript -e 'display alert "L10n TM Companion" message "安装准备已经完成，桌面上的‘L10n TM Companion - Chrome 加载这个文件夹’就是需要选择的目录。请在 Chrome 扩展页开启开发者模式，点击‘加载已解压的扩展程序’；在选择窗口左侧点击‘桌面’，再单击这个文件夹并点击‘选择’。无需使用任何快捷键。最后按 Command+Q 完全退出 Chrome，再重新打开。" as informational'
+  fi
+else
+  if [ "$NO_UI" != "1" ]; then
+    show_error "安装没有完成。详细原因即将用文本编辑器打开；请把最后一段错误信息发给维护者。"
+    /usr/bin/open -a TextEdit "$INSTALL_LOG" 2>/dev/null || true
+  fi
+fi
+
+exit "$INSTALL_STATUS"

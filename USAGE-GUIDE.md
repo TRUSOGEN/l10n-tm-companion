@@ -1,5 +1,7 @@
 # L10n TM Companion 使用教程
 
+> 本文是历史版本，其中固定工作表迁移、全局依赖安装、预填凭证和旧列布局等内容已经过期。普通用户请只使用 [`docs/offline-install-manual.md`](docs/offline-install-manual.md)：当前版本支持任意已授权 Sheet/Wiki 表格、私有运行时、固定 Inspire workspace 与 macOS Keychain 飞书凭证。
+
 > L10n TM Companion —— 从飞书电子表格读英文原文 → 查 Starling TM 记忆库 → AI 改写原文提升 TM 命中率 → 算匹配度 → 写回表格。
 > 纯客户端 Chrome MV3 扩展，无后端，全程在用户本机跑。
 > 最后更新：2026-06-26（已修复「读不到原文」根因：扩展现在指向 wiki 表 QmG4w6…，A 列 39 条原文）
@@ -167,7 +169,7 @@ cd ~/l10n-tm-companion/native-host
 自动切到「结果」tab，逐条卡片显示：原文 / TM 匹配 / AI 改写 / 对比。点「放大」看大图。
 
 ### Step 7：选择采纳
-每条可选「采纳AI」「沿用TM」「手动」。默认：TM 有匹配且 same→沿用TM，否则采纳AI。
+每条可选「保持原文 A」「使用 AI 候选 B」「手动编辑」。只有结构 token 完整且真实 Score B 高于 Score A 时默认采用 B，其余情况默认保持 A。
 
 ### Step 8：写回
 点底部「写回表格」。扩展按真实行号写到 B-H 列，自动补 B1:H1 表头，A 列原文不动，G 列留空。

@@ -3,31 +3,33 @@
 > 本文记录 L10n TM Companion 当前的 Translation Memory 匹配来源、方法、版本与局限。
 > LOOP_SPEC §4.2 要求 TM match 必须确定性、可复现、不使用 LLM 打分。本文档化现状。
 
-## 改写后二次真实 TM 快照（2026-07-16）
+## Top-3 与逐候选真实 TM 快照（2026-07-27）
 
-ROI 链路现在会对 `Orig Match % < 85` 且实际生成了非空 AI rewrite 的条目，再调用一次
-`/corpus/tm/match/batch`。这次请求复用首轮的 source locale、target locale、projectIds、
-PPE 开关和 Native Messaging 协议；请求正文中的 `sourceContents` 是改写后的 source text。
+Batch 首轮显式发送 `limit=3`，每个 source 返回按原始顺序保留、以 source+target 去重的最多三个 TM 候选；非数值或非有限 score 正确失败。只有 `50 ≤ Orig Match % < 85` 的 source 创建 Inspire task，每个 task 最多解析三个结构化 AI 候选。结构有效候选再通过一次 Batch TM 请求查询真实 Post-TM，请求复用首轮的 source locale、target locale、projectIds、PPE 开关和 Native Messaging 协议。
 
-`lib/starling-tm.js` 的 `queryPostRewriteTmSnapshots()` 返回数组与本轮输入严格同序，且状态只有：
+`lib/starling-tm.js` 的 `queryRewriteCandidateTmSnapshots()` 将全部 source 的候选扁平化为一次 Batch 调用，再恢复为严格同序的逐 source / 逐候选快照。快照状态包括：
 
 - `complete`：保存接口返回的真实 `score`、TM source、TM match、来源、方法和候选数；接口返回的 0 分仍是 `complete`，代表真实无命中。
-- `not_required`：首轮已达到 85%，或本轮没有生成非空 rewrite，因此不发送第二次请求。
+- `not_required`：不满足 50–85 门禁、结构无效或没有候选，因此不发送第二次请求。
 - `incomplete`：Native Messaging、HTTP、响应数量或 score 结构异常；保留首轮结果和错误原因，不产生伪造的 0 分。
 
-该快照保存在 Popup 的本次运行条目中，用于卡片审计展示。普通 Sheet 只保留当前布局的六列 TM/CD 输出区，不写任何 ROI 金额；整车 A−C 金额只写入 ROI_Test 的 `L10n ROI Runs`。
+候选只有在结构、protected token、URL、数字、Glossary、Legal、`semantic_status=same_meaning`、空风险列表以及 `Post-TM > Orig TM` 全部通过时才进入 Focus 可选列表。普通 Sheet 只在单条确认成功后保存当前六列，不写任何 ROI 金额。
+
+Focus 以 `tm_candidates` 作为 Top-3 的权威数据。若检测到旧版 Native Host 只返回首条 `tm_source`、`tm_match` 与 `similarity`，界面保留这条真实命中并显示 `Native Host update required`，不得在已有正分时误报 `No TM match`。AI 没有有效候选时继续显示 `None`，并同步显示生成关闭、配置缺失、API 失败、结构错误或安全门禁原因；`None` 本身不代表未调用 Inspire。
+
+Inspire Writer `/copies` 的真实契约是每个 `revision` 返回一条普通改写文本，而不是 JSON envelope。Prompt 首尾固定 Writer revision 协议，要求一条同语言改写或明确的 `[[SKIP:INSUFFICIENT_REWRITE_SPACE]]`；一个 task 最多读取三个 revision，客户端将每条包装为结构化候选，再执行 protected token、URL、数字与真实 Post-TM 门禁。旧版 JSON envelope 继续兼容，疑似损坏的 JSON 仍正确失败。规则证据总预算不超过 5,200 字符，完整 prompt 硬上限为 12,000 字符。普通 CD 路径既不展示 target locale，也不展示 TM target translation；Starling 仍要求 locale 参数，因此程序确定性采用所选项目共同 locale 排序后的第一项，全部相同项目选择会得到相同查询 scope。
 
 ## Sheet 的 A/B/C 审阅与 ROI 边界（2026-07-20）
 
-普通 Sheet 的来源列、数据起始行和输出起始列按 Sheet 独立配置。输出区依次保存 Best TM Match、Score A、AI 候选 B、Score B、阈值状态和人工 review；CD 编辑候选并将 review 设为 Yes 后才形成最终 C。插件随后独立查询 C 的第三次真实 TM，正式 ROI 是 `TM cost(A) - TM cost(C)`。B 只用于审阅，不能作为正式 ROI。
+普通 Sheet 的来源列、数据起始行和输出起始列按 Sheet 独立配置。输出区依次保存 Best TM Match、Score A、最终 C、所选 AI 候选的 Post-TM、Final TM 阈值状态和 Final TM。CD 在 Focus 编辑 C 并点击 Confirm 后，插件依次完成本地校验、Final TM、当前行六列写入，再将状态标为 confirmed。正式 ROI 是 `TM cost(A) - TM cost(C)`；B 只用于审阅。
 
-Popup 结果卡片按当前可用的真实 TM Score 升序显示：CD 已确认且第三次查询完成时使用 Score C，其次使用候选 B 的 Score B，其他情况使用原文 Score A。没有可用 TM Score 的查询失败或未确认条目排在最后；同分时按 Sheet 原始行号排序。
+Popup 结果卡片严格按 Sheet 原始行号显示，异步 TM 与 Inspire 完成顺序不得改变审阅顺序。普通卡片只提供 Focus 入口；Focus 展示 Top-3 TM、有效 AI 候选、分数差、最终 C、Final TM 与状态。
 
 本地预估采用已确认的收费表：`0–75`（含 75）为本地词数 × AIPE rate；`(75,85]`、`(85,95]`、`(95,99]` 分别为本地词数 × 60%、40%、20% × T-only rate；100% 依照返回分类或 `exact_unclassified_conservative` 处理。逐条公式输入保留完整精度。
 
 当前 `starling-agent-cli v1.1.24` 的公开 API Registry 尚未提供 Elasticsearch 的实际字数、加权字数或 100% 命中分类。插件因此使用 `Intl.Segmenter('en')` 对 source 文本本地计词；100% 缺少分类、最终 C TM 快照失败、C 未确认或费率缺失时，ROI Status 必须为 `incomplete:<reason>`，ROI_Test 只显示已覆盖语言小计。
 
-CD review 下拉通过飞书 Sheets `POST /sheets/v2/spreadsheets/{spreadsheetToken}/dataValidation` 创建，请求体使用单数动态范围 `"{sheetId}!{reviewColumn}{dataStartRow}:{reviewColumn}{本次最大输出行}"`，选项固定为 `Yes` 与 `No`，并设置 `multipleValues=false` 与 `highlightValidData=false`。插件未传选项颜色时，飞书要求颜色与每个选项一一对应才能开启高亮；范围只覆盖本次实际输出行，避免超出 grid。集合路径不能使用 `PUT`；后者仅用于携带 `sheetId` 与 `dataValidationId` 的既有规则更新。
+旧 Sheet 的第六列表头为 `CD review valid?` 时，插件只在该列全部数据为空时将它迁移为 `Final TM %`；存在任意人工值时停止并提示备份或清理，禁止覆盖历史确认状态。第四列旧名 `New Match %` 同步改为 `Post-TM %`。
 
 ## 当前批量实现（2026-07-13）
 
@@ -39,7 +41,7 @@ CD review 下拉通过飞书 Sheets `POST /sheets/v2/spreadsheets/{spreadsheetTo
 popup.js searchTM(tm_mode='batch')
   → background.js Native Messaging
   → starling-bridge.py search_tm_batch()
-  → 每 10 条构造 POST /corpus/tm/match/batch
+  → 每 10 条构造 POST /corpus/tm/match/batch，最多 5 个批次并发
   → starling-batch-client.js
   → @byted/starling-agent-core 的 ESM StarlingClient 签名并发送请求
   → PPE 返回 data[i] 的候选数组
@@ -51,7 +53,7 @@ popup.js searchTM(tm_mode='batch')
 - **已验证行为**：PPE 实测单次 10 条 `sourceContents` 成功返回 10 组候选；`Done`、`Settings`、`Cancel` 分别返回 `完成`、`隐私设置`、`取消`。
 - **失败语义**：HTTP、签名、返回结构等异常直接抛至 Popup 并停止本轮流程，禁止自动用同批文本的 BM25 结果冒充 Starling TM 命中。
 - **PPE 短暂超时**：当后端返回 `error_code=1204` 且文本包含 `remote or network error` 时，Bridge 会以 0.25 秒、0.5 秒间隔重试，最多共 3 次；其他 400 请求错误仍立即返回，避免掩盖参数或权限问题。
-- **批次上限**：李明东于 2026-07-13 确认 `sourceContents`、`projectIds` 各最多 10 条；Bridge 每批最多发送 10 条文案。项目数越多，服务端搜索负载和耗时越高。
+- **批次上限与调度**：李明东于 2026-07-13 确认 `sourceContents`、`projectIds` 各最多 10 条；Bridge 每批最多发送 10 条文案，并按输入顺序以最多 5 个批次并发查询。结果按原批次顺序合并，任一批失败会使本次查询真实失败。项目数越多，服务端搜索负载和耗时越高。
 - **兼容模式**：Options 可显式选择 `legacy_cli`，仅用于排障；它沿用原 `GET /corpus/tm/match` 单条查询。
 
 ## Source String Key（2026-07-15 更新）
@@ -86,7 +88,7 @@ starling-cli api GET /corpus/tm/match \
 ## 2. 方法与版本
 
 - **method**: `starling`
-- **version**: `starling-cli v1.1.16`（bridge 调用的 CLI 版本）
+- **version**: `starling-cli v1.1.24`（bridge 调用的 CLI 版本）
 - **project**: 385（TikTok_Client），源语言 `en` → 目标 `zh`
 - **返回结构**（每条文案）：
   ```json
@@ -126,6 +128,6 @@ starling-cli api GET /corpus/tm/match \
 
 每条 TM 结果当前不含 `method` 字段。T18 计划在 bridge 返回结构里加：
 ```json
-{ "method": "starling", "method_version": "starling-cli-1.1.16", "candidate_count": <N> }
+{ "method": "starling", "method_version": "starling-cli-1.1.24", "candidate_count": <N> }
 ```
 供日志与可解释性使用。

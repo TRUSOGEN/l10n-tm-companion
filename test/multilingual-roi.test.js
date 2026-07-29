@@ -1,6 +1,6 @@
 // 多语言 ROI 汇总回归：完整 scope 计入 subtotal，缺失 scope 保留可审计原因。
 import assert from 'node:assert/strict';
-import { summarizeMultilingualRoi } from '../lib/multilingual-roi.js';
+import { buildRoiFunnelMetrics, summarizeMultilingualRoi } from '../lib/multilingual-roi.js';
 
 let passed = 0;
 let failed = 0;
@@ -180,6 +180,42 @@ test('节省金额为字符串时排除整个 scope', () => {
     subtotalAfter: 0,
     subtotalSaving: 0,
     incompleteScopes: [{ key: '513:en:it', reasons: ['roi_amount_invalid'] }],
+  });
+});
+
+console.log('\n=== multilingual-roi: A/AI/Review 85% 漏斗 ===');
+test('漏斗使用全部 source 与相同已确认样本分母', () => {
+  const metrics = buildRoiFunnelMetrics([
+    {
+      similarity: 90,
+      ai_quality: { validCandidates: [] },
+      review_status: 'confirmed',
+      final_tm: { status: 'complete', score: 92 },
+    },
+    {
+      similarity: 70,
+      ai_quality: {
+        validCandidates: [{
+          post_rewrite_tm: { status: 'complete', score: 88 },
+        }],
+      },
+      review_status: 'confirmed',
+      final_tm: { status: 'complete', score: 91 },
+    },
+    {
+      similarity: 60,
+      ai_quality: { validCandidates: [] },
+      review_status: 'draft',
+      final_tm: null,
+    },
+  ]);
+  assert.deepEqual(metrics, {
+    pretranslationAt85: 1,
+    afterAiAt85: 2,
+    aiUpliftTo85: 1,
+    cdReviewedSegments: 2,
+    afterReviewAt85: 2,
+    reviewUpliftTo85: 1,
   });
 });
 

@@ -45,7 +45,7 @@ const fakeRoot = {
 applyI18n(fakeRoot, 'zh-CN');
 assert.equal(fakeRoot.documentElement.lang, 'zh-CN');
 assert.equal(textElement.textContent, '工作表');
-assert.equal(placeholderElement.attributes.placeholder, '输入最终译文…');
+assert.equal(placeholderElement.attributes.placeholder, '输入最终英文原文…');
 assert.match(titleElement.attributes.title, /第三次 TM/);
 
 const popupHtml = stripComments(fs.readFileSync(path.join(root, 'popup.html'), 'utf8'));

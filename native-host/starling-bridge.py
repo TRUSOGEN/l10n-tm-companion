@@ -17,10 +17,10 @@ Chrome Native Messaging ↔ Starling CLI / LLM 桥接脚本。
       "target_lang": "zh",
       "project_id": 385,          # 可选，覆盖 DEFAULT_PROJECT_ID
       "least_score": 0,           # 可选，最小相似度 0-100，默认 0（全返回）
-      "limit": 1,                 # 可选，每条返回几条匹配，默认 1（取最相似）
+      "limit": 3,                 # 可选，Batch 默认 3；Legacy 默认 1
       "cli_path": "/optional/path/to/starling-cli"  # 可选覆盖
     }
-  -> { "results": [ { source_text, tm_match, similarity, origin, ... }, ... ] }
+  -> { "results": [ { source_text, tm_match, similarity, tm_candidates, ... }, ... ] }
 
   action: llm_call   （2026-06-25 新增：绕过浏览器 CORS，由 Python 直连 LLM 网关）
     {
@@ -38,7 +38,10 @@ Chrome Native Messaging ↔ Starling CLI / LLM 桥接脚本。
     -> { "ok": true, "redirect_uri": "http://localhost:39641/...", "scope": "..." }
 
   action: feishu_user_oauth
-    -> 以应用内置公开 App ID 启动 PKCE OAuth 回调，返回短期 user_access_token（不接收或记录 App Secret）
+    -> 以应用内置 App ID 和 Keychain 中的 Secret 启动 PKCE OAuth，返回短期 user_access_token
+
+  action: feishu_configure_app_secret
+    -> 在 Native Host 的系统隐藏输入框中完成 Owner 配置，只返回配置状态
 
 实现说明（2026-06-24 真机实测）：
   - CLI = `starling-cli`（@byted/starling-agent-cli，npm 内部源安装），不是 `starling`
@@ -59,6 +62,7 @@ import sys
 import os
 import json
 import importlib.util
+import math
 import shutil
 import subprocess
 import struct
@@ -79,10 +83,12 @@ _oauth_spec.loader.exec_module(feishu_oauth)
 
 DEFAULT_CLI = 'starling-cli'
 CLI_TIMEOUT = 30  # 秒
+PROJECT_LIST_PAGE_SIZE = 25
 BATCH_TM_METHOD = 'starling-batch'
 BATCH_TM_METHOD_VERSION = 'starling-openapi-batch-ppe-v1'
 # 李明东于 2026-07-13 确认：sourceContents、projectIds 各最多 10 条。
 BATCH_TM_SAFE_SIZE = 10
+BATCH_TM_MAX_CONCURRENCY = 5
 BATCH_TRANSIENT_MAX_ATTEMPTS = 3
 BATCH_CLIENT_SCRIPT = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), 'starling-batch-client.js'
@@ -609,64 +615,156 @@ def search_key(message):
 
 
 def list_projects(message):
-    """
-    调 starling-cli 拉项目列表（设置页「项目卡片选择」用）。
-    命令：starling-cli api GET /projects
-    返回 { ok, projects:[{id, name, ...}] }，失败 { ok:false, error }
+    """分页拉取当前 AK/SK 有权访问的全部 Starling 项目。
+
+    Starling `/projects` 默认只返回 25 条。本函数显式传入 `limit` 与 `offset`，
+    直到收集数量达到响应中的 `total`；任何中间页失败或分页不完整都整体失败，
+    禁止把部分项目列表伪装成完整权限结果。
     """
     cli = resolve_cli(message.get('cli_path'))
-    cmd = [cli, 'api', 'GET', '/projects']
-    try:
-        proc = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=CLI_TIMEOUT,
-            env=credential_env(message),
-        )
-    except subprocess.TimeoutExpired:
-        return {'ok': False, 'error': 'CLI Timeout'}
-    except FileNotFoundError:
-        return {'ok': False, 'error': f'CLI not found: {cli}'}
-    except Exception as e:  # noqa: BLE001
-        return {'ok': False, 'error': f'Error: {str(e)[:200]}'}
-
-    if proc.returncode != 0:
-        return {'ok': False, 'error': f'CLI Error: {(proc.stderr or proc.stdout or "")[:300]}'}
-
-    parsed = _parse_cli_output(proc.stdout)
-    # _parse_cli_output 是为 TM 查询写的，对 /projects 不适用；直接解析原始 JSON
-    try:
-        raw = json.loads(proc.stdout.strip())
-    except Exception as e:  # noqa: BLE001
-        return {'ok': False, 'error': f'解析项目列表失败: {str(e)[:150]}'}
-
-    # starling-cli 输出形如 { ok:true, data:[{id,name,...}] } 或 { data:{ data:[...] } }
-    data = raw.get('data', raw)
-    if isinstance(data, dict):
-        data = data.get('data', data.get('projects', []))
-    if not isinstance(data, list):
-        data = []
-
     projects = []
-    for p in data:
-        if not isinstance(p, dict):
-            continue
-        pid = p.get('id') or p.get('projectId')
-        if pid is None:
-            continue
-        projects.append({
-            'id': pid,
-            'name': p.get('name') or p.get('projectName') or f'项目 {pid}',
-            'sourceLocale': (
-                p.get('sourceLocale') or p.get('source_locale')
-                or p.get('sourceLanguage') or ''
-            ),
-            'targetLocales': (
-                p.get('targetLocales') or p.get('target_locales')
-                or p.get('targetLanguages') or []
-            ),
+    offset = 0
+    expected_total = None
+    while expected_total is None or len(projects) < expected_total:
+        params = json.dumps({
+            'limit': PROJECT_LIST_PAGE_SIZE,
+            'offset': offset,
         })
+        cmd = [
+            cli, 'api', 'GET', '/projects',
+            '--params', params,
+        ]
+        try:
+            proc = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=CLI_TIMEOUT,
+                env=credential_env(message),
+            )
+        except subprocess.TimeoutExpired:
+            return {
+                'ok': False,
+                'error': f'Project list CLI timeout at offset {offset}',
+            }
+        except FileNotFoundError:
+            return {'ok': False, 'error': f'CLI not found: {cli}'}
+        except Exception as e:  # noqa: BLE001
+            return {'ok': False, 'error': f'Error: {str(e)[:200]}'}
+
+        if proc.returncode != 0:
+            detail = (proc.stderr or proc.stdout or '')[:300]
+            return {
+                'ok': False,
+                'error': f'Project list CLI error at offset {offset}: {detail}',
+            }
+
+        try:
+            raw = json.loads(proc.stdout.strip())
+        except Exception as e:  # noqa: BLE001
+            return {
+                'ok': False,
+                'error': (
+                    f'解析项目列表失败 at offset {offset}: '
+                    f'{str(e)[:150]}'
+                ),
+            }
+
+        payload = raw.get('data', raw)
+        if isinstance(payload, dict):
+            data = payload.get('data', payload.get('projects'))
+            raw_total = payload.get('total')
+            pagination = payload.get('pagination')
+        else:
+            data = payload
+            raw_total = None
+            pagination = None
+        if not isinstance(data, list):
+            return {
+                'ok': False,
+                'error': f'项目列表协议错误 at offset {offset}: data must be a list',
+            }
+        if pagination is not None:
+            if not isinstance(pagination, dict):
+                return {
+                    'ok': False,
+                    'error': (
+                        f'项目列表协议错误 at offset {offset}: '
+                        'pagination must be an object'
+                    ),
+                }
+            try:
+                response_offset = int(pagination.get('offset'))
+            except (TypeError, ValueError):
+                return {
+                    'ok': False,
+                    'error': (
+                        f'项目列表协议错误 at offset {offset}: '
+                        'invalid pagination offset'
+                    ),
+                }
+            if response_offset != offset:
+                return {
+                    'ok': False,
+                    'error': (
+                        'Project list pagination offset mismatch: '
+                        f'requested {offset}, received {response_offset}'
+                    ),
+                }
+        if raw_total is not None:
+            try:
+                expected_total = int(raw_total)
+            except (TypeError, ValueError):
+                return {
+                    'ok': False,
+                    'error': f'项目列表协议错误 at offset {offset}: invalid total',
+                }
+            if expected_total < 0:
+                return {
+                    'ok': False,
+                    'error': f'项目列表协议错误 at offset {offset}: invalid total',
+                }
+
+        for project_data in data:
+            if not isinstance(project_data, dict):
+                continue
+            project_id = project_data.get('id') or project_data.get('projectId')
+            if project_id is None:
+                continue
+            projects.append({
+                'id': project_id,
+                'name': (
+                    project_data.get('name')
+                    or project_data.get('projectName')
+                    or f'项目 {project_id}'
+                ),
+                'sourceLocale': (
+                    project_data.get('sourceLocale')
+                    or project_data.get('source_locale')
+                    or project_data.get('sourceLanguage')
+                    or ''
+                ),
+                'targetLocales': (
+                    project_data.get('targetLocales')
+                    or project_data.get('target_locales')
+                    or project_data.get('targetLanguages')
+                    or []
+                ),
+            })
+
+        if expected_total is not None and len(projects) >= expected_total:
+            break
+        if len(data) < PROJECT_LIST_PAGE_SIZE:
+            if expected_total is not None and len(projects) < expected_total:
+                return {
+                    'ok': False,
+                    'error': (
+                        'Project list pagination incomplete: '
+                        f'expected {expected_total}, received {len(projects)}'
+                    ),
+                }
+            break
+        offset += len(data)
     return {'ok': True, 'projects': projects}
 
 
@@ -789,30 +887,102 @@ def parse_batch_tm_response(stdout, texts, source_lang, target_lang):
             result = _err(text, source_lang, target_lang, 'No TM match')
             result['method'] = BATCH_TM_METHOD
             result['method_version'] = BATCH_TM_METHOD_VERSION
+            result['tm_candidates'] = []
             results.append(result)
             continue
 
-        best = matches[0]
-        if not isinstance(best, dict):
-            raise ValueError(f'batch TM response data[{index}][0] must be an object')
+        candidates = normalize_batch_tm_candidates(
+            matches, source_lang, target_lang, index
+        )
+        best = candidates[0]
         results.append({
             'source_text': text,
-            'tm_match': best.get('target') or '',
-            'tm_source': best.get('source') or '',
-            'similarity': float(best.get('score') or 0.0),
-            'origin': best.get('updater') or 'Unknown',
-            'tm_source_lang': best.get('sourceLang') or source_lang,
-            'tm_target_lang': best.get('targetLang') or target_lang,
+            'tm_match': best['target'],
+            'tm_source': best['source'],
+            'similarity': best['score'],
+            'origin': best['origin'],
+            'tm_source_lang': best['source_lang'],
+            'tm_target_lang': best['target_lang'],
             'method': BATCH_TM_METHOD,
             'method_version': BATCH_TM_METHOD_VERSION,
-            'candidate_count': len(matches),
+            'candidate_count': len(candidates),
+            'tm_candidates': candidates,
         })
     return results
 
 
+def normalize_batch_tm_candidates(matches, source_lang, target_lang, group_index):
+    """规范化并去重一条 source 对应的 Starling TM 候选数组。
+
+    候选位置沿用服务端首次出现顺序；相同 source 与 target 再次出现时，仅在
+    分数更高的情况下替换该位置的内容。任何非对象或非数值 score 都属于协议
+    错误，必须停止当前批次。
+    """
+    candidates = []
+    positions = {}
+    for candidate_index, match in enumerate(matches):
+        if not isinstance(match, dict):
+            raise ValueError(
+                f'batch TM response data[{group_index}]'
+                f'[{candidate_index}] must be an object'
+            )
+        raw_score = match.get('score')
+        try:
+            score = float(raw_score)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                f'batch TM response data[{group_index}]'
+                f'[{candidate_index}].score must be numeric'
+            ) from exc
+        if not math.isfinite(score):
+            raise ValueError(
+                f'batch TM response data[{group_index}]'
+                f'[{candidate_index}].score must be finite'
+            )
+        normalized = {
+            'source': str(match.get('source') or ''),
+            'target': str(match.get('target') or ''),
+            'score': score,
+            'origin': str(match.get('updater') or match.get('origin') or 'Unknown'),
+            'source_lang': str(match.get('sourceLang') or source_lang),
+            'target_lang': str(match.get('targetLang') or target_lang),
+            'match_category': (
+                match.get('matchCategory')
+                if match.get('matchCategory') is not None
+                else match.get('match_category')
+            ),
+            'tm_id': str(
+                match.get('id') or match.get('tmId') or match.get('tm_id') or ''
+            ),
+        }
+        key = (normalized['source'], normalized['target'])
+        if key not in positions:
+            positions[key] = len(candidates)
+            candidates.append(normalized)
+            continue
+        position = positions[key]
+        if normalized['score'] > candidates[position]['score']:
+            candidates[position] = normalized
+    return candidates
+
+
 def _resolve_starling_cli_root(cli):
-    """从可执行文件真实路径向上定位 starling-agent-cli 包根目录。"""
+    """定位包含官方 Starling Core 的 CLI 包根目录。"""
     resolved = os.path.realpath(cli)
+    runtime_root = os.path.dirname(os.path.dirname(resolved))
+    bundled_root = os.path.join(
+        runtime_root,
+        'starling',
+        'node_modules',
+        '@byted',
+        'starling-agent-cli',
+    )
+    bundled_core = os.path.join(
+        bundled_root, 'node_modules', '@byted', 'starling-agent-core'
+    )
+    if os.path.isdir(bundled_core):
+        return bundled_root
+
     current = os.path.dirname(resolved)
     while current and current != os.path.dirname(current):
         core_dir = os.path.join(
@@ -898,10 +1068,10 @@ def request_batch_tm(cli, body, use_ppe, message=None):
 
 
 def search_tm_batch(message):
-    """以每批最多 10 条的已确认上限查询 TM，并保留原始输入顺序。
+    """以每批最多 10 条、最多 5 个并发批次查询 TM，并保留输入顺序。
 
     Starling 已确认 `sourceContents` 与 `projectIds` 各最多 10 条。调用方可以
-    降低文案批次大小，不能绕过该上限；项目数限制由请求体构造函数独立校验。
+    降低文案批次大小和并发度，不能绕过上限；项目数由请求体构造函数独立校验。
     """
     texts = message.get('texts', []) or []
     if not texts:
@@ -924,18 +1094,40 @@ def search_tm_batch(message):
         raise ValueError(
             f'batch_size must not exceed verified safe limit {BATCH_TM_SAFE_SIZE}'
         )
+    batch_concurrency = int(
+        message.get('batch_concurrency', BATCH_TM_MAX_CONCURRENCY)
+    )
+    if batch_concurrency <= 0:
+        raise ValueError('batch_concurrency must be positive')
+    if batch_concurrency > BATCH_TM_MAX_CONCURRENCY:
+        raise ValueError(
+            'batch_concurrency must not exceed client limit '
+            f'{BATCH_TM_MAX_CONCURRENCY}'
+        )
     cli = resolve_cli(message.get('cli_path'))
 
-    results = []
-    for start in range(0, len(texts), batch_size):
-        batch = texts[start:start + batch_size]
+    batches = [
+        texts[start:start + batch_size]
+        for start in range(0, len(texts), batch_size)
+    ]
+
+    def query_batch(batch):
+        """查询单个安全批次并返回与批次输入同序的结果。"""
         body = build_batch_tm_body(
             batch, project_ids, source_lang, target_lang, limit, least_score
         )
         payload = request_batch_tm(cli, body, use_ppe, message=message)
-        results.extend(parse_batch_tm_response(
+        return parse_batch_tm_response(
             payload, batch, source_lang, target_lang
-        ))
+        )
+
+    worker_count = min(batch_concurrency, len(batches))
+    if worker_count == 1:
+        grouped_results = [query_batch(batch) for batch in batches]
+    else:
+        with ThreadPoolExecutor(max_workers=worker_count) as executor:
+            grouped_results = list(executor.map(query_batch, batches))
+    results = [item for group in grouped_results for item in group]
     return {'results': results}
 
 
@@ -1101,12 +1293,38 @@ def feishu_oauth_info(_message):
 
 
 def feishu_user_oauth(message):
-    """以内置公开 App ID 启动 PKCE OAuth，并返回短期 user access token。"""
+    """以内置 App ID 和 Keychain Secret 启动 PKCE OAuth，并返回短期用户令牌。"""
     return feishu_oauth.authorize_user(
         app_id=feishu_oauth.FEISHU_APP_ID,
         redirect_uri=message.get('redirect_uri') or feishu_oauth.REDIRECT_URI,
         scope=message.get('scope') or feishu_oauth.FEISHU_USER_SCOPE,
+        return_url=message.get('return_url') or '',
     )
+
+
+def feishu_configure_app_secret(_message):
+    """通过 Native Host 系统隐藏输入框完成 Owner Secret 的验证与保存。"""
+    return feishu_oauth.configure_app_secret()
+
+
+def feishu_secret_status(_message):
+    """只返回 Keychain 是否已有 Secret，不读取到浏览器。"""
+    return {'ok': True, 'configured': bool(feishu_oauth.load_app_secret())}
+
+
+def feishu_save_secret(message):
+    """先验证 Secret，成功后保存到 Keychain，并返回短期 token。"""
+    secret = message.get('app_secret') or ''
+    token = feishu_oauth.get_tenant_access_token(secret)
+    feishu_oauth.save_app_secret(secret)
+    return {'ok': True, **token}
+
+
+def feishu_get_access_token(_message):
+    """从 Keychain 读取 Secret 并换取短期 token；响应不包含 Secret。"""
+    secret = feishu_oauth.load_app_secret()
+    token = feishu_oauth.get_tenant_access_token(secret)
+    return {'ok': True, **token}
 
 
 # ---------------------------------------------------------------------------
@@ -1140,6 +1358,14 @@ def main():
                 send_message(feishu_oauth_info(message))
             elif action == 'feishu_user_oauth':
                 send_message(feishu_user_oauth(message))
+            elif action == 'feishu_configure_app_secret':
+                send_message(feishu_configure_app_secret(message))
+            elif action == 'feishu_secret_status':
+                send_message(feishu_secret_status(message))
+            elif action == 'feishu_save_secret':
+                send_message(feishu_save_secret(message))
+            elif action == 'feishu_get_access_token':
+                send_message(feishu_get_access_token(message))
             else:
                 send_message({'error': f'Unknown action: {action}'})
         except Exception as e:  # noqa: BLE001  处理中崩溃也要回响应，否则 Chrome 报通信断

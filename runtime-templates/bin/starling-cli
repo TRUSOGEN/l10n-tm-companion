@@ -1,0 +1,7 @@
+#!/bin/bash
+# 用线下包内置 Node 启动固定版本 Starling CLI。
+
+set -euo pipefail
+RUNTIME_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+exec "$RUNTIME_ROOT/bin/node" \
+  "$RUNTIME_ROOT/starling/node_modules/@byted/starling-agent-cli/dist/index.js" "$@"

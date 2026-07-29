@@ -8,6 +8,56 @@ body {
 .container { max-width: 720px; margin: 0 auto; }
 h1 { font-size: 20px; margin-bottom: 20px; }
 
+.quick-setup {
+  margin-bottom: 16px;
+  padding: 16px 18px;
+  border: 1px solid #cfdcff;
+  border-radius: 10px;
+  background: #f7f9ff;
+}
+.quick-setup h2 { margin: 0 0 12px; font-size: 15px; }
+.setup-steps {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.setup-steps li {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: 9px;
+  padding: 8px 0;
+  border-top: 1px solid #e1e8fb;
+  font-size: 12px;
+  line-height: 1.55;
+}
+.setup-steps li:first-child { padding-top: 0; border-top: 0; }
+.setup-steps li:last-child { padding-bottom: 0; }
+.setup-step-number {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #3370ff;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+}
+.quick-setup a,
+.provider-fields a,
+.owner-setup a {
+  color: #245bdb;
+  font-weight: 600;
+  text-decoration: none;
+}
+.quick-setup a:hover,
+.provider-fields a:hover,
+.owner-setup a:hover { text-decoration: underline; }
+.quick-setup code,
+.provider-fields code { padding: 1px 4px; border-radius: 4px; background: #e9efff; }
+
 .card {
   background: #fff; border: 1px solid #e5e7eb; border-radius: 8px;
   padding: 18px 20px; margin-bottom: 16px;
@@ -54,6 +104,18 @@ label input, label select {
 }
 .reveal-button svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.8; }
 .security-note { line-height: 1.55; }
+.owner-secret-help {
+  margin: 10px 0;
+  color: #4e5969;
+  font-size: 12px;
+  line-height: 1.55;
+}
+.owner-secret-button {
+  width: 100%;
+  margin: 2px 0 0;
+  font-weight: 700;
+}
+.owner-secret-note { margin: 8px 0 0; color: #646a73; font-size: 11px; }
 
 details { margin-top: 12px; border-top: 1px dashed #e5e7eb; padding-top: 12px; }
 summary { cursor: pointer; font-size: 12px; color: #646a73; }
@@ -64,7 +126,29 @@ summary { cursor: pointer; font-size: 12px; color: #646a73; }
 .toggle input[type="checkbox"] { display: inline-block; width: auto; margin: 0; width: 18px; height: 18px; accent-color: #3370ff; cursor: pointer; }
 .toggle span { user-select: none; }
 .hidden { display: none !important; }
-.provider-fields { padding: 10px; margin: 8px 0 12px; border: 1px solid #d6e4ff; border-radius: 8px; background: #f5f8ff; }
+.provider-fields { padding: 10px; margin: 8px 0 12px; border: 1px solid #d6e4ff; border-radius: 8px; background: #f5f8ff; font-size: 12px; }
+.feishu-user-card {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  margin: 12px 0;
+  border: 1px solid #e1e5ec;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(31, 35, 41, .05);
+}
+.feishu-user-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #eef1f7;
+}
+.feishu-user-copy { display: grid; gap: 3px; min-width: 0; }
+.feishu-user-copy strong { font-size: 13px; color: #1f2329; }
+.feishu-user-copy span { color: #7b8290; font-size: 11px; overflow-wrap: anywhere; }
 
 /* 帮助链接区：每个 card 顶部的凭证获取指引 */
 .help-links { margin-bottom: 14px; }
