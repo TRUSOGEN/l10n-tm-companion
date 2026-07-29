@@ -5,19 +5,19 @@
 
 ## 前置环境（每项打勾确认）
 
-- [ ] Chrome 已加载未压缩扩展（chrome://extensions → L10n TM Companion，ID = `bgnakecphongbinlnmgnhoefgjecdang`）
-- [ ] `native-host/register-native-host.sh` 已运行，Native Messaging Host 已注册到该扩展 ID
-- [ ] starling-cli v1.1.16 已装，`~/.starling-cli/.starlingrc.json` 含 accessKey/secretKey（chmod 600）
-- [ ] 飞书应用「L10n TM Companion」已发布，开通 `sheets:spreadsheet`、Wiki 节点读取，以及 ROI 归档所需的用户身份 `base:table:read`、`base:table:create`、`base:field:read`、`base:record:create`、`base:record:update`、`base:block:read`、`base:block:update`
+- [ ] Chrome 已加载未压缩扩展（chrome://extensions → L10n TM Companion，ID = `bgbodpcofifiloekhfjiffmchcaiiicm`）
+- [ ] `native-host/install.sh --no-open` 已运行，Native Messaging Host 已注册到该扩展 ID
+- [ ] 安装包内置 Starling CLI v1.1.24；Settings 中完整填写 AK/SK 并通过 `Save & Verify`
+- [ ] 飞书应用「L10n TM Companion」已发布，开通用户身份的 `sheets:spreadsheet.meta:read`、`sheets:spreadsheet:read`、`sheets:spreadsheet:write_only`、Wiki 节点读取、ROI 归档所需的 Bitable 权限、`contact:user.base:readonly` 与获取 user ID 的权限
 - [ ] 飞书应用安全设置已登记 `http://localhost:39641/l10n-tm-companion/oauth/callback` 为重定向 URL，Native Host 已能返回同一地址
 - [ ] 应用已加为测试电子表格的协作者（可编辑）
-- [ ] Options 已填：飞书 App ID/Secret、电子表格 URL（自动解析 token）、ROI archive Bitable Wiki 或 `/base/` URL、Starling Project ID=385、LLM LLMBox 网关 + Key + Model=glm-5.2
+- [ ] Options 已完成 Feishu 用户 OAuth、Starling AK/SK、Inspire Access Key 与 Model；普通用户界面没有 App Secret 输入框，ROI archive 固定为指定 ROI_Test
 
 ## Setup Health Check（T07）
 
 - [ ] 打开 popup，health 面板自动出现 4 行
 - [ ] Native Messaging Host → 绿（可用）
-- [ ] 飞书应用凭证 → 绿（已配置）
+- [ ] 飞书用户授权 → 绿（显示当前用户已授权）
 - [ ] 电子表格可访问 → 绿（可访问）
 - [ ] 写入目标 → 绿（目标表格已就绪）
 - [ ] 故意删 token → 电子表格行变红，提示「贴入飞书表格 URL」
@@ -31,59 +31,70 @@
 - [ ] 选择两个同为 source `en`、但没有共同 target locale 的项目时，项目仍可选，ROI 区显示没有共同可计费语言，启动 ROI 时明确停止
 - [ ] source `en`、target `en` scope 可以运行；缺少精确费率时 TM 继续运行，结果页只显示“已覆盖语言小计”和缺失 scope
 - [ ] 关闭 AI 后运行至少两个有完整费率的语言 scope，结果页每个 complete scope 均计入 Before/After，整车 Saving 为 0
-- [ ] 进度条显示「查询 Starling TM」→「AI 改写原文」→「查询改写后的 Starling TM」→「计算 New Match %」→「对比」，期间没有 Source String Key 查询步骤
+- [ ] 进度条显示「查询 Starling Top-3 TM」→「AI 改写原文」→「查询候选 Post-TM」→「查看结果」，期间没有 Source String Key 查询步骤
 - [ ] 多语言运行时进度条显示当前项目、target locale 与 scope 序号；任一 scope 首轮 TM 失败后，其他 scope 仍继续，结果页将失败 scope 列入 incomplete 清单
-- [ ] 步骤指示器进入「查看结果」，结果卡片渲染（无 emoji，TM x% / AI 改写 / Post-TM x% 标签）
-- [ ] 卡片详情展开后显示「TM 匹配」与真实的「Post-rewrite Starling TM」分数和方法
+- [ ] 步骤指示器进入「查看结果」，结果卡片只显示 source、TM/Post-TM/Final TM 摘要、状态和 Focus
+- [ ] 结果卡片顺序与 Sheet 原始行号一致；Focus 展示 Top-3 TM、有效 AI 候选、分数差、最终 C 编辑框与逐条 Confirm
+- [ ] 49.99 不创建 Inspire task，50 创建，84.99 创建，85 不创建；进入链路的每条 source 只创建一个 task，最多返回三个结构化候选
+- [ ] Inspire prompt 使用随包分发的 Skill、Principles、Style Guide、Glossary 和唯一一份适用 Legal Guidelines；删去任一规则文件后改写真实失败
+- [ ] Focus 只展示通过 token、URL、数字、Glossary、Legal、语义、风险和真实 Post-TM 门禁的 AI 候选；重复文案只显示一次，无有效候选时显示 None
+- [ ] 点击候选后该卡片显示 Selected、蓝色边框和选中圆点，其他候选恢复 Select，Final copy 与选中文案一致；键盘 focus 清晰可见
 - [ ] 改写后二次 TM 查询失败时，卡片显示 `Post-TM incomplete` 和真实错误原因；首轮 TM 结果仍保留，页面不显示伪造的 post-rewrite 0 分
-- [ ] 写入前显示「将写入到：电子表格(Sheet) / <token> / <sheet> / rows 2-N」预览
-- [ ] 点「写回表格」→ 步骤进入「写回」，成功后显示「已写入到（共 N 条）：...」
-- [ ] 打开飞书表格，B-F 正确写入（B 为匹配到的英文 TM source / C Orig% / D Rewritten / E New% / F Reached85?），G 列保持空白
-- [ ] G2:G5000 为 `Yes/No` 单选下拉，选择已有值后再次写回不会覆盖
+- [ ] 点击单条 Confirm 后，依次完成 protected-token 校验、Final TM 与当前 Sheet 行六列写入，全部成功后状态才为 confirmed
+- [ ] Final TM 或 Sheet 写入故意失败时，该条保持未确认并展示真实错误；重试成功后才 confirmed
+- [ ] confirmed 文案再次编辑后状态变为 dirty，旧 Final TM 清空，必须重新 Confirm
+- [ ] 打开飞书表格，B-G 正确写入（B Best TM / C Orig% / D Final C / E Post-TM% / F Reached85? / G Final TM%）
 - [ ] H-J 如有历史数据保持不变，插件没有产生 H-J 写入请求
 - [ ] **row alignment 不错位**：A 列若有空行，B-F 仍对应真实行号
 
 ## ROI Bitable 归档
 
-- [ ] Settings 填入有效的 Feishu App ID 与 App Secret 后点击 `Test Feishu connection`，确认能获取 tenant token；测试不显示 Secret 或 token 内容
-- [ ] 完成一次多语言 ROI 后，结果页出现启用的 `Write ROI archive`；未配置 ROI archive Bitable、App 凭证不完整、应用权限未发布或应用未获文档编辑权限时按钮保持禁用或返回真实错误
-- [ ] 点击按钮先看到目标链接、`L10n ROI Runs` / `L10n ROI Scopes` 和 `1 Run + N Scope` 的确认框；取消后飞书中没有新增表或记录
-- [ ] 首次确认后，仅在配置的 Bitable App 中创建 `L10n ROI Runs` 与 `L10n ROI Scopes` 两张表，原 URL 指向的表和视图没有被改动
-- [ ] Runs 表包含 Run ID、运行时间、写入状态、覆盖率、完整翻译/TM 预估/节省小计和缺失 scope 原因；Scopes 表包含 Run ID、project、source/target locale、ROI 状态和 scope 金额/失败原因
+- [ ] Side Panel 首页点击 `Authorize` 后完成 OAuth，立即显示当前用户姓名、user ID 与头像并刷新环境检查；界面和日志不显示 token
+- [ ] 有效回调页只说明收到 authorization response，优先自动关闭授权标签页并回到发起授权的原页面；Chrome 阻止关闭时把当前标签页跳转回原页面
+- [ ] token 交换失败时首页保持未授权并展示原始可操作错误；回调页不提前宣称授权完成
+- [ ] 本机 Owner 测试由 Settings 系统隐藏输入框写入 Keychain；多人分发使用服务端 OAuth broker，安装包不包含 App Secret
+- [ ] 至少一条 source confirmed 后结果页启用 `Write ROI archive`；零确认整车正确拒绝归档
+- [ ] 点击按钮先看到目标链接、三张表和 `1 Run + N Scopes + M source Items` 的确认框；取消后不补算延后语言，飞书中没有新增表或记录
+- [ ] 确认框始终显示固定 ROI_Test 链接；历史 storage 中的 `roiArchiveUrl` 不能改变写入目标
+- [ ] 首次确认后，仅在固定 Bitable App 中增量创建 `L10n ROI Runs`、`L10n ROI Scopes`、`L10n ROI Items` 与六个基础视图；既有表、视图和记录不被删除或替换
+- [ ] Runs 包含整车金额、Operator 与漏斗；Scopes 包含 target locale 金额、覆盖、漏斗与失败原因；Items 每条 source 每个 Run 恰好一行
+- [ ] 18 条 source × 35 个语言只创建 18 条 Item 和 35 条 Scope，不创建 630 条 Item
+- [ ] Review 首屏与 Confirm 只查询展示 scope；确认归档后其余语言最多三个 scope 并发，最终 scope 顺序与选择顺序一致
 - [ ] 完整运行的 Run 状态由 `writing` 变为 `complete`；存在缺失费率或 TM 的运行最终为 `incomplete`，金额是已覆盖语言小计
-- [ ] 不完整 Scope 没有 Full translation USD、TM estimated USD、Saving USD 三个金额字段值，但保留真实失败原因
-- [ ] 将任一专用表的必需字段改名或改为错误类型后再次写入，Popup 显示 schema mismatch，且不创建新的 Run 记录
+- [ ] 不完整 Scope 只汇总自身可计算条目的金额并保留真实失败原因；完全没有可计算条目时金额字段留空
+- [ ] 删除一个漏斗字段后再次写入，插件只创建缺失字段；把同名字段改为错误类型时显示 schema mismatch，且不创建新的 Run 记录
 - [ ] 临时撤销 Scope 表写入权限后运行，已创建 Run 最终为 `write_failed` 并记录真实 API 失败原因
+- [ ] 任一归档表达到 20,000 条上限时，在创建 Run 记录前明确报 capacity exceeded
 
 ## 错误恢复（T23 可操作提示）
 
 - [ ] 卸载 native host → 抓取时报「Native Messaging Host 不可用」+ 提示运行 register 脚本
-- [ ] 飞书缺 sheets:spreadsheet 权限 → 报「飞书权限不足」+ 提示开通权限加协作者
+- [ ] 飞书缺任一细分 Sheet 用户权限 → 报「飞书权限不足」+ 提示发布新版本并重新授权
 - [ ] 贴非飞书链接 → 报「链接无法识别」+ 提示贴 /sheets/ 或 /base/ 链接
 
 ## 多输入源 / 目标（T08-T10）
 
 - [ ] 贴 Sheet URL（/sheets/）→ 识别为「电子表格(Sheet)」
-- [ ] 贴 Bitable URL（/base/）→ 识别为「多维表格(Bitable)」；普通 Spreadsheet 写回继续拒绝该目标，ROI archive 使用单独配置
+- [ ] 贴 Bitable URL（/base/）→ 识别为「多维表格(Bitable)」；普通 Spreadsheet 写回继续拒绝该目标，ROI archive 始终使用固定目标
 - [ ] 写入前预览 + 写入后结果都明确显示目标位置
 
 ## 表头（T12-T14）
 
-- [ ] 目标表表头为 7 列：Original Source Segment / Best TM Match / Orig Match % / Rewritten Segment / New Match % / Reached 85%? / CD review valid?
+- [ ] 目标表表头为 7 列：Original Source Segment / Best TM Match / Orig Match % / Rewritten Segment / Post-TM % / Reached 85%? / Final TM %
 - [ ] 表头缺失时 `validateHeaders` 返回 missing 列表
 - [ ] `repairHeaders` 能写入 A1:G1 表头且不清除 H-J 历史数据
-- [ ] CD review valid? 列永不被自动填值，只设置 Yes/No 单选规则
+- [ ] 旧六列表头且 `CD review valid?` 数据区为空时可迁移；存在任意旧人工 review 值时以 `legacy_cd_review_data_conflict` 正确失败
 
 ## TM / Match 确定性（T16-T22）
 
 - [ ] TM 查询带 method=starling、candidate_count（卡片详情可见）
 - [ ] Starling 不可用时显示真实错误并停止本轮流程；不得以 BM25 或本地分数伪造 TM 结果
-- [ ] New Match% 确定性：同输入两次结果相同
-- [ ] LLM 仅用于改写，不参与 TM/New Match 打分
+- [ ] Top-3 TM 按 source+target 去重并保留最高 score；非法 score 正确失败
+- [ ] LLM 仅生成结构化候选，不参与 Orig/Post/Final TM 打分
 
 ## 已知未完成（非阻塞 MVP）
 
-- [ ] Bitable 与普通 Spreadsheet 的数据行写回仍只支持 Spreadsheet；ROI archive 仅追加 Run/Scope 审计记录
+- [ ] Bitable 与普通 Spreadsheet 的数据行写回仍只支持 Spreadsheet；ROI archive 仅追加 Runs/Scopes/Items 审计记录
 - [ ] BM25 fallback 未接入 popup/bridge（corpus 来源待定）
 - [ ] doc 抓取的 items 无 row 字段 → 写回需 T08-T10 重建行号语义
-- [ ] TM 查询串行慢（逐条起 starling-cli 子进程，未并发优化）
+- [ ] 真实生产 QPS 与 35-locale 总耗时仍需 Starling PPE 和 ROI_Test 真机压测确认

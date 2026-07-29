@@ -10,6 +10,7 @@ import {
   listProjects,
   queryFinalTmSnapshots,
   queryPostRewriteTmSnapshots,
+  queryRewriteCandidateTmSnapshots,
   saveStarlingCredentials,
   searchTM,
 } from '../lib/starling-tm.js';
@@ -51,6 +52,7 @@ await searchTM(['Done', 'Settings'], 'en', 'zh', {
   projectIds: [385, 278],
   tmMode: 'batch',
   usePpe: true,
+  batchConcurrency: 2,
 });
 
 assert(
@@ -60,6 +62,8 @@ assert(
 );
 assert('透传批量查询模式', sentMessage.payload.tm_mode === 'batch');
 assert('透传 PPE 标记', sentMessage.payload.use_ppe === true);
+assert('透传受控 Batch 并发', sentMessage.payload.batch_concurrency === 2);
+assert('Batch TM 明确请求 Top-3', sentMessage.payload.limit === 3);
 
 await listProjects({ accessKey: 'test-ak', secretKey: 'test-sk' });
 assert('项目请求透传 AK', sentMessage.payload.access_key === 'test-ak');
@@ -139,6 +143,39 @@ const invalidScoreSnapshots = await queryPostRewriteTmSnapshots([
 ], 'en', 'en', { projectIds: [513], tmMode: 'batch', usePpe: true });
 assert('异常 score 标记 incomplete', invalidScoreSnapshots[0].status === 'incomplete');
 assert('异常 score 不写入快照', !Object.hasOwn(invalidScoreSnapshots[0], 'score'));
+
+console.log('\n=== starling-tm.js: 多候选 Post-TM 快照 ===');
+let candidatePayloads = [];
+globalThis.chrome.runtime.sendMessage = async (message) => {
+  candidatePayloads.push(message.payload);
+  return {
+    results: message.payload.texts.map((text, index) => ({
+      tm_match: text,
+      tm_source: text,
+      similarity: 80 + index,
+      origin: 'TM owner',
+      method: 'starling-batch',
+      candidate_count: 3,
+    })),
+  };
+};
+const candidateSnapshots = await queryRewriteCandidateTmSnapshots([
+  {
+    source_text: 'Gift',
+    ai_candidates: [
+      { ai_translation: 'Send a Gift', structure_valid: true },
+      { ai_translation: 'Share a Gift', structure_valid: true },
+    ],
+  },
+  {
+    source_text: 'Done',
+    ai_candidates: [{ ai_translation: 'Completed', structure_valid: true }],
+  },
+], 'en', 'en', { projectIds: [513], tmMode: 'batch', usePpe: true });
+assert('三个候选使用一次 Batch 调用', candidatePayloads.length === 1);
+assert('候选按行与候选位置发送', JSON.stringify(candidatePayloads[0].texts) === JSON.stringify(['Send a Gift', 'Share a Gift', 'Completed']));
+assert('快照恢复为逐行嵌套结构', candidateSnapshots.length === 2 && candidateSnapshots[0].length === 2 && candidateSnapshots[1].length === 1);
+assert('候选快照保存真实分数', candidateSnapshots[0][0].status === 'complete' && candidateSnapshots[1][0].score === 82);
 
 console.log('\n=== starling-tm.js: 最终 C 文案的第三次 TM 快照 ===');
 assert('导出最终 C TM 查询函数', typeof starlingTmModule.queryFinalTmSnapshots === 'function');

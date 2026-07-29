@@ -54,6 +54,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     // === 转发到 Native Host：飞书 ROI 归档用户 OAuth ===
     case 'native_feishu_oauth_info':
     case 'native_feishu_user_oauth':
+    case 'native_feishu_credentials':
       chrome.runtime.sendNativeMessage(NATIVE_HOST, msg.payload, (response) => {
         if (chrome.runtime.lastError) {
           sendResponse({ error: chrome.runtime.lastError.message });

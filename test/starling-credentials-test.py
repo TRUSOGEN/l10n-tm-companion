@@ -3,6 +3,7 @@
 
 import importlib.util
 import os
+import tempfile
 import unittest
 
 
@@ -52,6 +53,36 @@ class StarlingCredentialsTest(unittest.TestCase):
         """Key 查询缺少项目时也必须明确失败。"""
         with self.assertRaisesRegex(ValueError, 'project_required'):
             self.bridge.search_key({'texts': ['Done']})
+
+    def test_resolve_cli_root_supports_bundled_runtime_layout(self):
+        """离线包的 bin 启动器应解析到同级 starling 包根目录。"""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            runtime_root = os.path.join(temp_dir, 'runtime')
+            cli_path = os.path.join(runtime_root, 'bin', 'starling-cli')
+            cli_root = os.path.join(
+                runtime_root,
+                'starling',
+                'node_modules',
+                '@byted',
+                'starling-agent-cli',
+            )
+            core_path = os.path.join(
+                cli_root,
+                'node_modules',
+                '@byted',
+                'starling-agent-core',
+            )
+            os.makedirs(os.path.dirname(cli_path))
+            os.makedirs(core_path)
+            with open(cli_path, 'w', encoding='utf-8') as cli_file:
+                cli_file.write('#!/bin/bash\n')
+
+            resolved = self.bridge._resolve_starling_cli_root(cli_path)
+
+            self.assertEqual(
+                resolved,
+                os.path.realpath(cli_root),
+            )
 
 
 if __name__ == '__main__':

@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "minimum_chrome_version": "114",
   "name": "L10n TM Companion",
-  "version": "1.0.0",
+  "version": "1.3.3",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAuNSBSu+YaYGLFbZGC7M3XybT0bnQrmy1CktZ0pc2ZlO3lKtq6OZ3NoU+W9QV5sCypOw8XPlKJBfDkWqNzyKj96aIQN8AmKtTDblxKuo9W4bKy7N37PYbmItBF4Z9RNnABWKHgg0ARwM3wuH8RVeJV6/7R4vE88BM2YPruc3LGq1kJy1fNd6FLiRkZuYDI/TmosM8KuPg56cVvqjoTGW2soICD2rUmOZp9gwIACP+1qndy7jgKH9DsJN4nw4/H9y6SbaRt5JckOh/U3MYu+vOprivTi4Vqq0Ye0z31wOxBV2jmiZE+TQPthE74NZceVIlYILAGsjD4ttepmuGhttUiQIDAQAB",
   "description": "Feishu source → Starling TM → AI source rewrite → optional ROI archive",
   "permissions": [
@@ -26,7 +26,11 @@
     {
       "matches": [
         "*://*.feishu.cn/docx/*",
+        "*://*.feishu.cn/wiki/*",
+        "*://*.feishu.cn/sheets/*",
         "*://*.larksuite.com/docx/*",
+        "*://*.larksuite.com/wiki/*",
+        "*://*.larksuite.com/sheets/*",
         "*://*.larkoffice.com/docx/*",
         "*://*.larkoffice.com/wiki/*",
         "*://*.larkoffice.com/sheets/*"

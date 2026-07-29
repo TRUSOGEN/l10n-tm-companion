@@ -1,6 +1,15 @@
 // 验证 feishu-sheets.js：URL 解析、读 A 列、按 row 写 B-F、CD review 下拉与失败语义。
-import { parseSheetsUrl, parseFeishuUrl, listSpreadsheetSheets, inspectSheetLayout, listSourceSegments, listFinalSourceSegments, writeToSheet, testSheetsConnection, REQUIRED_HEADERS, mapHeadersToColumns, readHeaderRow, validateHeaders, repairHeaders } from '../lib/feishu-sheets.js';
+import { parseSheetsUrl, parseFeishuUrl, resolveSpreadsheetReference, listSpreadsheetSheets, inspectSheetLayout, listSourceSegments, listFinalSourceSegments, writeToSheet, testSheetsConnection, REQUIRED_HEADERS, mapHeadersToColumns, readHeaderRow, validateHeaders, repairHeaders } from '../lib/feishu-sheets.js';
 import { _resetTokenCache } from '../lib/feishu-bitable.js';
+
+globalThis.chrome = {
+  runtime: {
+    lastError: null,
+    sendMessage(_message, callback) {
+      callback({ error: 'Feishu user authorization is required. Connect your Feishu account in Settings.' });
+    },
+  },
+};
 
 const sheetsModule = await import('../lib/feishu-sheets.js');
 
@@ -334,7 +343,7 @@ console.log('\n=== feishu-sheets: 缺配置报错 ===');
   try {
     await listSourceSegments({ feishuUserAccessToken: '', spreadsheetToken: 'SP' });
     assert('未连接飞书抛错', false);
-  } catch (e) { assert('未连接飞书抛错', /App ID.*App Secret/.test(e.message)); }
+  } catch (e) { assert('未连接飞书抛错', /Feishu user authorization/.test(e.message)); }
   try {
     await writeToSheet([], { feishuUserAccessToken: 'u-user-token', spreadsheetToken: '' });
     assert('缺 spreadsheetToken 抛错', false);
@@ -377,7 +386,7 @@ console.log('\n=== feishu-sheets: testSheetsConnection 缺权限/错误场景 ==
   _resetTokenCache();
   const res2 = await testSheetsConnection({}, 'SP');
   assert('未连接飞书返回 ok=false', res2.ok === false, JSON.stringify(res2));
-  assert('未连接提示填写凭证', /App ID.*App Secret/.test(res2.error || ''), res2.error);
+  assert('未连接提示用户授权', /Feishu user authorization/.test(res2.error || ''), res2.error);
 
   // 未选择 Spreadsheet 时只验证用户令牌，不调 query。
   _resetTokenCache();
@@ -394,8 +403,26 @@ console.log('\n=== feishu-sheets: parseFeishuUrl 边界 ===');
   assert('Bitable 带 openId 参数', parseFeishuUrl('https://a.larkoffice.com/base/APP1?openId=x')?.appToken === 'APP1');
   assert('Bitable 带 ?table= 解析 tableId', parseFeishuUrl('https://a.larkoffice.com/base/APP2?table=tbl9')?.tableId === 'tbl9');
   const wikiParsed = parseFeishuUrl('https://a.larkoffice.com/wiki/QmG4w6EVIitUAlkT259clYFCndf');
-  assert('wiki 链接 → 当作 sheet（wiki token 即 spreadsheet token）', wikiParsed?.type === 'sheet' && wikiParsed?.spreadsheetToken === 'QmG4w6EVIitUAlkT259clYFCndf');
+  assert('wiki 链接 → 标记为待解析的 Wiki Sheet', wikiParsed?.type === 'sheet' && wikiParsed?.wikiNodeToken === 'QmG4w6EVIitUAlkT259clYFCndf' && wikiParsed?.fromWiki === true);
   assert('短 token 不识别为裸 token（长度<=10）', parseFeishuUrl('abc123') === null);
+}
+
+console.log('\n=== feishu-sheets: Wiki 节点解析真实 Spreadsheet obj_token ===');
+{
+  const calls = mockFetch((call) => {
+    if (call.url.includes('/wiki/v2/spaces/get_node')) {
+      return { json: { code: 0, data: { node: { obj_type: 'sheet', obj_token: 'REAL_SHEET_TOKEN' } } } };
+    }
+    return { json: { code: 0 } };
+  });
+  const resolved = await resolveSpreadsheetReference(
+    'https://bytedance.larkoffice.com/wiki/DRQMwVvCFieqsxkRV7Rcs7NBnmU?sheet=sheetABC',
+    { feishuUserAccessToken: 'user-token' },
+  );
+  assert('Wiki obj_token 作为真实 spreadsheetToken', resolved.spreadsheetToken === 'REAL_SHEET_TOKEN', JSON.stringify(resolved));
+  assert('保留 Wiki node token 供诊断', resolved.wikiNodeToken === 'DRQMwVvCFieqsxkRV7Rcs7NBnmU');
+  assert('保留 URL 中的 Sheet ID', resolved.sheetId === 'sheetABC');
+  assert('Wiki API 使用当前飞书访问令牌', calls[0]?.headers?.Authorization === 'Bearer user-token');
 }
 
 console.log('\n=== feishu-sheets: CD review valid? 永不被自动填（留空给人审） ===');

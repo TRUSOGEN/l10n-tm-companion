@@ -14,7 +14,8 @@ console.log('\n=== errors: friendlyError 可操作提示 ===');
   // 飞书权限
   const e2 = friendlyError('Access denied. scopes required: [sheets:spreadsheet]');
   assert('英文默认权限 → title', e2.title.includes('permission'));
-  assert('英文默认权限 → action 含 sheets:spreadsheet + editor', /sheets:spreadsheet/.test(e2.action) && /editor/.test(e2.action));
+  assert('英文默认权限 → action 含细分 Sheet scope + reauthorize',
+    /sheets:spreadsheet\.meta:read/.test(e2.action) && /authorize again/.test(e2.action));
 
   // token 缺失
   const e3 = friendlyError('未配置电子表格 token');
@@ -47,7 +48,7 @@ console.log('\n=== errors: friendlyError 可操作提示 ===');
   // 中文模式必须从同一错误分类返回完整中文。
   const zhPermission = friendlyError('Access denied. scopes required: [sheets:spreadsheet]', 'zh-CN');
   assert('中文权限 → title', zhPermission.title.includes('权限'));
-  assert('中文权限 → action 含协作者', /协作者/.test(zhPermission.action));
+  assert('中文权限 → action 含重新授权', /重新授权/.test(zhPermission.action));
   const zhTimeout = friendlyError('remote or network error: error_code=1204', 'zh-CN');
   assert('中文 PPE 超时 → title', zhTimeout.title.includes('超时'));
 
@@ -64,6 +65,12 @@ console.log('\n=== errors: friendlyError 可操作提示 ===');
   // 空/null
   const e10 = friendlyError(null);
   assert('null 不崩溃', typeof e10.title === 'string');
+
+  const workingSheet = friendlyError(
+    'No working sheet configured. Stored keys: starlingProjectIds, targetLang',
+    'zh-CN',
+  );
+  assert('Working spreadsheet 缺失不误判为 TM', workingSheet.title === '未设置工作表');
 }
 
 console.log(`\n=== 结果: ${pass} 通过, ${fail} 失败 ===`);

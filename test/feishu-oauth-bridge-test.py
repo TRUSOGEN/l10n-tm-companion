@@ -29,20 +29,34 @@ class FeishuOAuthBridgeTest(unittest.TestCase):
                 "ok": True,
                 "app_id": "cli_aab1ca4137badbc4",
                 "redirect_uri": "http://localhost:39641/l10n-tm-companion/oauth/callback",
-                "scope": "sheets:spreadsheet wiki:wiki:readonly base:table:read base:table:create base:field:read base:record:create base:record:update base:block:read base:block:update",
+                "scope": bridge.feishu_oauth.FEISHU_USER_SCOPE,
             },
         )
 
-    def test_user_oauth_uses_bundled_public_app_id_and_pkce(self) -> None:
-        """Native Host 不接收 App Secret，只以内置公开 App ID 发起 PKCE OAuth。"""
+    def test_user_oauth_uses_fixed_app_id_and_keychain_backed_pkce(self) -> None:
+        """Native Host 以内置 App ID 发起 PKCE，Secret 只由 OAuth 模块从 Keychain 读取。"""
         with patch.object(bridge.feishu_oauth, "authorize_user", return_value={"ok": True}) as authorize:
-            result = bridge.feishu_user_oauth({})
+            result = bridge.feishu_user_oauth({
+                "return_url": "https://bytedance.larkoffice.com/sheets/original",
+            })
         self.assertEqual(result, {"ok": True})
         authorize.assert_called_once_with(
             app_id=bridge.feishu_oauth.FEISHU_APP_ID,
             redirect_uri="http://localhost:39641/l10n-tm-companion/oauth/callback",
             scope=bridge.feishu_oauth.FEISHU_USER_SCOPE,
+            return_url="https://bytedance.larkoffice.com/sheets/original",
         )
+
+    def test_owner_setup_is_native_only_and_returns_status(self) -> None:
+        """Owner setup 由 Native Host 完成，浏览器只能得到是否配置成功。"""
+        with patch.object(
+            bridge.feishu_oauth,
+            "configure_app_secret",
+            return_value={"ok": True, "configured": True},
+        ) as configure:
+            result = bridge.feishu_configure_app_secret({})
+        self.assertEqual(result, {"ok": True, "configured": True})
+        configure.assert_called_once_with()
 
 
 if __name__ == "__main__":

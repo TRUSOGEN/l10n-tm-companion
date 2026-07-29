@@ -10,6 +10,10 @@
 
 飞书当前 `base:table:read` 权限仅提供用户身份，不能继续以 Sheets 的 `tenant_access_token` 调用 Bitable 表接口。新增 `native-host/feishu_oauth.py` 作为唯一的本机 OAuth 模块：Native Host 在 `http://localhost:39641/l10n-tm-companion/oauth/callback` 接收一次性 code、校验 state、向 `https://accounts.feishu.cn/oauth/v3/token` 兑换短期 `user_access_token`。Settings 显示固定回调 URL 和连接按钮；`lib/roi-bitable-archive.js` 仅将用户令牌用于 Bitable 表/字段/记录 API，Wiki Node 解析继续使用已发布应用的 tenant token。用户需在飞书安全设置登记该回调 URL，并以用户身份开通 `base:table:create`，因为首次归档会新建 `L10n ROI Runs` 与 `L10n ROI Scopes`；令牌到期前一分钟停止写入并要求重连。对应测试为 `test/feishu-oauth-test.py`、`test/feishu-oauth-bridge-test.py`、`test/options-roi-oauth.test.js` 和扩展后的 `test/roi-bitable-archive.test.js`。
 
+## OAuth Correction (2026-07-28)
+
+2026-07-28 真机日志证明上述无 Secret 的 `accounts.feishu.cn/oauth/v3/token` 假设不成立：authorization code 回调成功后，token 交换返回 HTTP 400、`invalid_client`、错误码 `20140`。当前飞书官方接口为 `https://open.feishu.cn/open-apis/authen/v2/oauth/token`，请求体同时要求 `client_id`、`client_secret`、authorization code 与 PKCE `code_verifier`。实现改为在浏览器打开授权页前检查安全 token exchange 配置；回调页只确认收到授权响应，不再提前宣称授权完成。普通用户授权入口移到 Side Panel 首页，成功后立即刷新用户资料和环境检查。本机 Owner 测试通过 Native Host 的 macOS 隐藏输入框验证 Secret 并保存到 Keychain；该模式不得分发。正式多人发布必须使用服务端 OAuth broker 持有 Secret，不能把 Secret 放入扩展、安装包、Chrome storage 或普通用户设备。
+
 ## Global Constraints
 
 - ROI 语义以 `docs/multilingual-roi.md` 为准：缺失 scope 时总状态必须为 `incomplete`，三个金额仅为已覆盖语言小计。

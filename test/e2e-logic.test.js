@@ -3,13 +3,29 @@
 // similarity / new_match 均为 0-100 百分制（对齐 starling-cli /corpus/tm/match 的 score）。
 
 import { compareAIvsTM, textSimilarity } from '../lib/diff.js';
-import { buildPrompt, parseAIResponse, translateWithAI, rewriteSourceWithAI, buildRewritePrompt } from '../lib/ai-translate.js';
+import {
+  INSPIRE_PILOT_LIMITS,
+  buildPrompt,
+  parseAIResponse,
+  translateWithAI,
+  rewriteSourceWithAI,
+  buildRewritePrompt,
+  parseStructuredRewriteEnvelope,
+  shouldRewriteSource,
+} from '../lib/ai-translate.js';
 
 let pass = 0, fail = 0;
 function assert(name, cond, extra = '') {
   if (cond) { pass++; console.log(`  ✅ ${name}`); }
   else { fail++; console.log(`  ❌ ${name} ${extra}`); }
 }
+
+assert('Inspire Pilot 使用 100 QPS', INSPIRE_PILOT_LIMITS.maxQps === 100);
+assert('Inspire Pilot 保持 50 个在途任务', INSPIRE_PILOT_LIMITS.maxConcurrency === 50);
+assert('49.99 不进入 AI', shouldRewriteSource(49.99) === false);
+assert('50 进入 AI', shouldRewriteSource(50) === true);
+assert('84.99 进入 AI', shouldRewriteSource(84.99) === true);
+assert('85 不进入 AI', shouldRewriteSource(85) === false);
 
 console.log('\n=== diff.js: compareAIvsTM (TM 优化流程) ===');
 
@@ -115,12 +131,82 @@ console.log('\n=== ai-translate.js: rewriteSourceWithAI (TM 优化改写) ===');
   assert('改写prompt禁止翻译', p.toLowerCase().includes('not translate') || p.includes('do NOT translate'));
   assert('改写prompt含英文TM source', p.includes('LIVE will begin shortly'));
   assert('改写prompt不把target translation当source', !p.includes('直播即将开始'));
-  assert('改写prompt要求JSON', p.includes('"ai_translation"'));
+  assert('Inspire Writer prompt 使用原生单条 revision 契约', p.includes('Return one rewritten source only')
+    && !p.includes('"rewrite_viable"'));
+  const reviewed = buildRewritePrompt({
+    source_text: 'TikTok LIVE',
+    tm_source: 'LIVE',
+    similarity: 20,
+  }, {
+    skillExcerpt: 'Content Review Skill evidence',
+    principles: 'Baseline quality check rules',
+    styleExcerpt: 'Style Guide evidence',
+    glossaryExcerpt: 'Glossary evidence',
+    legalExcerpt: 'Revenue Legal Guidelines evidence',
+    legalKind: 'revenue',
+  });
+  assert('改写prompt包含 Content Review 规则证据', reviewed.includes('Baseline quality check rules'));
+  assert('改写prompt包含 Skill 核心审阅规则', reviewed.includes('Content Review Skill evidence'));
+  assert('Writer revision 契约位于 prompt 前部', reviewed.indexOf('WRITER REVISION CONTRACT') >= 0
+    && reviewed.indexOf('WRITER REVISION CONTRACT') < 1500);
+  assert('改写prompt使用明确跳过标记', reviewed.includes('[[SKIP:INSUFFICIENT_REWRITE_SPACE]]'));
+
+  const bounded = buildRewritePrompt({
+    source_text: 'Special Fly Love lock',
+    tm_source: 'Special LIVE Love Lock',
+    similarity: 55,
+  }, {
+    skillExcerpt: 'S'.repeat(20000),
+    principles: 'P'.repeat(20000),
+    styleExcerpt: 'T'.repeat(20000),
+    glossaryExcerpt: 'G'.repeat(20000),
+    legalExcerpt: 'L'.repeat(20000),
+    legalKind: 'revenue',
+  });
+  assert('改写prompt总长度不超过12k字符', bounded.length <= 12000, `actual ${bounded.length}`);
 }
 
-// Inspire 直接返回 revisions，默认选择最高分候选并保留全部备选。
+// Inspire Writer 的真实 copies 契约返回普通 revision 文本，客户端负责结构化包装。
 {
   const origFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    if (url.endsWith('/openapi/tasks')) {
+      return { ok: true, status: 200, json: async () => ({ _id: 'plain-task', status: 'completed' }), text: async () => '' };
+    }
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({ copies: [{ revisions: [
+        { revision: 'You have reached the customizable perks limit.', title: 'Best', score: 0.94 },
+        { revision: 'The customizable perks limit has been reached.', title: 'Alternative', score: 0.86 },
+      ] }] }),
+      text: async () => '',
+    };
+  };
+  const out = await rewriteSourceWithAI([
+    {
+      source_text: "Couldn't add. You’ve reached the limit for customizable perks.",
+      tm_source: 'You’ve reached the limit.',
+      similarity: 59,
+    },
+  ], {
+    llmProvider: 'inspire',
+    llmEndpoint: 'https://inspire.bytedance.net/writer/api',
+    llmApiKey: 'wak_test',
+    llmModel: 'gemini_3f',
+    inspireRequestGate: async () => {},
+  });
+  globalThis.fetch = origFetch;
+  assert('普通 Inspire revision 被包装为结构化候选', out[0].ai_candidates.length === 2
+    && out[0].ai_candidates.every((candidate) => candidate.structure_valid === true));
+  assert('普通 Inspire revision 不再报 candidate_json_missing', out[0].ai_translation === 'You have reached the customizable perks limit.'
+    && !out[0].ai_candidates.some((candidate) => candidate.structure_error === 'candidate_json_missing'));
+}
+
+// 一个 Inspire task 返回一个结构化 envelope，内部最多包含三个 TM 对齐候选。
+{
+  const origFetch = globalThis.fetch;
+  let batchUsage = null;
   globalThis.fetch = async (url) => {
     if (url.endsWith('/openapi/tasks')) {
       return { ok: true, status: 200, json: async () => ({ _id: 'task-1', status: 'completed' }), text: async () => '' };
@@ -129,14 +215,18 @@ console.log('\n=== ai-translate.js: rewriteSourceWithAI (TM 优化改写) ===');
       ok: true,
       status: 200,
       json: async () => ({ copies: [{ revisions: [
-        { revision: 'Best rewrite', title: 'best', score: 0.95 },
+        {
+          revision: '{"rewrite_viable":true,"reason_code":null,"candidates":[{"tm_rank":1,"decision":"rewrite","semantic_status":"same_meaning","ai_translation":"Best rewrite","reasoning":"Matches the reviewed evidence.","changes":[],"risks":[],"reuse_tm":false},{"tm_rank":2,"decision":"rewrite","semantic_status":"same_meaning","ai_translation":"Second rewrite","reasoning":"Aligns with TM 2.","changes":[],"risks":[],"reuse_tm":false}]}',
+          title: 'best',
+          score: 0.95,
+        },
         { revision: 'Alternative', title: 'alt', score: 0.8 },
       ] }] }),
       text: async () => '',
     };
   };
   const out = await rewriteSourceWithAI([
-    { source_text: 'Rewrite me', tm_source: 'Reference source', tm_match: '目标译文', similarity: 20 },
+    { source_text: 'Rewrite me', tm_source: 'Reference source', tm_match: '目标译文', similarity: 50 },
   ], {
     llmProvider: 'inspire',
     llmEndpoint: 'https://inspire.bytedance.net/writer/api',
@@ -144,11 +234,57 @@ console.log('\n=== ai-translate.js: rewriteSourceWithAI (TM 优化改写) ===');
     llmModel: 'gemini_3f',
     inspireTeamId: 'team-1',
     llmThinkingLevel: 'low',
+    onAiBatchComplete: (usage) => { batchUsage = usage; },
   });
   globalThis.fetch = origFetch;
-  assert('Inspire 使用最高分 revision', out[0].ai_translation === 'Best rewrite');
-  assert('Inspire 保留全部候选', out[0].ai_candidates.length === 2);
+  assert('Inspire 解析 envelope 第一条候选', out[0].ai_translation === 'Best rewrite');
+  assert('Inspire 保留结构化 reasoning', out[0].reasoning.includes('Matches the reviewed evidence.'));
+  assert('Inspire 保留 envelope 内全部候选', out[0].ai_candidates.length === 2
+    && out[0].ai_candidates.every((candidate) => candidate.structure_valid === true));
   assert('Inspire 保存 task id', out[0].ai_task_id === 'task-1');
+  assert('Inspire 保存单条 HTTP 请求数', out[0].ai_http_request_count === 2);
+  assert('Inspire 汇总 Pilot 请求用量', batchUsage?.taskCount === 1 && batchUsage?.requestCount === 2 && batchUsage?.pollCount === 0);
+}
+
+{
+  const skipped = parseStructuredRewriteEnvelope(
+    '{"rewrite_viable":false,"reason_code":"INSUFFICIENT_REWRITE_SPACE","candidates":[]}',
+  );
+  assert('短文案可由 envelope 明确跳过', skipped.structure_valid === true
+    && skipped.rewrite_viable === false
+    && skipped.reason_code === 'INSUFFICIENT_REWRITE_SPACE');
+  assert('明确跳过时不伪造候选', skipped.candidates.length === 0);
+}
+
+{
+  const origFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    if (url.endsWith('/openapi/tasks')) {
+      return { ok: true, status: 200, json: async () => ({ _id: 'skip-task', status: 'completed' }), text: async () => '' };
+    }
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({ copies: [{ revisions: [{
+        revision: '{"rewrite_viable":false,"reason_code":"INSUFFICIENT_REWRITE_SPACE","candidates":[]}',
+        title: 'skip',
+        score: 0.9,
+      }] }] }),
+      text: async () => '',
+    };
+  };
+  const out = await rewriteSourceWithAI([
+    { source_text: 'Special Fly Love lock', tm_source: 'Special LIVE Love Lock', similarity: 55 },
+  ], {
+    llmProvider: 'inspire',
+    llmEndpoint: 'https://inspire.bytedance.net/writer/api',
+    llmApiKey: 'wak_test',
+    llmModel: 'gemini_3f',
+    inspireRequestGate: async () => {},
+  });
+  globalThis.fetch = origFetch;
+  assert('Inspire 明确跳过时不生成候选审计占位', out[0].ai_candidates.length === 0);
+  assert('Inspire 明确跳过原因可见', out[0].reasoning.includes('INSUFFICIENT_REWRITE_SPACE'));
 }
 
 // 低分文案按最多 3 个并发调用 Inspire，结果顺序必须与输入一致。
@@ -176,15 +312,126 @@ console.log('\n=== ai-translate.js: rewriteSourceWithAI (TM 优化改写) ===');
     };
   };
   const out = await rewriteSourceWithAI(
-    Array.from({ length: 4 }, (_, index) => ({ source_text: `Source ${index}`, tm_source: 'TM', similarity: 10 })),
+    Array.from({ length: 4 }, (_, index) => ({ source_text: `Source ${index}`, tm_source: 'TM', similarity: 50 })),
     {
       llmProvider: 'inspire', llmEndpoint: 'https://inspire.bytedance.net/writer/api',
       llmApiKey: 'wak_test', llmModel: 'gemini_3f', inspireTeamId: 'team-1', aiConcurrency: 3,
+      inspireRequestGate: async () => {},
     },
   );
   globalThis.fetch = origFetch;
   assert('Inspire 并发上限为 3', maxActiveCreates === 3, `actual ${maxActiveCreates}`);
   assert('Inspire 并发输出保持输入顺序', out.map((item) => item.ai_task_id).join(',') === 'task-1,task-2,task-3,task-4');
+}
+
+// Pilot 以 50 个在途任务隐藏生成等待，所有 HTTP 请求仍由当前 100 QPS 共享 gate 限速。
+{
+  const origFetch = globalThis.fetch;
+  let taskIndex = 0;
+  let activeCreates = 0;
+  let maxActiveCreates = 0;
+  globalThis.fetch = async (url) => {
+    if (url.endsWith('/openapi/tasks')) {
+      taskIndex += 1;
+      const currentTask = taskIndex;
+      activeCreates += 1;
+      maxActiveCreates = Math.max(maxActiveCreates, activeCreates);
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      activeCreates -= 1;
+      return { ok: true, status: 200, json: async () => ({ _id: `pilot-task-${currentTask}`, status: 'completed' }), text: async () => '' };
+    }
+    const taskId = url.match(/tasks\/(pilot-task-\d+)\/copies/)?.[1] || 'pilot-task-x';
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({ copies: [{ revisions: [{ revision: `rewrite-${taskId}`, title: 'best', score: 0.9 }] }] }),
+      text: async () => '',
+    };
+  };
+  const pilotTaskCount = 55;
+  const out = await rewriteSourceWithAI(
+    Array.from({ length: pilotTaskCount }, (_, index) => ({ source_text: `Pilot source ${index}`, tm_source: 'TM', similarity: 50 })),
+    {
+      llmProvider: 'inspire', llmEndpoint: 'https://inspire.bytedance.net/writer/api',
+      llmApiKey: 'wak_test', llmModel: 'gemini_3f', inspireTeamId: 'team-1', aiConcurrency: 99,
+      inspireRequestGate: async () => {},
+    },
+  );
+  assert('Inspire Pilot 并发硬上限为 50', maxActiveCreates === 50, `actual ${maxActiveCreates}`);
+  assert('Inspire Pilot 高并发仍保持输入顺序', out.map((item) => item.ai_task_id).join(',') === Array.from({ length: pilotTaskCount }, (_, index) => `pilot-task-${index + 1}`).join(','));
+
+  activeCreates = 0;
+  maxActiveCreates = 0;
+  await rewriteSourceWithAI(
+    Array.from({ length: pilotTaskCount }, (_, index) => ({ source_text: `Default Pilot source ${index}`, tm_source: 'TM', similarity: 50 })),
+    {
+      llmProvider: 'inspire', llmEndpoint: 'https://inspire.bytedance.net/writer/api',
+      llmApiKey: 'wak_test', llmModel: 'gemini_3f', inspireTeamId: 'team-1',
+      inspireRequestGate: async () => {},
+    },
+  );
+  assert('Inspire Pilot 默认并发为 50', maxActiveCreates === 50, `actual ${maxActiveCreates}`);
+  globalThis.fetch = origFetch;
+}
+
+// 并发任务不能只显示最后启动的 Row；进度事件必须持续报告完成数、活跃数与轮询数。
+{
+  const origFetch = globalThis.fetch;
+  const progressEvents = [];
+  let taskIndex = 0;
+  globalThis.fetch = async (url) => {
+    if (url.endsWith('/openapi/tasks')) {
+      taskIndex += 1;
+      return { ok: true, status: 200, json: async () => ({ _id: `progress-task-${taskIndex}`, status: 'pending' }), text: async () => '' };
+    }
+    if (url.endsWith('/status')) {
+      return { ok: true, status: 200, json: async () => ({ status: 'completed' }), text: async () => '' };
+    }
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({ copies: [{ revisions: [{ revision: 'Progress rewrite', title: 'done', score: 0.9 }] }] }),
+      text: async () => '',
+    };
+  };
+  await rewriteSourceWithAI(
+    Array.from({ length: 10 }, (_, index) => ({ source_text: `Progress source ${index}`, tm_source: 'TM', similarity: 50 })),
+    {
+      llmProvider: 'inspire', llmEndpoint: 'https://inspire.bytedance.net/writer/api',
+      llmApiKey: 'wak_test', llmModel: 'gemini_3f', inspireTeamId: 'team-1',
+      inspireRequestGate: async () => {},
+      onAiProgress: (event) => progressEvents.push(event),
+    },
+  );
+  globalThis.fetch = origFetch;
+  const finalProgress = progressEvents.at(-1);
+  assert('Inspire 进度显示十条均已结束', finalProgress?.finished === 10 && finalProgress?.total === 10);
+  assert('Inspire 进度结束时无活跃任务', finalProgress?.active === 0);
+  assert('Inspire 轮询期间持续报告 poll 数', progressEvents.some((event) => event.phase === 'status' && event.pollCount > 0));
+}
+
+// Pilot 用量必须包含失败任务已经发出的请求，避免低估每日配额消耗。
+{
+  const origFetch = globalThis.fetch;
+  let batchUsage = null;
+  globalThis.fetch = async (url) => {
+    if (url.endsWith('/openapi/tasks')) {
+      return { ok: true, status: 200, json: async () => ({ _id: 'failed-pilot-task', status: 'completed' }), text: async () => '' };
+    }
+    return { ok: false, status: 500, json: async () => ({}), text: async () => 'copies unavailable' };
+  };
+  const out = await rewriteSourceWithAI(
+    [{ source_text: 'Failed Pilot source', tm_source: 'TM', similarity: 50 }],
+    {
+      llmProvider: 'inspire', llmEndpoint: 'https://inspire.bytedance.net/writer/api',
+      llmApiKey: 'wak_test', llmModel: 'gemini_3f', inspireTeamId: 'team-1',
+      inspireRequestGate: async () => {},
+      onAiBatchComplete: (usage) => { batchUsage = usage; },
+    },
+  );
+  globalThis.fetch = origFetch;
+  assert('Inspire 失败任务保留真实错误', out[0].reasoning.includes('500'));
+  assert('Inspire 失败任务的请求仍计入 Pilot 用量', batchUsage?.taskAttemptCount === 1 && batchUsage?.taskCount === 0 && batchUsage?.requestCount === 2);
 }
 
 console.log('\n=== ai-translate.js: parseAIResponse ===');
@@ -256,13 +503,13 @@ console.log('\n=== ai-translate.js: rewriteSourceWithAI (TM 优化改写) ===');
   assert('达标 reuse_tm', out[0].reuse_tm === true);
 }
 
-// 17. Orig<85 + 未配置 LLM -> 空 ai_translation 但仍标记 reached_threshold=false
+// 17. Orig<50 -> 只显示 TM，不检查 LLM 配置
 {
   const items = [{ source_text: 'gift', tm_match: 'ギフト', similarity: 30 }];
   const out = await rewriteSourceWithAI(items, {});
   assert('未达标 reached_threshold=false', out[0].reached_threshold === false);
-  assert('未配置LLM空改写', out[0].ai_translation === '');
-  assert('未配置LLM给英文原因', /not configured/i.test(out[0].reasoning));
+  assert('低于50空改写', out[0].ai_translation === '');
+  assert('低于50说明只展示TM', /below.*50|top-3 tm/i.test(out[0].reasoning));
 }
 
 // 18. Orig<85 + 配置LLM -> 调 fetch mock 返回改写
@@ -273,7 +520,7 @@ console.log('\n=== ai-translate.js: rewriteSourceWithAI (TM 优化改写) ===');
     json: async () => ({ content: [{ text: '{"ai_translation":"send a gift","reasoning":"closer to TM","reuse_tm":false}' }] }),
     text: async () => '',
   });
-  const items = [{ source_text: 'gift', tm_match: 'send gift', similarity: 30, origin: 'tester' }];
+  const items = [{ source_text: 'gift', tm_match: 'send gift', similarity: 50, origin: 'tester' }];
   const out = await rewriteSourceWithAI(items, { llmEndpoint: 'https://api.anthropic.com/x', llmApiKey: 'k', llmModel: 'm' });
   globalThis.fetch = origFetch;
   assert('改写返回 ai_translation', out[0].ai_translation === 'send a gift');
@@ -283,11 +530,15 @@ console.log('\n=== ai-translate.js: rewriteSourceWithAI (TM 优化改写) ===');
 // 18b. 84% 未达标，85% 达标，默认门槛必须与计费口径一致
 {
   const out = await rewriteSourceWithAI([
-    { source_text: 'below', tm_match: 'below tm', similarity: 84 },
+    { source_text: 'below-floor', tm_match: 'below floor tm', similarity: 49.99 },
+    { source_text: 'at-floor', tm_match: 'at floor tm', similarity: 50 },
+    { source_text: 'below', tm_match: 'below tm', similarity: 84.99 },
     { source_text: 'at', tm_match: 'at tm', similarity: 85 },
   ], {});
-  assert('84% 触发改写', out[0].reached_threshold === false);
-  assert('85% 不改写', out[1].reached_threshold === true && out[1].reuse_tm === true);
+  assert('49.99不触发改写', out[0].rewrite_eligible === false);
+  assert('50触发改写', out[1].rewrite_eligible === true);
+  assert('84.99触发改写', out[2].rewrite_eligible === true);
+  assert('85不改写', out[3].reached_threshold === true && out[3].reuse_tm === true);
 
   const oldScore84 = compareAIvsTM({ source_text: 'x', ai_translation: 'y', tm_match: 'z', similarity: 84 });
   const oldScore85 = compareAIvsTM({ source_text: 'x', ai_translation: 'y', tm_match: 'z', similarity: 85 });
@@ -308,7 +559,7 @@ console.log('\n=== ai-translate.js: rewriteSourceWithAI (TM 优化改写) ===');
     json: async () => ({ content: [{ text: '{"ai_translation":"send a gift","reasoning":"r","reuse_tm":false}' }] }),
     text: async () => '',
   });
-  const items = [{ source_text: 'gift', tm_match: 'send gift', similarity: 30, origin: 'LIVE v1' }];
+  const items = [{ source_text: 'gift', tm_match: 'send gift', similarity: 50, origin: 'LIVE v1' }];
   const ai = await rewriteSourceWithAI(items, { llmEndpoint: 'https://api.anthropic.com/x', llmApiKey: 'k', llmModel: 'm' });
   ai[0].new_match = 88; // 模拟改写后再查 TM 得到 88
   const final = ai.map(compareAIvsTM);

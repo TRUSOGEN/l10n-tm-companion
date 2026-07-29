@@ -19,6 +19,7 @@ function assert(name, condition) {
 const testDir = path.dirname(fileURLToPath(import.meta.url));
 const popupSource = fs.readFileSync(path.join(testDir, '..', 'popup.js'), 'utf8');
 const runnerSource = fs.readFileSync(path.join(testDir, '..', 'lib', 'multilingual-runner.js'), 'utf8');
+const archiveSource = fs.readFileSync(path.join(testDir, '..', 'lib', 'roi-bitable-archive.js'), 'utf8');
 const start = popupSource.indexOf('async function processItems(items)');
 const end = popupSource.indexOf('// ===== 渲染结果卡片 =====');
 const processItemsSource = popupSource.slice(start, end);
@@ -27,11 +28,24 @@ console.log('\n=== popup: fast TM-only pipeline ===');
 assert('processItems 已定位', start >= 0 && end > start);
 assert('默认流程不查询 Source String Key', !processItemsSource.includes('searchKeys('));
 assert('默认流程不写入项目归属', !processItemsSource.includes('item.project ='));
-assert('默认流程查询改写后的真实 TM 快照', processItemsSource.includes('queryPostRewriteTmSnapshots('));
+assert('默认流程批量查询全部候选的真实 TM 快照', processItemsSource.includes('queryRewriteCandidateTmSnapshots('));
 assert('最终确认流程查询 C 的第三次真实 TM 快照', popupSource.includes('queryFinalTmSnapshots('));
-assert('结果页提供最终 C 验证按钮', popupSource.includes('btn-validate-final'));
+assert('结果页删除全局最终 C 验证按钮', !popupSource.includes("getElementById('btn-validate-final').addEventListener"));
 assert('改写后快照保存到运行条目', runnerSource.includes('item.post_rewrite_tm = snapshots[index]'));
 assert('默认流程调用可测试的 scope 执行器', processItemsSource.includes('runLocaleScopes({'));
+assert(
+  'ROI 首屏只执行一个优先展示 scope',
+  processItemsSource.includes('partitionPriorityScope(runConfig.scopes')
+    && processItemsSource.includes('scopes: scopePartition.priority'),
+);
+assert(
+  '完整 ROI scope 定义保存在运行快照中供归档补算',
+  processItemsSource.includes('roiScopes: runConfig.scopes.map('),
+);
+assert(
+  'ROI 归档前补算延后的语言 scope',
+  popupSource.includes('await completeDeferredRoiScopesForArchive('),
+);
 assert('快速与 ROI scope 都通过统一入口携带全部项目 ID', popupSource.includes('function projectIdsForScope(scope)') && processItemsSource.includes('projectIdsForScope(scope)'));
 assert('默认流程不把 B 汇总为正式 ROI', !processItemsSource.includes('summarizeMultilingualRoi(scopeRuns)'));
 assert('Sheet display scope 不依赖 ROI 完整性', processItemsSource.includes("activeDisplayScopeKey = scopeRuns[0]?.scope.key || ''"));
@@ -43,17 +57,30 @@ assert('运行快照恢复后重建结果卡片', popupSource.includes('processe
 assert('新运行开始前清除旧运行快照', popupSource.includes('await clearWorkflowSnapshot();'));
 assert('运行快照记录写回时的 Spreadsheet token', popupSource.includes('spreadsheetToken: config.spreadsheetToken || \'\''));
 assert('恢复快照前校验当前 Spreadsheet token', popupSource.includes('snapshot.workflowContext?.spreadsheetToken !== config.spreadsheetToken'));
-assert('结果按当前可用 TM 分数升序排序', popupSource.includes('}).sort(compareItemsByCurrentTmScore);'));
-assert('0 条最终 C 时停止归档流程', popupSource.includes('confirmedCount === 0'));
-assert('排序优先使用最终 C 的真实 Score C', popupSource.includes("item?.final_tm?.status === 'complete' ? item.final_tm.score : null"));
-assert('排序其次使用候选 B 的真实 Score B', popupSource.includes("item?.post_rewrite_tm?.status === 'complete' ? item.post_rewrite_tm.score : null"));
-assert('缺失 TM 分数固定排在最后', popupSource.includes('?? Infinity'));
+assert('结果保持 Sheet 原始行号顺序', !popupSource.includes('}).sort(compareItemsByCurrentTmScore);'));
+assert('Focus 提供逐条确认入口', popupSource.includes('data-confirm-review'));
+assert('Focus 使用兼容 TM 展示状态，避免有分数却误报无 TM', popupSource.includes('buildFocusTmState(item)'));
+assert('Focus 直接展示 AI 候选缺失原因', popupSource.includes('explainFocusAiAbsence(item)'));
+assert('逐条确认调用真实 Final TM', popupSource.includes('async function confirmReviewItem'));
+assert('逐条确认成功后写单条 Sheet', popupSource.includes('writeConfirmedReviewItem('));
+assert('批量确认剩余项调用批量 Final TM', popupSource.includes('async function confirmRemainingReviewItems')
+  && popupSource.includes('queryFinalTmSnapshots('));
+assert('批量确认剩余项使用连续区间 Sheet writer', popupSource.includes('writeConfirmedReviewItems('));
+assert(
+  '0 条 confirmed 时停止归档流程',
+  popupSource.includes('reviewItems: processedItems')
+    && archiveSource.includes('funnel.cdReviewedSegments === 0')
+    && archiveSource.includes('roi_archive_requires_confirmed_review'),
+);
+assert('结果代码不再保留 TM 分数排序器', !popupSource.includes('compareItemsByCurrentTmScore'));
 assert('结果卡片不展示未查询的 Key', !popupSource.includes('${keyRow(item)}'));
 assert('工作表优先从当前标签页自动识别', popupSource.includes('async function detectCurrentWorkingSheet()'));
 assert('自动识别使用 active tab URL', popupSource.includes('chrome.tabs.query({ active: true, currentWindow: true }'));
 assert('手动工作表作为明确 override 保存', popupSource.includes("saveWorkingSheet(raw, parsed, 'manual')"));
 assert('工作表帮助引导确认动态范围', popupSource.includes('confirm its source and output ranges below'));
 assert('Popup 不再渲染 ROI 金额', !popupSource.includes('Estimated vehicle TM savings'));
+assert('主流程不再绑定批量写回按钮', !popupSource.includes("getElementById('btn-write-bitable').addEventListener"));
+assert('结果页不再绑定批量写回按钮', !popupSource.includes("getElementById('btn-write-results').addEventListener"));
 
 console.log(`\npopup fast-path 测试: ${passed} 通过 / ${failed} 失败`);
 if (failed > 0) process.exit(1);

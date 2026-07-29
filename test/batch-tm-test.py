@@ -10,6 +10,8 @@ import importlib.util
 import json
 import os
 import sys
+import threading
+import time
 
 
 def load_bridge():
@@ -71,6 +73,17 @@ def main():
                 'sourceLang': 'en',
                 'targetLang': 'zh',
                 'updater': 'isabella.ai',
+                'matchCategory': 'fuzzy',
+                'id': 'tm-low',
+            }, {
+                'score': 61,
+                'source': 'Privacy settings',
+                'target': '隐私设置',
+                'sourceLang': 'en',
+                'targetLang': 'zh',
+                'updater': 'reviewer',
+                'matchCategory': 'fuzzy',
+                'id': 'tm-high',
             }, {
                 'score': 46.666666666666664,
                 'source': 'Privacy settings saved',
@@ -93,9 +106,19 @@ def main():
     total += 1
     passed += assert_equal('第二条取最高分匹配', results[1]['tm_source'], 'Privacy settings')
     total += 1
-    passed += assert_equal('第二条保留全部候选计数', results[1]['candidate_count'], 2)
+    passed += assert_equal('第二条候选按 source target 去重', len(results[1]['tm_candidates']), 2)
+    total += 1
+    passed += assert_equal('重复候选保留最高分', results[1]['tm_candidates'][0]['score'], 61.0)
+    total += 1
+    passed += assert_equal('去重后保持首次出现顺序', results[1]['tm_candidates'][1]['source'], 'Privacy settings saved')
+    total += 1
+    passed += assert_equal('候选保留审计字段', results[1]['tm_candidates'][0]['tm_id'], 'tm-high')
+    total += 1
+    passed += assert_equal('兼容候选计数使用去重后数量', results[1]['candidate_count'], 2)
     total += 1
     passed += assert_equal('空候选保持真实无命中', results[2]['origin'], 'No TM match')
+    total += 1
+    passed += assert_equal('空候选返回空 Top-3', results[2]['tm_candidates'], [])
     total += 1
     passed += assert_equal('批量方法标记', results[0]['method'], 'starling-batch')
 
@@ -131,6 +154,17 @@ def main():
         '响应与输入数量不一致明确失败',
         ValueError,
         lambda: bridge.parse_batch_tm_response(json.dumps({'data': [[]]}), texts, 'en', 'zh'),
+    )
+    total += 1
+    passed += assert_raises(
+        '候选非数值 score 明确失败',
+        ValueError,
+        lambda: bridge.parse_batch_tm_response(
+            {'data': [[{'source': 'Done', 'target': '完成', 'score': 'bad'}]]},
+            ['Done'],
+            'en',
+            'zh',
+        ),
     )
 
     print('\n=== batch TM: transient PPE error retry policy ===')
@@ -184,7 +218,11 @@ def main():
         bridge.request_batch_tm = original_request
 
     total += 1
-    passed += assert_equal('十一条输入按 10+1 分批', [len(call[1]['sourceContents']) for call in request_calls], [10, 1])
+    passed += assert_equal(
+        '十一条输入按 10+1 分批',
+        sorted(len(call[1]['sourceContents']) for call in request_calls),
+        [1, 10],
+    )
     total += 1
     passed += assert_equal('每批保留全部项目 ID', request_calls[0][1]['projectIds'], [385, 278])
     total += 1
@@ -196,9 +234,70 @@ def main():
         [f'Text {index}' for index in range(11)],
     )
 
+    print('\n=== batch TM: bounded parallel dispatch ===')
+    active_requests = 0
+    max_active_requests = 0
+    activity_lock = threading.Lock()
+
+    def concurrent_request(cli, body, use_ppe, message=None):
+        """模拟慢请求并记录同时在途的批次数。"""
+        nonlocal active_requests, max_active_requests
+        with activity_lock:
+            active_requests += 1
+            max_active_requests = max(max_active_requests, active_requests)
+        time.sleep(0.02)
+        with activity_lock:
+            active_requests -= 1
+        return {
+            'data': [[{
+                'score': 100,
+                'source': text,
+                'target': f'{text}-target',
+                'sourceLang': 'en',
+                'targetLang': 'zh',
+                'updater': 'test',
+            }] for text in body['sourceContents']]
+        }
+
+    bridge.request_batch_tm = concurrent_request
+    try:
+        parallel = bridge.search_tm_batch({
+            'texts': [f'Parallel {index}' for index in range(50)],
+            'project_ids': [385],
+            'source_lang': 'en',
+            'target_lang': 'zh',
+            'batch_concurrency': 5,
+            'cli_path': '/tmp/starling-cli',
+        })
+        serial = bridge.search_tm_batch({
+            'texts': [f'Serial {index}' for index in range(50)],
+            'project_ids': [385],
+            'source_lang': 'en',
+            'target_lang': 'zh',
+            'batch_concurrency': 1,
+            'cli_path': '/tmp/starling-cli',
+        })
+    finally:
+        bridge.request_batch_tm = original_request
+
+    total += 1
+    passed += assert_equal('五个批次同时在途', max_active_requests, 5)
+    total += 1
+    passed += assert_equal(
+        '并行合并仍保持五十条输入顺序',
+        [item['source_text'] for item in parallel['results']],
+        [f'Parallel {index}' for index in range(50)],
+    )
+    total += 1
+    passed += assert_equal(
+        '单并发仍处理全部五十条并保持顺序',
+        [item['source_text'] for item in serial['results']],
+        [f'Serial {index}' for index in range(50)],
+    )
+
     total += 1
     passed += assert_raises(
-        '超过安全批次上限明确失败',
+        '超过安全批大小上限明确失败',
         ValueError,
         lambda: bridge.search_tm_batch({
             'texts': [f'Text {index}' for index in range(11)],
@@ -206,6 +305,32 @@ def main():
             'source_lang': 'en',
             'target_lang': 'zh',
             'batch_size': 11,
+        }),
+    )
+
+    total += 1
+    passed += assert_raises(
+        '超过安全并发上限明确失败',
+        ValueError,
+        lambda: bridge.search_tm_batch({
+            'texts': ['Too much concurrency'],
+            'project_ids': [385],
+            'source_lang': 'en',
+            'target_lang': 'zh',
+            'batch_concurrency': 6,
+        }),
+    )
+
+    total += 1
+    passed += assert_raises(
+        '零并发配置明确失败',
+        ValueError,
+        lambda: bridge.search_tm_batch({
+            'texts': ['Zero concurrency'],
+            'project_ids': [385],
+            'source_lang': 'en',
+            'target_lang': 'zh',
+            'batch_concurrency': 0,
         }),
     )
 

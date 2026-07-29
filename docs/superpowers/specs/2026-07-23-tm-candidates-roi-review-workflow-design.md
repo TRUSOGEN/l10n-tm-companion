@@ -66,7 +66,7 @@ Top-3 检索本身不增加 Batch 请求数。三个 AI 候选的 Post-TM 重查
 
 ## AI 候选生成与筛选
 
-每条符合梯度的 source 只创建一个 Inspire task。Prompt 输入原始 source、Top-3 TM source、Content Review Principles、相关 Style Guide、Glossary 和唯一一份 Legal Guidelines，最多返回三个结构化候选。
+每条符合梯度的 source 只创建一个 Inspire task。Prompt 输入原始 source、Top-3 TM source、Content Review Principles、相关 Style Guide、Glossary 和唯一一份 Legal Guidelines。Inspire Writer `/copies` 最多返回三个原生普通 revision，客户端将每条 revision 包装为结构化候选。
 
 目标优先级固定为：
 
@@ -79,7 +79,7 @@ Top-3 检索本身不增加 Batch 请求数。三个 AI 候选的 Post-TM 重查
 
 每个候选经过以下门禁：
 
-1. JSON 与必需字段结构有效。
+1. Writer revision 为非空普通文本，或旧版 JSON envelope 与必需字段结构有效；疑似损坏 JSON 正确失败。
 2. placeholder、URL、数字和模板 token 完整。
 3. 语义判断为 `same_meaning`，`needs_context` 与 `meaning_changed` 均不可推荐。
 4. Post-TM 查询状态为 `complete`。
@@ -132,7 +132,7 @@ AI 候选只有上升且通过安全门禁时展示文本。人工最终文案�
 Focus 是唯一审阅入口，依次展示：
 
 1. 完整原文。
-2. Top-3 TM source、target translation 与真实分数。
+2. Top-3 英文 TM source 与真实分数；CD 界面不展示内部查询使用的 target translation。
 3. 通过门禁的 AI 候选；没有有效候选时显示 `None`。
 4. 可编辑的最终文案。
 5. `TM`、`Post-TM`、`Final TM` 与相对 A 的升降。
@@ -166,6 +166,12 @@ stateDiagram-v2
 逐条确认在普通模式与 ROI mode 中都可使用。普通模式查询当前 Fast TM scope 并同步 Sheet；ROI mode 对当前已选 scope 查询最终结果，卡片展示当前查看 scope 的 Final TM，全部 scope 结果用于正式 ROI。
 
 删除全局“确认最终 C 并计算 Score C”按钮和 `CD review valid?` 下拉。逐条确认本身构成明确的人工确认。
+
+### 批量确认补充（2026-07-28）
+
+结果页增加 `Confirm & write remaining`，解决百条或千条任务逐项点击的问题。CD 只需在 Focus 中修改例外项；批量入口跳过 confirmed 条目，对其余当前 Final copy 执行与逐条确认相同的本地 protected-token 门禁、真实 Final TM 查询和 Sheet 写入。候选默认文案进入 Focus 前已经通过结构、URL、数字、Glossary、Legal、语义与 Post-TM 门禁；人工自由编辑的最终 C 继续视为 CD 明确决策，确认阶段检查 protected token 与真实 Final TM。
+
+批量写回不是恢复旧版“盲写全部结果”按钮。它只接受已经完成 Final TM 的条目，按真实 Sheet 行号排序，将相邻行合并成连续 B-G 区间；行号存在空洞时拆成独立区间，避免覆盖不在本次批次中的单元格。所有条目在首次网络写入前完成本地字段校验，API 失败保持 error，禁止伪造 confirmed。单条入口继续承担例外项即时确认与失败重试。
 
 ## Sheet schema
 
@@ -256,7 +262,7 @@ flowchart LR
 - AI 下降、持平、语义风险和 token 风险均显示 `None`，候选文本不进入 UI。
 - Post-TM 与 Final TM 的箭头和 delta 都以 A 为基线。
 - 删除展开详情、AI rewrite 徽标、Final C 全局按钮和 CD review 下拉。
-- 删除两个全局写回按钮，批处理不改 Sheet，逐条确认是唯一业务写回入口。
+- 删除两个旧版候选盲写按钮，初次批处理不改 Sheet；单条 Confirm 与 `Confirm & write remaining` 是共享同一确认事务的两个业务写回入口。
 - 每条确认严格执行校验、Final TM、Sheet 写回、confirmed 四阶段。
 - 再次编辑会使旧 Final TM 过期，并允许重新查询和同步。
 - 旧 Sheet 空 CD review 列可安全迁移，非空列正确失败。

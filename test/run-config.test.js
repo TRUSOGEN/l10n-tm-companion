@@ -49,11 +49,21 @@ const fastScope = buildFastTmScope({
 assert.equal(fastScope.status, 'ready', '快速 TM 应接受共同 target locale');
 assert.deepEqual(fastScope.scopes[0].projectIds, [513, 385], '快速 TM 应在一个 Batch scope 中查询全部项目');
 assert.equal(fastScope.scopes[0].targetLocale, 'zh-Hans');
+const automaticFastScope = buildFastTmScope({
+  projects: [projectA, projectB],
+  projectIds: [513, 385],
+});
+assert.equal(automaticFastScope.status, 'ready', 'CD 快速路径无需手动选择 target locale');
+assert.equal(automaticFastScope.scopes[0].targetLocale, 'zh-Hans', '内部参考 locale 必须从共同语言中确定性选择');
 assert.equal(buildFastTmScope({
   projects: [projectJaOnly, projectKoOnly],
   projectIds: [701, 702],
   targetLocale: 'ja-JP',
 }).reason, 'target_locale_unavailable', '快速 TM 目标语言必须被全部所选项目支持');
+assert.equal(buildFastTmScope({
+  projects: [projectJaOnly, projectKoOnly],
+  projectIds: [701, 702],
+}).reason, 'no_common_target_locale', '没有共同语言时必须正确失败');
 
 const selected = toggleProjectSelection({
   projects: [projectA, projectB],

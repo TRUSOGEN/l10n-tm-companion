@@ -25,20 +25,49 @@
     <!-- Tab nav: main flow / results -->
     <nav class="tabs">
       <button id="tab-main" class="tab active" data-tab="main"><span data-i18n="workflow">Workflow</span></button>
-      <button id="tab-results" class="tab" data-tab="results"><span data-i18n="results">Results</span> <span id="results-badge" class="results-badge hidden"></span></button>
+      <button id="tab-results" class="tab" data-tab="results"><span class="tab-step-number">4</span> <span data-i18n="results">Review</span> <span id="results-badge" class="results-badge hidden"></span></button>
     </nav>
 
     <!-- ===== Tab: main flow ===== -->
     <section id="view-main" class="tab-view">
+      <section id="feishu-auth-card" class="feishu-auth-card">
+        <img id="feishu-auth-avatar" class="feishu-auth-avatar hidden" alt="">
+        <div class="feishu-auth-copy">
+          <span class="feishu-auth-kicker" data-i18n="feishuAccount">Feishu account</span>
+          <strong id="feishu-auth-title">Authorization required</strong>
+          <span id="feishu-auth-status" data-i18n="feishuAuthorizeHint">Authorize once to verify Spreadsheet access and record the ROI operator.</span>
+        </div>
+        <button id="connect-feishu-user" type="button" class="btn btn-primary" data-i18n="authorizeFeishu">Authorize</button>
+      </section>
+
       <!-- Health check -->
       <details id="health-details" class="collapse health-collapse">
         <summary><span id="health-summary">Checking environment…</span></summary>
         <div id="health" class="health"></div>
       </details>
 
+      <ol id="workflow-steps" class="steps" aria-label="Workflow steps" data-i18n-aria-label="workflowSteps">
+        <li class="step active" data-step="1" aria-current="step">
+          <span class="step-num">1</span>
+          <span data-i18n="stepProjects">Projects</span>
+        </li>
+        <li class="step" data-step="2">
+          <span class="step-num">2</span>
+          <span data-i18n="stepSpreadsheet">Spreadsheet</span>
+        </li>
+        <li class="step" data-step="3">
+          <span class="step-num">3</span>
+          <span data-i18n="stepRun">Run</span>
+        </li>
+        <li class="step" data-step="4">
+          <span class="step-num">4</span>
+          <span data-i18n="stepReview">Review</span>
+        </li>
+      </ol>
+
       <!-- Run configuration: vendor、项目和整车 ROI 语言范围的唯一来源 -->
-      <details id="run-config-details" class="collapse run-config-collapse" open>
-        <summary><span id="run-config-summary">Run configuration · setup required</span></summary>
+      <details id="run-config-details" class="collapse run-config-collapse workflow-step-section" open>
+        <summary><span id="run-config-summary">1. Projects · setup required</span></summary>
         <div class="run-config-body">
           <div id="setup-required" class="setup-required hidden">
             <strong>Setup required</strong>
@@ -67,14 +96,14 @@
             <div class="run-subsection-body">
               <button type="button" id="refresh-projects" class="inline-button" data-i18n="refreshProjects">Refresh projects</button>
               <div id="run-project-cards" class="run-project-cards"></div>
+              <nav id="run-project-pagination" class="run-project-pagination hidden" aria-label="Project pages" data-i18n-aria-label="projectPages">
+                <button type="button" id="project-page-previous" class="run-project-page-button" data-i18n="previousPage">Previous</button>
+                <span id="project-page-status" class="run-project-page-status" aria-live="polite">Page 0/0 · 0 projects</span>
+                <button type="button" id="project-page-next" class="run-project-page-button" data-i18n="nextPage">Next</button>
+              </nav>
               <p id="run-project-status" class="run-status"></p>
             </div>
           </details>
-          <label for="run-target-locale" data-i18n="fastTarget">Fast TM target language</label>
-          <select id="run-target-locale" required>
-            <option value="">Select projects first</option>
-          </select>
-          <p class="hint" data-i18n="fastTargetHint">The default path queries this language once across all selected projects.</p>
           <details id="roi-language-details" class="run-subsection roi-only hidden">
             <summary><span data-i18n="roiLanguages">ROI coverage languages</span> <span id="roi-scope-count" class="run-scope-count">0 scopes</span></summary>
             <div class="run-subsection-body">
@@ -91,23 +120,9 @@
         </div>
       </details>
 
-      <!-- Step 1: Source -->
-      <section class="step-panel" id="panel-1">
-        <div class="panel-label" data-i18n="source">1. Source</div>
-        <button id="btn-read-sheet" class="btn btn-primary btn-block" data-i18n="readSheet">Read configured source range</button>
-        <details class="collapse sub-actions">
-          <summary data-i18n="otherSources">Other sources (DOM extraction, may be noisy)</summary>
-          <div class="actions">
-            <button id="btn-extract-all" class="btn btn-secondary btn-block" data-i18n="extractAll">Extract all text</button>
-            <button id="btn-extract-sel" class="btn btn-secondary btn-block" data-i18n="extractSelection">Extract selection</button>
-          </div>
-          <p class="doc-info" id="doc-title">No Feishu doc detected</p>
-        </details>
-      </section>
-
       <!-- Step 2: Working spreadsheet -->
-      <details id="working-sheet-details" class="collapse working-sheet-details">
-        <summary><span id="working-sheet-summary">② Working spreadsheet · detecting…</span></summary>
+      <details id="working-sheet-details" class="collapse working-sheet-details workflow-step-section">
+        <summary><span id="working-sheet-summary">2. Spreadsheet · detecting…</span></summary>
         <section class="step-panel" id="panel-2">
           <p id="working-sheet-help" class="hint">Detecting the current Feishu spreadsheet…</p>
           <div id="sheet-context-config" class="sheet-context-config hidden">
@@ -146,6 +161,21 @@
         </section>
       </details>
 
+      <!-- Step 3: Run TM review -->
+      <section class="step-panel workflow-step-section run-action-panel" id="panel-3">
+        <div class="panel-label" data-i18n="stepRunTitle">3. Run TM review</div>
+        <p class="step-description" data-i18n="stepRunHint">Read the confirmed source range, query Top-3 TM, and generate AI rewrites for eligible rows.</p>
+        <button id="btn-read-sheet" class="btn btn-primary btn-block" data-i18n="readSheet">Read source → Query TM → AI rewrite</button>
+        <details class="collapse sub-actions">
+          <summary data-i18n="otherSources">Other sources (DOM extraction, may be noisy)</summary>
+          <div class="actions">
+            <button id="btn-extract-all" class="btn btn-secondary btn-block" data-i18n="extractAll">Extract all text</button>
+            <button id="btn-extract-sel" class="btn btn-secondary btn-block" data-i18n="extractSelection">Extract selection</button>
+          </div>
+          <p class="doc-info" id="doc-title">No Feishu doc detected</p>
+        </details>
+      </section>
+
       <!-- Progress -->
       <div id="progress" class="progress hidden">
         <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
@@ -155,14 +185,6 @@
       <!-- Status / error -->
       <div id="status" class="status hidden"></div>
 
-      <!-- Destination preview (before/after write) -->
-      <div id="dest-preview" class="dest-preview hidden"></div>
-
-      <!-- Step 5: Write back -->
-      <footer class="footer">
-        <button id="btn-write-bitable" class="btn btn-success" disabled data-i18n="writeBack">Write back to sheet</button>
-        <span id="selected-count">Selected 0/0</span>
-      </footer>
     </section>
 
     <!-- ===== Tab: results ===== -->
@@ -173,11 +195,20 @@
       </div>
       <div id="multilingual-roi-summary" class="multilingual-roi-summary roi-only hidden"></div>
       <div id="roi-archive-preview" class="dest-preview roi-only hidden"></div>
+      <div id="dest-preview" class="dest-preview hidden"></div>
+      <div id="review-filter" class="review-filter hidden" role="group" aria-label="Review result filter" data-i18n-aria-label="reviewFilter">
+        <button id="review-filter-all" class="review-filter-option" type="button" aria-pressed="true">
+          <span data-i18n="allResults">All</span>
+          <span id="review-filter-all-count" class="review-filter-count">0</span>
+        </button>
+        <button id="review-filter-improved" class="review-filter-option" type="button" aria-pressed="false">
+          <span data-i18n="improvedResults">Improved</span>
+          <span id="review-filter-improved-count" class="review-filter-count">0</span>
+        </button>
+      </div>
       <div id="results" class="results"></div>
-      <!-- Write back: after reviewing results -->
       <footer class="footer results-footer">
-        <button id="btn-write-results" class="btn btn-success" disabled data-i18n="writeBack">Write back to sheet</button>
-        <button id="btn-validate-final" class="btn btn-secondary roi-only hidden" disabled data-i18n="validateFinal" data-i18n-title="validateFinalTitle" title="Reads the confirmed final source and runs the third TM query.">Confirm final C and calculate Score C</button>
+        <button id="btn-confirm-remaining" type="button" class="btn btn-primary" disabled>Confirm & write remaining</button>
         <button id="btn-write-roi-archive" class="btn btn-success roi-only hidden" disabled data-i18n="writeRoi">Write ROI archive</button>
         <span id="selected-count-results">Selected 0/0</span>
       </footer>

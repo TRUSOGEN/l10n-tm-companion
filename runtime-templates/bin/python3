@@ -1,0 +1,6 @@
+#!/bin/bash
+# 定位线下包内置的可迁移 Python framework。
+
+set -euo pipefail
+RUNTIME_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+exec "$RUNTIME_ROOT/python/Python3.framework/Versions/Current/bin/python3" "$@"
