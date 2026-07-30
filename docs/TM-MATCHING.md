@@ -13,7 +13,7 @@ Batch 首轮显式发送 `limit=3`，每个 source 返回按原始顺序保留�
 - `not_required`：不满足 50–85 门禁、结构无效或没有候选，因此不发送第二次请求。
 - `incomplete`：Native Messaging、HTTP、响应数量或 score 结构异常；保留首轮结果和错误原因，不产生伪造的 0 分。
 
-候选只有在结构、protected token、URL、数字、Glossary、Legal、`semantic_status=same_meaning`、空风险列表以及 `Post-TM > Orig TM` 全部通过时才进入 Focus 可选列表。普通 Sheet 只在单条确认成功后保存当前六列，不写任何 ROI 金额。
+候选只有在结构、protected token、URL、数字、`semantic_status=same_meaning`、空风险列表以及 `Post-TM > Orig TM` 全部通过时才进入 Focus 可选列表。Prompt 保留按场景选择的 Legal 证据。普通 Sheet 只在单条确认成功后保存当前六列，不写任何 ROI 金额。
 
 Focus 以 `tm_candidates` 作为 Top-3 的权威数据。若检测到旧版 Native Host 只返回首条 `tm_source`、`tm_match` 与 `similarity`，界面保留这条真实命中并显示 `Native Host update required`，不得在已有正分时误报 `No TM match`。AI 没有有效候选时继续显示 `None`，并同步显示生成关闭、配置缺失、API 失败、结构错误或安全门禁原因；`None` 本身不代表未调用 Inspire。
 

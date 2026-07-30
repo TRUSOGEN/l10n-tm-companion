@@ -147,6 +147,8 @@ console.log('\n=== ai-translate.js: rewriteSourceWithAI (TM 优化改写) ===');
   });
   assert('改写prompt包含 Content Review 规则证据', reviewed.includes('Baseline quality check rules'));
   assert('改写prompt包含 Skill 核心审阅规则', reviewed.includes('Content Review Skill evidence'));
+  assert('改写prompt不再包含 Style Guide 证据', !reviewed.includes('Style Guide evidence'));
+  assert('改写prompt不再包含 Glossary 证据', !reviewed.includes('Glossary evidence'));
   assert('Writer revision 契约位于 prompt 前部', reviewed.indexOf('WRITER REVISION CONTRACT') >= 0
     && reviewed.indexOf('WRITER REVISION CONTRACT') < 1500);
   assert('改写prompt使用明确跳过标记', reviewed.includes('[[SKIP:INSUFFICIENT_REWRITE_SPACE]]'));
