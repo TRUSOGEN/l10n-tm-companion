@@ -130,9 +130,11 @@ summary { cursor: pointer; font-size: 12px; color: #646a73; }
 .provider-fields { padding: 10px; margin: 8px 0 12px; border: 1px solid #d6e4ff; border-radius: 8px; background: #f5f8ff; font-size: 12px; }
 .provider-intro { margin: 0 0 10px; line-height: 1.5; }
 .inspire-agent-summary {
-  margin: 0 0 8px; padding: 8px 10px; border: 1px solid #d6e4ff; border-radius: 7px;
-  background: #fff; color: #3c475a; line-height: 1.5;
+  display: grid; gap: 2px; margin: 0 0 8px; padding: 8px 10px; border: 1px solid #d6e4ff;
+  border-radius: 7px; background: #fff; color: #3c475a; line-height: 1.5;
 }
+.inspire-agent-summary strong { color: #1f2329; font-size: 13px; }
+.inspire-agent-summary span { color: #7b8290; font-size: 11px; overflow-wrap: anywhere; }
 .inspire-agent-advanced { margin-top: 8px; padding-top: 8px; }
 .inspire-agent-advanced label { margin: 10px 0 0; }
 .agent-contract-note { margin: 9px 0 0; color: #7b8290; line-height: 1.5; }

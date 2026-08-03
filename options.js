@@ -355,13 +355,16 @@ function renderInspireAgentFields() {
   const versionPolicy = document.getElementById('inspireAgentVersionPolicy').value === 'pinned' ? 'pinned' : 'latest';
   document.getElementById('inspire-custom-agent-fields').classList.toggle('hidden', agentMode !== 'custom');
   document.getElementById('inspire-pinned-version-field').classList.toggle('hidden', versionPolicy !== 'pinned');
-  const agentLabel = agentMode === 'custom'
-    ? (document.getElementById('inspireCustomAgentId').value.trim() || 'Custom Agent ID required')
-    : `${INSPIRE_DEFAULT_AGENT.name} · ${INSPIRE_DEFAULT_AGENT.id}`;
+  const customAgentId = document.getElementById('inspireCustomAgentId').value.trim();
+  const agentName = agentMode === 'custom' ? 'Custom Agent' : INSPIRE_DEFAULT_AGENT.name;
+  const agentMeta = agentMode === 'custom'
+    ? (customAgentId || 'Custom Agent ID required')
+    : `Configured default Agent · ${INSPIRE_DEFAULT_AGENT.id}`;
   const versionLabel = versionPolicy === 'pinned'
     ? `Pinned version ${document.getElementById('inspireAgentVersion').value.trim() || 'required'}`
     : 'Latest published';
-  document.getElementById('inspire-agent-summary').textContent = `${agentLabel} · ${versionLabel}`;
+  document.getElementById('inspire-agent-name').textContent = agentName;
+  document.getElementById('inspire-agent-meta').textContent = `${agentMeta} · ${versionLabel}`;
 }
 
 /** 保存不含 Starling AK/SK 和单次运行配置的常规设置。 */
