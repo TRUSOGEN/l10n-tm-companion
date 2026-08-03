@@ -229,6 +229,8 @@ class RoiWorker:
             if stage == "A":
                 text = self._decrypt(it.source_text_cipher)
             else:
+                if job.text_hash != it.final_hash:
+                    continue  # 旧 final hash 的 job 已被后续确认 supersede。
                 if it.review_status != "confirmed" or not it.final_text_cipher:
                     continue  # unconfirmed items in sealed run will be accounted as incomplete
                 text = self._decrypt(it.final_text_cipher)
@@ -403,7 +405,7 @@ class RoiWorker:
             ).scalar_one_or_none()
             if item is None:
                 continue
-            text_hash = item.source_hash if stage == "A" else item.final_hash
+            text_hash = item.source_hash if stage == "A" else job.text_hash
             self._upsert_scope_result(
                 db,
                 run=db.get(RoiRun, job.run_id),
@@ -523,7 +525,7 @@ class RoiWorker:
             for item in all_items:
                 if item.review_status != "confirmed":
                     scope_ok = False
-                    break
+                    continue
                 a = db.execute(
                     select(RoiScopeResult).where(
                         RoiScopeResult.run_id == run.run_id,
@@ -534,7 +536,7 @@ class RoiWorker:
                 ).scalar_one_or_none()
                 if not a or a.status != "complete":
                     scope_ok = False
-                    break
+                    continue
                 c = db.execute(
                     select(RoiScopeResult).where(
                         RoiScopeResult.run_id == run.run_id,
@@ -546,10 +548,12 @@ class RoiWorker:
                 ).scalar_one_or_none()
                 if not c or c.status != "complete":
                     scope_ok = False
-                    break
+                    continue
                 if a.cost_usd is not None and c.cost_usd is not None:
                     val = Decimal(a.cost_usd) - Decimal(c.cost_usd)
                     total_saving = val if total_saving is None else total_saving + val
+                else:
+                    scope_ok = False
             if scope_ok:
                 complete_scopes += 1
         run.complete_scope_count = complete_scopes

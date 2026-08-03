@@ -516,6 +516,65 @@ async function run() {
     assert('Case 3: broker archiveRoiRun NOT called when flag off', brokerClient._calls.archive.length === 0);
   }
 
+  // ----- Case 3b: local dual-vendor partial failure resumes the same Run IDs -----
+  {
+    const writeCalls = [];
+    let pacteraAttempts = 0;
+    const sharedStorage = {
+      l10nAsyncRoiBrokerEnabled: false,
+      enableROI: true,
+      spreadsheetToken: 'sht',
+      sheetId: 'sh',
+    };
+    const chrome = makeStubChrome(sharedStorage);
+    const brokerClient = makeBrokerClient();
+    const brokerMod = loadBrokerModule(brokerClient, makeHashStub(), chrome);
+    const authConnected = {
+      authorizeFeishuUser: async () => ({ connected: true, profile: { name: 'u' } }),
+      authorizeFeishuUserViaBroker: async () => ({ connected: true, profile: { name: 'u' }, broker: true }),
+      getFeishuBrokerConnectionStatus: async () => ({ ok: true, has_device_session: false }),
+      getFeishuUserAuthorizationStatus: async () => ({ connected: true, profile: { name: 'u' }, missingScopes: [] }),
+      shouldUseFeishuBroker: async () => false,
+      isLegacyLocalSecretPathEnabled: async () => true,
+    };
+    const popup = loadPopupModule(brokerMod.exports, chrome, {
+      './lib/feishu-auth.js': authConnected,
+      './lib/roi-bitable-archive.js': {
+        FIXED_ROI_ARCHIVE_URL: 'https://bytedance.feishu.cn/base/roi',
+        buildRoiArchivePayload: (p) => ({ runId: p.runId, vendor: p.vendor, operator: p.operator }),
+        writeRoiArchive: async ({ payload } = {}) => {
+          writeCalls.push(payload);
+          if (payload.vendor === 'Pactera' && pacteraAttempts++ === 0) {
+            throw new Error('simulated Pactera write failure');
+          }
+          return { status: 'written', scopeRecordCount: 1, itemRecordCount: payload.vendor === 'RWS' ? 1 : 0 };
+        },
+      },
+    });
+    const hooks = popup.sandbox.__popupBrokerTestHooks;
+    hooks.setBrokerState({ brokerAsyncRoi: false, activeBrokerRun: null });
+    hooks.setActiveWorkflowContext({
+      spreadsheetToken: 'sht', sheetId: 'sh', roiEnabled: true, projectIds: [1], roiScopes: [],
+    });
+    hooks.setArchiveReadyState(
+      [{ id: 'i-resume', row: 2, review_status: 'confirmed' }],
+      { total: 1 },
+    );
+    await hooks.writeCurrentRoiArchive();
+    await hooks.writeCurrentRoiArchive();
+    const activePlan = hooks.getActiveWorkflowContext()?.roiArchivePlan;
+    assert('Case 3b: retry skips completed RWS and only retries Pactera',
+      writeCalls.map((payload) => payload.vendor).join(',') === 'RWS,Pactera,Pactera',
+      `${writeCalls.map((payload) => payload.vendor).join(',')} plan=${JSON.stringify(activePlan)} warnings=${warnings.slice(-2).join(' | ')}`);
+    assert('Case 3b: failed and retried Pactera use the same stable Run ID',
+      Boolean(writeCalls[1]?.runId) && writeCalls[1]?.runId === writeCalls[2]?.runId,
+      `${writeCalls[1]?.runId} vs ${writeCalls[2]?.runId}`);
+    const persistedPlan = sharedStorage.roiWorkflowSnapshot?.workflowContext?.roiArchivePlan;
+    assert('Case 3b: both vendor completion states persist for reopen/resume',
+      persistedPlan?.vendors?.every((entry) => entry.status === 'complete') === true,
+      JSON.stringify(persistedPlan));
+  }
+
   // ----- Case 4: Broker flag ON but LEGACY_LOCAL_SECRET_DEV_ONLY=true → local dual-vendor archive still reachable -----
   {
     const writeCalls = [];

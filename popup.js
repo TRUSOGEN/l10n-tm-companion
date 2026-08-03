@@ -322,6 +322,7 @@ if (typeof globalThis !== 'undefined') {
       if (createErr !== undefined) brokerRunCreateError = createErr || null;
     },
     setActiveWorkflowContext: (ctx) => { activeWorkflowContext = ctx; },
+    getActiveWorkflowContext: () => activeWorkflowContext,
     syncConfirmedItemsToBroker: (...args) => syncConfirmedItemsToBroker(...args),
     countPendingBrokerFinalSubmissions: (snapshot) => countPendingBrokerFinalSubmissions(snapshot || activeBrokerRun),
     canArchiveBrokerRun: (snapshot) => canArchiveBrokerRun(snapshot || activeBrokerRun),
@@ -2739,35 +2740,75 @@ async function writeCurrentRoiArchive() {
       return;
     }
     await completeDeferredRoiScopesForArchive(config);
-    const baseRunId = createRoiArchiveRunId();
-    const startedAt = new Date().toISOString();
-    const archivePlans = ROI_VENDORS.map((vendor, index) => {
-      const vendorResult = vendorRoiResults[vendor];
-      if (!vendorResult) throw new Error(`ROI result missing for ${vendor}`);
-      return {
-        vendor,
-        runId: `${baseRunId}-${vendor.toLowerCase()}`,
-        payload: buildRoiArchivePayload({
-          runId: `${baseRunId}-${vendor.toLowerCase()}`,
-          startedAt,
-          vendor,
-          sourceSegmentCount: extractedItems.length,
-          projects: activeWorkflowContext?.projectIds || selectedProjectIds,
-          summary: vendorResult.summary,
-          scopeRuns: vendorResult.scopeRuns,
-          reviewItems: processedItems,
-          includeReviewItems: index === 0,
-          operator: feishuUser.profile,
-          displayScopeKey: activeDisplayScopeKey,
+    let archivePlan = activeWorkflowContext?.roiArchivePlan;
+    const validPlan = archivePlan?.version === 1
+      && Array.isArray(archivePlan.vendors)
+      && ROI_VENDORS.every((vendor) => archivePlan.vendors.some((entry) => entry.vendor === vendor));
+    if (!validPlan) {
+      const baseRunId = createRoiArchiveRunId();
+      const startedAt = new Date().toISOString();
+      archivePlan = {
+        version: 1,
+        baseRunId,
+        startedAt,
+        vendors: ROI_VENDORS.map((vendor, index) => {
+          const vendorResult = vendorRoiResults[vendor];
+          if (!vendorResult) throw new Error(`ROI result missing for ${vendor}`);
+          const runId = `${baseRunId}-${vendor.toLowerCase()}`;
+          return {
+            vendor,
+            runId,
+            status: 'pending',
+            result: null,
+            lastError: '',
+            payload: buildRoiArchivePayload({
+              runId,
+              startedAt,
+              vendor,
+              sourceSegmentCount: extractedItems.length,
+              projects: activeWorkflowContext?.projectIds || selectedProjectIds,
+              summary: vendorResult.summary,
+              scopeRuns: vendorResult.scopeRuns,
+              reviewItems: processedItems,
+              includeReviewItems: index === 0,
+              operator: feishuUser.profile,
+              displayScopeKey: activeDisplayScopeKey,
+            }),
+          };
         }),
       };
-    });
+      activeWorkflowContext = { ...(activeWorkflowContext || {}), roiArchivePlan: archivePlan };
+      // 必须在第一次外部写入前固定两个 Run ID 与 payload，失败重试才不会产生新 Run。
+      await persistWorkflowSnapshot();
+    }
     button.textContent = 'Writing ROI archive...';
-    const archiveResults = await Promise.all(archivePlans.map(async (plan) => ({
-      vendor: plan.vendor,
-      runId: plan.runId,
-      ...(await writeRoiArchive({ config, payload: plan.payload })),
-    })));
+    const archiveResults = [];
+    for (const plan of archivePlan.vendors) {
+      if (plan.status === 'complete' && plan.result) {
+        archiveResults.push({ vendor: plan.vendor, runId: plan.runId, ...plan.result });
+        continue;
+      }
+      let result;
+      try {
+        result = await writeRoiArchive({ config, payload: plan.payload });
+      } catch (error) {
+        plan.status = 'failed';
+        plan.lastError = error instanceof Error ? error.message : String(error);
+        await persistWorkflowSnapshot();
+        const completed = archivePlan.vendors
+          .filter((entry) => entry.status === 'complete')
+          .map((entry) => entry.vendor);
+        throw new Error(
+          `ROI archive partial failure at ${plan.vendor}; completed vendors: ${completed.join(', ') || 'none'}. `
+          + `Retry resumes the same Run IDs. ${plan.lastError}`,
+        );
+      }
+      plan.status = 'complete';
+      plan.result = result;
+      plan.lastError = '';
+      archiveResults.push({ vendor: plan.vendor, runId: plan.runId, ...result });
+      await persistWorkflowSnapshot();
+    }
     showRoiArchiveResult(true, {
       runId: archiveResults.map((result) => `${result.vendor}: ${result.runId}`).join(' · '),
       scopeRecordCount: archiveResults.reduce((total, result) => total + result.scopeRecordCount, 0),

@@ -12,7 +12,7 @@ from __future__ import annotations
 from functools import lru_cache
 from typing import List
 
-from pydantic import Field
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -23,12 +23,16 @@ class Settings(BaseSettings):
         env_prefix="L10N_",
         env_file=".env",
         extra="ignore",
+        populate_by_name=True,
     )
 
     # Deployment environment. Controls adapter factory gating.
     # Allowed values: "dev" | "test" | "boe" | "ppe" | "prod" | "production".
     # Prod-like envs (ppe/prod/production) MUST use real adapters.
-    env_name: str = "dev"
+    env_name: str = Field(
+        default="dev",
+        validation_alias=AliasChoices("L10N_ENV", "L10N_ENV_NAME", "env_name"),
+    )
 
     # HTTP / runtime
     api_host: str = "127.0.0.1"

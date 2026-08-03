@@ -34,7 +34,11 @@ assert('Popup 加载严格 resolver', popupJs.includes("from './lib/pricing-rule
 assert('Popup 加载费率快照', popupJs.includes("chrome.runtime.getURL('data/local-rates.json')"));
 assert('Popup 按每个 scope 解析精确费率', popupJs.includes('scopeConfig.scopes.map') && popupJs.includes('resolveWordRate(rateCatalog'));
 assert('Popup 对每个 vendor 保留独立费率完整性', popupJs.includes('deriveVendorRoiResults('));
-assert('Popup 归档两套 vendor Run', popupJs.includes('const archivePlans = ROI_VENDORS.map'));
+assert(
+  'Popup 归档两套 vendor Run',
+  popupJs.includes('vendors: ROI_VENDORS.map')
+    && popupJs.includes('for (const plan of archivePlan.vendors)'),
+);
 
 console.log(`\noptions vendor 迁移测试: ${passed} 通过 / ${failed} 失败`);
 process.exit(failed ? 1 : 0);

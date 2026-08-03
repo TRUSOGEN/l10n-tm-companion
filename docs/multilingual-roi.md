@@ -69,6 +69,8 @@ ROI_Test 的查看权限完全由飞书分享设置控制，发布应用、上�
 
 归档不依赖 Bitable Formula。首次归档会创建三张原始表和六个基础 grid view；插件把完整整车的 A−C 节省写到 Run，不完整整车写所有可计算文案的小计，完全没有可计算文案时金额留空。写入前分别读取三张表的记录总数，任一表在追加后超过 20,000 条就停止；写入按 `Run(writing) → Scopes → Items → Run(complete|incomplete)` 顺序执行。若写入或最终状态更新失败，系统尝试将已创建的 Run 标为 `write_failed` 并写入真实失败原因；既有同名字段类型不符合固定契约时归档直接停止。
 
+本地双 vendor 归档在第一次外部写入前持久化 RWS 与 Pactera 的固定 Run ID、payload 和逐 vendor 状态。若前一个 vendor 已成功、后一个 vendor 失败，重试只续写失败 vendor，并复用原 Run ID；不得重新写入已完成 vendor，也不得为同一次业务运行生成第二组 Run。新 TM 运行和显式重置会清除该续写计划。
+
 ## 执行流程
 
 ```mermaid

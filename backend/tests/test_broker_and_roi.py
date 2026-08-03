@@ -13,6 +13,7 @@ from l10n_backend.crypto import InsecureDevEnvelopeCrypto, generate_pkce_pair, s
 from l10n_backend.domain.policy import load_policy_from_path
 from l10n_backend.domain.pricing import resolve_tm_pricing
 from l10n_backend.models.db import session_scope
+from l10n_backend.models import RoiRun
 from l10n_backend.workers.roi_worker import InMemoryStarlingGateway, RoiWorker
 
 
@@ -189,6 +190,27 @@ def test_create_run_and_archive_shadow(client: TestClient, tmp_path):
     )
     assert response.status_code == 202, response.text
     revision = response.json()["revision"]
+    latest_final = "Book your flight right now."
+    response = client.put(
+        f"/v1/roi/runs/{run['run_id']}/items/row-2/final",
+        headers={**dev, "Idempotency-Key": f"reconfirm-latest:{sha256_hex(latest_final)}"},
+        json={
+            "expected_revision": revision,
+            "final_text": latest_final,
+            "final_text_hash": sha256_hex(latest_final),
+            "confirmed_at": dt.datetime.now(dt.timezone.utc).isoformat(),
+            "sheet_write_receipt": {
+                "document_token": "sht-1",
+                "sheet_id": "sh-1",
+                "row": 2,
+                "output_range": "B2:G2",
+                "output_hash": sha256_hex(latest_final + ":written"),
+            },
+            "display_final_tm": {"score": 92.0, "match_category": None},
+        },
+    )
+    assert response.status_code == 202, response.text
+    revision = response.json()["revision"]
     with session_scope() as db:
         while worker.run_once(db):
             pass
@@ -257,9 +279,9 @@ def test_archive_with_unconfirmed_items_is_incomplete_but_keeps_valid_pairs(clie
         while worker.run_once(db):
             pass
 
-    final_text = "First confirmed final."
+    final_text = "Second confirmed final."
     response = client.put(
-        f"/v1/roi/runs/{run['run_id']}/items/row-2/final",
+        f"/v1/roi/runs/{run['run_id']}/items/row-3/final",
         headers={**dev, "Idempotency-Key": f"partial-final:{sha256_hex(final_text)}"},
         json={
             "expected_revision": run["revision"],
@@ -269,8 +291,8 @@ def test_archive_with_unconfirmed_items_is_incomplete_but_keeps_valid_pairs(clie
             "sheet_write_receipt": {
                 "document_token": "sht-1",
                 "sheet_id": "sh-1",
-                "row": 2,
-                "output_range": "B2:G2",
+                "row": 3,
+                "output_range": "B3:G3",
                 "output_hash": sha256_hex(final_text + ":written"),
             },
             "display_final_tm": {"score": 90.0, "match_category": None},
@@ -295,3 +317,7 @@ def test_archive_with_unconfirmed_items_is_incomplete_but_keeps_valid_pairs(clie
     assert status["archive_state"] == "incomplete"
     assert status["complete_scope_count"] == 0
     assert status["coverage"]["complete_a_c_pairs"] > 0
+    with session_scope() as db:
+        persisted_run = db.get(RoiRun, run["run_id"])
+        assert persisted_run is not None
+        assert persisted_run.total_saving_usd is not None

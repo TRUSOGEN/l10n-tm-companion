@@ -31,6 +31,13 @@ def test_unknown_environment_name_fails_closed():
         build_runtime_adapters(Settings(env_name="prd"))
 
 
+def test_public_l10n_env_variable_is_loaded(monkeypatch):
+    """部署契约使用的 L10N_ENV 必须真实控制 adapter 环境。"""
+    monkeypatch.setenv("L10N_ENV", "prod")
+    monkeypatch.delenv("L10N_ENV_NAME", raising=False)
+    assert Settings().env_name == "prod"
+
+
 def test_starling_batch_size_requires_explicit_supported_limit():
     """Backend 默认保持 10，允许经审批配置 40，拒绝客户端范围外的值。"""
     assert Settings().starling_batch_size == 10
