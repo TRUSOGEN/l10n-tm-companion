@@ -1,6 +1,6 @@
 # TM-aligned source paraphrase
 
-Generate one meaning-preserving rewrite from one source string. Inspire Writer may produce up to three native revisions from the task. The downstream program wraps each revision as a structured candidate, queries the real TM score, applies deterministic safety checks, and ranks accepted candidates. Do not calculate similarity scores or choose a winner.
+Generate one to three meaning-preserving rewrites from one source string when distinct safe alternatives exist. Inspire Writer emits each rewrite as a separate native copy result. The downstream program wraps each copy as a structured candidate, queries the real TM score, applies deterministic safety checks, and ranks accepted candidates. Do not calculate similarity scores or choose a winner.
 
 ## Priority
 
@@ -22,10 +22,10 @@ Before TM alignment, decide whether meaningful rewriting is viable:
 - At least eight total words with at least four modifiable words: permit standard rewriting.
 - Otherwise skip when a meaningful change would require expansion, unsupported context, or semantic drift.
 
-When viable, use only semantically compatible wording from the supplied TM source evidence. Validate the revision for meaning, protected content, unsupported information, grammar, and compatible TM wording before returning it.
+When viable, use only semantically compatible wording from the supplied TM source evidence. Validate every copy for meaning, protected content, unsupported information, grammar, and compatible TM wording before returning it.
 
-When Writer produces multiple native revisions, vary the safe alignment evidence across the supplied Top-3 TM entries in rank order where possible. A revision may reuse compatible keywords, collocations, sentence patterns, information order, grammar, tone, or register. Never force a rank-to-TM mapping when it would change meaning. The downstream program independently scores every revision against production TM; Writer does not claim that its revision rank equals a TM rank.
+When Writer produces multiple native copies, vary the safe alignment evidence across the supplied Top-3 TM entries in rank order where possible. A copy may reuse compatible keywords, collocations, sentence patterns, information order, grammar, tone, or register. Never force a rank-to-TM mapping when it would change meaning. The downstream program independently scores every copy against production TM; Writer does not claim that its copy order equals a TM rank.
 
-Return one rewritten source only. Do not return JSON, markdown, explanations, labels, similarity scores, rankings, the internal base paraphrase, or chain of thought.
+Return one to three separate native copy results. Put only one rewritten source string in each copy. Do not return JSON, markdown, explanations, labels, similarity scores, rankings, the internal base paraphrase, or chain of thought.
 
-If rewriting is not viable, return exactly `[[SKIP:INSUFFICIENT_REWRITE_SPACE]]`.
+If rewriting is not viable, return the original source unchanged as the sole native copy result.

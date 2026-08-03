@@ -35,9 +35,10 @@
 - [ ] 多语言补算时进度条显示 target locale 与 scope 序号；任一 scope TM 失败后，其他 scope 仍继续，结果页将失败 scope 列入 incomplete 清单
 - [ ] 步骤指示器进入「查看结果」，结果卡片只显示 source、TM/Post-TM/Final TM 摘要、用户状态和 `Review & edit`
 - [ ] 结果卡片顺序与 Sheet 原始行号一致；`Review & edit` 展示 Top-3 TM、有效 AI 候选、分数差、最终 C 编辑框与 `Confirm & save`
-- [ ] 49.99 不创建 Inspire task，50 创建，84.99 创建，85 不创建；进入链路的每条 source 只创建一个 task，最多返回三个结构化候选
+- [x] 无敏感真实请求确认 `TM_inspire` Agent ID `6a7036d4ef9ca901ee5c7a65`、Version 7、`agentType=chat`、`mode=write`，并确认 term/rules/style 三个附加 review 阶段均 skipped
+- [ ] 49.99 不创建 Inspire task，50 创建，84.99 创建，85 不创建；进入链路的每条 source 只创建一个 Custom Agent task，最多保留三个去重的 `status=pass` copy
 - [ ] Inspire prompt 使用随包分发的 Skill、Principles 和唯一一份适用 Legal Guidelines；删去任一必需规则文件后改写真实失败
-- [ ] 审阅视图只展示通过 token、URL、数字、语义、风险和真实 Post-TM 门禁的 AI 候选；重复文案只显示一次，无有效候选时显示 None
+- [ ] 审阅视图只展示通过 token、URL、数字、全大写、单字符或 CamelCase 品牌 token、语义、风险和真实 Post-TM 门禁的 AI 候选；重复文案只显示一次，无有效候选时显示 None
 - [ ] 点击候选后该卡片显示 Selected、蓝色边框和选中圆点，其他候选恢复 Select，Final copy 与选中文案一致；键盘 focus 清晰可见
 - [ ] 改写后二次 TM 查询失败时，卡片显示 `Post-TM incomplete` 和真实错误原因；首轮 TM 结果仍保留，页面不显示伪造的 post-rewrite 0 分
 - [ ] 点击单条 `Confirm & save` 后，依次完成 protected-token 校验、Final TM 与当前 Sheet 行六列写入，全部成功后界面状态才为 `Saved`
@@ -92,7 +93,7 @@
 - [ ] TM 查询带 method=starling、candidate_count（卡片详情可见）
 - [ ] Starling 不可用时显示真实错误并停止本轮流程；不得以 BM25 或本地分数伪造 TM 结果
 - [ ] Top-3 TM 按 source+target 去重并保留最高 score；非法 score 正确失败
-- [ ] LLM 仅生成结构化候选，不参与 Orig/Post/Final TM 打分
+- [ ] LLM 仅生成 Writer native copy，客户端包装为内部结构化候选；LLM 不参与 Orig/Post/Final TM 打分
 
 ## 已知未完成（非阻塞 MVP）
 

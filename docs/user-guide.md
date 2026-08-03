@@ -81,7 +81,7 @@ flowchart LR
 | Settings 字段 | 去哪里获取 | 复制什么 | 是否必需 |
 | --- | --- | --- | --- |
 | Starling Access Key / Secret Key | [Starling 个人中心](https://starling.bytedance.net/personal_center#aksk) | 完整 AK 与完整 SK，分别粘贴到两个密码框 | TM 必需 |
-| Inspire teamId | 程序内置 | LIVE CD workspace 固定为已批准配置 | 用户无需填写 |
+| Inspire Agent | 程序内置 | 固定调用真实验证的 `TM_inspire` Version 7 | 用户无需填写 Agent ID 或 version |
 | LLM API Key | Inspire Pilot owner 提供的个人 OpenAPI key | 以 `wak_` 开头的个人 Access Key | AI 使用 Inspire 时必需 |
 | Feishu account | 已发布的 L10n TM Companion 飞书应用 | 普通用户在首页点击授权；Owner 本机测试先完成 Keychain setup，正式分发使用 OAuth broker | 读写 Spreadsheet 与记录 ROI Operator 必需 |
 | ROI archive Bitable | 程序固定为 [ROI_Test](https://bytedance.larkoffice.com/wiki/J1RJwEf0FijMQQkceUkcZyqCnJc?table=tbls3B039S6J7zdT&view=vewSwbY6Ry) | 无需填写 URL | 仅需确保应用和当前用户具有归档权限 |
@@ -100,13 +100,13 @@ AK/SK 会同时保存在 Chrome `storage.local` 和 Starling 官方本机配置�
 ### Inspire Writer
 
 1. 打开 [Inspire Writer](https://inspire.bytedance.net) 并使用公司账号登录；产品说明见 [Inspire Prototype 指南](https://bytedance.larkoffice.com/wiki/D8PswE6azi4d4uk4ep7cyxoPnfc)。
-2. 当前安装包尚未验证一个长期稳定的 Access Key 深链接。如果页面没有 OpenAPI / Access Key 入口，在飞书中搜索并联系 Inspire Pilot owner，申请个人 `wak_…` Access Key；LIVE CD `teamId` 已内置，当前 Pilot 对接人是逯鹏宇。
+2. 在 `My` 页面创建个人 OpenAPI Access Key；如果页面没有入口，在飞书中搜索并联系 Inspire Pilot owner，申请个人 `wak_…` Access Key。插件固定调用 `TM_inspire` Version 7，普通用户无需填写 Agent ID、version 或 teamId；当前 Pilot 对接人是逯鹏宇。
 3. Settings 勾选 `Enable AI rewrite`，Provider 选择 `Inspire Writer`，粘贴个人 Access Key。Endpoint 自动填为 `https://inspire.bytedance.net/writer/api`，一般不要修改。
-4. Model 必须从 Settings 下拉框选择，无需手输内部 ID；配置示例中的 `gemini_3f` 是 `Gemini 3 Flash` 的 API 值。批量日常改写推荐 `Gemini 3 Flash + low`；更重视质量时使用 `GPT 5.4 mini + medium`；`GPT 5.4 + high` 最慢，只建议用于少量关键文案或二次复核。模型是否可用取决于当前 teamId、Pilot 白名单与 Inspire 服务端枚举；出现 `Invalid option` 时重新加载最新扩展并改选当前下拉框中的可用模型，不要自造模型名。
+4. Model 必须从 Settings 下拉框选择，无需手输内部 ID；配置示例中的 `gemini_3f` 是 `Gemini 3 Flash` 的 API 值。批量日常改写推荐 `Gemini 3 Flash + low`；更重视质量时使用 `GPT 5.4 mini + medium`；`GPT 5.4 + high` 最慢，只建议用于少量关键文案或二次复核。模型是否可用取决于当前 Agent、Pilot 白名单与 Inspire 服务端枚举；出现 `Invalid option` 时重新加载最新扩展并改选当前下拉框中的可用模型，不要自造模型名。
 
 插件只改写英文 source，不翻译 target。运行状态显示 `finished / total`、活跃任务数与累计 polls；poll 是插件检查异步任务状态的一次请求。单次 HTTP 最多等待 30 秒，单个 task 总计最多等待 120 秒。100 QPS 只是客户端请求 gate 的代码上限，不是账号获批配额，也不代表可以用 100 QPS 压测；服务端真实额度由 Inspire 平台决定。返回 429、400 或 5xx 时插件保留原始错误，不会伪装成功。
 
-版本 1.1.4 起，task 显示 `completed` 后如果第一次 `/copies` 暂时没有可用 revision，插件会在同一 task 上进行最多两次只读重试，不会重复创建任务。三次仍为空时继续正确失败，并在错误中报告 copies 数量、revisions 数量、revision 字段名和 prompt 字符数，便于区分异步可见延迟、响应 schema 变化与输入体积问题。
+task 显示 `completed` 后如果第一次 `/copies` 暂时没有可用 pass copy，插件会在同一 task 上进行最多两次只读重试，不会重复创建任务。三次仍为空时继续正确失败，并在错误中报告 copies 数量、pass copy 数量、字段名和 prompt 字符数，便于区分异步可见延迟、响应 schema 变化与输入体积问题。
 
 关闭 `Enable AI rewrite` 时 Starling TM 仍正常运行：所有条目都有 Top-3 TM 与 Score A，Focus 允许人工编辑最终 C。启用 AI 但 key 或模型不完整时，`50 ≤ Score A < 85` 的条目显示真实配置错误；该问题不影响已经完成的 Score A。
 
@@ -131,7 +131,7 @@ AK/SK 会同时保存在 Chrome `storage.local` 和 Starling 官方本机配置�
 Starling AK:      <从 Starling 个人中心复制完整值>
 Starling SK:      <从 Starling 个人中心复制完整值>
 LLM Provider:     Inspire Writer
-Inspire teamId:   已内置，无需填写
+Inspire Agent:    TM_inspire Version 7，已内置，无需填写
 LLM API Key:      wak_<个人 OpenAPI Access Key>
 LLM endpoint:     https://inspire.bytedance.net/writer/api
 Model:            gemini_3f
@@ -177,14 +177,14 @@ Working spreadsheet 不绑定固定文档。自动模式采用当前打开的任
 1. 点击 `Read source → Query TM → AI rewrite`。
 2. 插件查询 A 的 Starling Top-3 TM，第一名得分是 Score A。
 3. `49.99` 跳过 AI，`50` 与 `84.99` 进入 AI，`85` 跳过 AI；每条进入 AI 的 source 只创建一个 Inspire task，最多保留三个结构化候选。
-4. Inspire Writer 的普通 revision 先由客户端包装为结构化候选，再校验 placeholder/token、URL、数字、Prompt 中的 Legal 与 meaning-preservation 契约，最后查询真实 Post-TM；疑似损坏的结构化输出继续正确失败。
+4. Inspire Writer 的 `status=pass` copy 先由客户端去重并包装为内部结构化候选，再校验 placeholder/token、URL、数字、品牌 token、Prompt 中的 Legal 与 meaning-preservation 契约，最后查询真实 Post-TM；`status=fail`、空 copy 与原样 source 不进入候选列表。
 5. 只有全部安全校验通过且 `Post-TM > Score A` 的候选进入“Review & edit / 审阅与修改”可选列表；没有有效候选时显示 `None`，并在下方显示 AI 关闭、配置缺失、API 失败、结构错误或安全门禁原因。
 
 Score A 低于 50 或达到 85 时，插件不会发起 Inspire task，但 CD 仍可在“Review & edit / 审阅与修改”中手工填写最终 C。
 
 结果卡片严格按 Sheet 原文行号排列，使用 `TM → Post → Final` 分阶段颜色、相对 Score A 的箭头和用户状态标签，只保留 `Review & edit / 审阅与修改`。Review 顶部的 `All / Improved` 筛选显示各自数量；`Improved` 只展示真实 Post-TM 查询完整且 `Post-TM > 原 TM` 的条目，筛选不会改变确认、写回与归档范围。审阅视图默认折叠 Top-3 TM 与多 AI 候选，完整显示 Source，并提供可自动伸缩的最终 C 编辑框；内部 `dirty` 状态显示为 `Edited · confirm again / 已修改，需重新确认`。升级时必须运行新版安装器并完全退出 Chrome 后重开；只刷新扩展无法更新 Native Host。旧 Host 仅返回首条 TM 时，审阅视图会保留该条真实命中并明确提示升级，不会把正分显示成 `No TM match`。
 
-Inspire 的改写 prompt 使用安装包内版本化保存的 TM Alignment Prompt、Content Review skill、Content Review Principles，以及按场景选择的唯一一份 Game 或 Revenue Legal Guidelines。相关证据经过确定性检索并受字符预算约束，Writer revision 协议固定在 prompt 首尾；规则文件缺失时 AI 改写会停止并显示真实错误，不会退回无规则 prompt。`/copies` 返回的普通 revision 会被包装为结构化候选，因此不会再误报 `candidate_json_missing`；短文案没有安全改写空间时使用 `[[SKIP:INSUFFICIENT_REWRITE_SPACE]]`。
+Inspire 的改写 prompt 使用安装包内版本化保存的 TM Alignment Prompt、Content Review skill、Content Review Principles，以及按场景选择的唯一一份 Game 或 Revenue Legal Guidelines。相关证据经过确定性检索并受字符预算约束，Writer native copy 协议固定在 prompt 首尾；规则文件缺失时 AI 改写会停止并显示真实错误，不会退回无规则 prompt。`/copies` 只接受 `status=pass` 的非空 copy；短文案没有安全改写空间时 Agent 原样返回 source，客户端将其解释为 skip 而不是 AI 候选。
 
 ### 在“Review & edit / 审阅与修改”逐条确认最终 C
 

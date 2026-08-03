@@ -3,10 +3,21 @@ import assert from 'node:assert/strict';
 import {
   evaluateRewriteCandidate,
   evaluateRewriteCandidates,
+  extractProtectedTokens,
   formatTmSourceForDisplay,
 } from '../lib/source-rewrite-policy.js';
 
 assert.equal(formatTmSourceForDisplay('You have {{count}} message{{#plural}}s{{/plural}}'), 'You have {count} messages');
+assert.deepEqual(
+  extractProtectedTokens('A creator shares from iPhone on X.'),
+  ['X', 'iPhone'],
+  '单字符保护只覆盖明确品牌 X，不能把冠词 A 误判成品牌',
+);
+assert.deepEqual(
+  extractProtectedTokens('Use C++, C+, or C# in LIVE.'),
+  ['C#', 'C+', 'C++', 'LIVE'],
+  '尾部带符号的专名必须完整保护',
+);
 const safe = evaluateRewriteCandidate({
   source_text: 'Send {{count}} Gifts in 30s',
   ai_translation: 'Send {{count}} Gifts within 30s',
@@ -90,4 +101,47 @@ const risky = evaluateRewriteCandidates({
 }, [{ status: 'complete', score: 90 }]);
 assert.equal(risky.validCandidates.length, 0);
 assert.equal(risky.candidates[0].rejection_reason, 'review_rule_risk');
+
+const missingBrandToken = evaluateRewriteCandidates({
+  source_text: 'Complete 3 LIVE missions to earn 100 points.',
+  similarity: 78,
+  ai_candidates: [{
+    ai_translation: 'Complete 3 missions to earn 100 points.',
+    semantic_status: 'same_meaning',
+    risks: [],
+    structure_valid: true,
+  }],
+}, [{ status: 'complete', score: 90 }]);
+assert.equal(missingBrandToken.validCandidates.length, 0, '丢失全大写品牌 token 的候选必须被拦截');
+assert.equal(missingBrandToken.candidates[0].rejection_reason, 'protected_tokens_changed');
+
+const missingLowerCamelBrand = evaluateRewriteCandidates({
+  source_text: 'Open iPhone settings before sharing on X.',
+  similarity: 78,
+  ai_candidates: [{
+    ai_translation: 'Open phone settings before sharing.',
+    semantic_status: 'same_meaning',
+    risks: [],
+    structure_valid: true,
+  }],
+}, [{ status: 'complete', score: 90 }]);
+assert.equal(
+  missingLowerCamelBrand.validCandidates.length,
+  0,
+  '丢失 lowerCamelCase 或单字符品牌 token 的候选必须被拦截',
+);
+assert.equal(missingLowerCamelBrand.candidates[0].rejection_reason, 'protected_tokens_changed');
+
+const missingSymbolBrand = evaluateRewriteCandidates({
+  source_text: 'Use C++ in LIVE.',
+  similarity: 78,
+  ai_candidates: [{
+    ai_translation: 'Use C in LIVE.',
+    semantic_status: 'same_meaning',
+    risks: [],
+    structure_valid: true,
+  }],
+}, [{ status: 'complete', score: 90 }]);
+assert.equal(missingSymbolBrand.validCandidates.length, 0, '丢失 C++ 专名的候选必须被拦截');
+assert.equal(missingSymbolBrand.candidates[0].rejection_reason, 'protected_tokens_changed');
 console.log('source rewrite policy: passed');

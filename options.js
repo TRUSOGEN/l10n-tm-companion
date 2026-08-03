@@ -331,7 +331,7 @@ function onProviderChange() {
   if (preset.llmThinkingLevel) document.getElementById('llmThinkingLevel').value = preset.llmThinkingLevel;
 }
 
-/** 只在 Inspire Provider 下显示 teamId 与个人 Access Key 风险说明。 */
+/** 只在 Inspire Provider 下显示固定 Agent 与个人 Access Key 风险说明。 */
 function renderProviderFields(preferredModel = '') {
   const provider = document.getElementById('llmProvider').value;
   document.getElementById('inspire-fields').classList.toggle('hidden', provider !== 'inspire');

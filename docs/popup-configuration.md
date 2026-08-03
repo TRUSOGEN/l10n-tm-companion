@@ -101,17 +101,17 @@ Popup 打开且凭证有效时自动调用 `list_projects`。Native Host 通过�
 
 ## Inspire Pilot 调用控制
 
-Inspire Writer 只发送 OpenAPI 当前允许的 `gemini_3f`、`gemini-3.1-pro`、`gpt-5.4-mini` 与 `gpt-5.4`。历史版本曾保存的 `gemini-3.1-p-priority`、`gpt-5.4-mini-2026-03-17` 与 `gpt-5.4-2026-03-05` 会在 Settings 加载和请求发送前迁移到对应正式 ID；thinking level 仍独立使用 `low`、`medium` 或 `high`。
+Inspire Writer 固定调用已完成真实 E2E 的 `TM_inspire` Custom Agent `6a7036d4ef9ca901ee5c7a65` Version 7；创建路径是 `/openapi/agents/:agentId/tasks`，请求不再发送通用 task 的 `teamId`。插件只发送 OpenAPI 当前允许的 `gemini_3f`、`gemini-3.1-pro`、`gpt-5.4-mini` 与 `gpt-5.4`。历史版本曾保存的 `gemini-3.1-p-priority`、`gpt-5.4-mini-2026-03-17` 与 `gpt-5.4-2026-03-05` 会在 Settings 加载和请求发送前迁移到对应正式 ID；thinking level 仍独立使用 `low`、`medium` 或 `high`。
 
-Inspire Writer 的 Pilot 默认同时保持最多五十个在途改写任务，以覆盖服务端异步生成等待。当前提速试验把客户端请求 gate 提高到 100 QPS，每个任务的创建、status polling 与 copies 读取复用该 gate，任何并发任务都不能绕过；Claude 和其他 OpenAI-compatible Provider 继续使用原有并发策略。100 QPS 只是客户端发送上限，不能证明服务端额度已经同步提高；服务端返回 429、400 或 5xx 时必须保留真实错误。运行中的状态区按批次显示 `finished / total`、当前活跃任务数和累计 status poll 数，避免把最后启动的 Row 误显示为串行卡点。单次 HTTP 请求默认最多等待 30 秒，单个 task 从创建到 copies 解析共用 120 秒截止时间；超时、失败与无可用 revision 都保留真实错误，禁止用空候选或原文伪装成功。每批结束后状态区与本机日志记录完成任务数、实际 HTTP 请求数和 status polling 次数，平台侧每天 5,000 次配额仍是最终日上限。
+Inspire Writer 的 Pilot 默认同时保持最多五十个在途改写任务，以覆盖服务端异步生成等待。当前提速试验把客户端请求 gate 提高到 100 QPS，每个任务的创建、status polling、失败详情与 copies 读取复用该 gate，任何并发任务都不能绕过；Claude 和其他 OpenAI-compatible Provider 继续使用原有并发策略。100 QPS 只是客户端发送上限，不能证明服务端额度已经同步提高；服务端返回 429、400 或 5xx 时必须保留真实错误。运行中的状态区按批次显示 `finished / total`、当前活跃任务数和累计 status poll 数，避免把最后启动的 Row 误显示为串行卡点。单次 HTTP 请求默认最多等待 30 秒，单个 task 从创建到 copies 解析共用 120 秒截止时间；超时、失败与无可用 pass copy 都保留真实错误，禁止用空候选伪装成功。Agent 原样返回 source 是明确的 no-rewrite 结果，客户端记录原因但不把它展示为 AI 候选。每批结束后状态区与本机日志记录完成任务数、实际 HTTP 请求数和 status polling 次数，平台侧每天 5,000 次配额仍是最终日上限。
 
-`completed` 只表示服务端任务进入终态，不能保证 revision 已在第一次 copies 读取时可见。版本 1.1.4 对同一 task 最多读取三次 copies，读取之间复用现有 poll interval 和请求 gate；该过程不创建新 task。最终仍无可用 revision 时，错误只记录 copies/revisions 数量、revision 字段名和 prompt 字符数，不记录生成内容或 Access Key。
+`completed` 只表示服务端任务进入终态，不能保证 pass copy 已在第一次 copies 读取时可见。客户端对同一 task 最多读取三次 copies，读取之间复用现有 poll interval 和请求 gate；该过程不创建新 task。最终仍无可用 pass copy 时，错误只记录 copies 数量、pass copy 数量、字段名和 prompt 字符数，不记录生成内容或 Access Key。
 
 ## Content Review 规则与结果选择
 
-当前 Inspire Prompt 使用 TM Alignment Prompt、`cd-content-review-version-2`、Content Review Principles、Game Legal Guidelines 与 Revenue Legal Guidelines 的版本化 Markdown 快照。Style Guide 与 Glossary 不再加载或注入 Prompt。每条 Inspire prompt 对保留的规则证据执行确定性检索和字符预算，完整 prompt 超过 12,000 字符时正确失败；Writer revision 协议固定在首尾，一个 task 最多读取三个普通 revision，客户端将其包装为结构化候选后再执行安全门禁与真实 Post-TM。任何必需规则文件缺失都使本条 AI 改写真实失败，禁止绕过规则继续生成。
+当前 Inspire Prompt 使用 TM Alignment Prompt、`cd-content-review-version-2`、Content Review Principles、Game Legal Guidelines 与 Revenue Legal Guidelines 的版本化 Markdown 快照。Style Guide 与 Glossary 不再加载或注入 Prompt。每条 Inspire prompt 对保留的规则证据执行确定性检索和字符预算，完整 prompt 超过 12,000 字符时正确失败；Writer native copy 协议固定在首尾，一个 task 最多读取三个 `status=pass` copy，客户端将其包装为内部结构化候选后再执行安全门禁与真实 Post-TM。任何必需规则文件缺失都使本条 AI 改写真实失败，禁止绕过规则继续生成。
 
-结果卡片严格保持 Sheet 原始行号顺序。TM source 中可安全识别的模板语法只在 UI 中转换为可读预览，原始 TM 文本继续保留用于审计。最终选择固定为 `保持原文 A`、`使用 AI 候选 B` 与 `人工编辑`；只有 URL、placeholder、模板 token 和数字逐项保持一致且真实 Score B 高于 Score A 时，B 才默认选中，其余情况默认保持 A。
+结果卡片严格保持 Sheet 原始行号顺序。TM source 中可安全识别的模板语法只在 UI 中转换为可读预览，原始 TM 文本继续保留用于审计。最终选择固定为 `保持原文 A`、`使用 AI 候选 B` 与 `人工编辑`；只有 URL、placeholder、模板 token、数字、全大写、单字符与 CamelCase 品牌 token 逐项保持一致且真实 Score B 高于 Score A 时，B 才默认选中，其余情况默认保持 A。
 
 ## 费率状态
 

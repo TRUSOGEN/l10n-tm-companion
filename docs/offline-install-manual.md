@@ -12,7 +12,7 @@ L10n TM Companion 会读取飞书表格中的英文原文，查询 Starling Top-
 - Google Chrome 114 或更高版本。
 - 公司网络或 VPN。
 - 你自己的 Starling AK 和 SK。
-- 使用 AI 改写时，需要 Inspire 的个人 Access Key；LIVE CD workspace 已内置，不需要填写 teamId。
+- 使用 AI 改写时，需要 Inspire 的个人 Access Key；`TM_inspire` Agent Version 7 已内置，不需要填写 Agent ID、version 或 teamId。
 - 需要读写飞书表格时，需要共享飞书应用已被添加为目标表格的可编辑协作者。
 
 安装包已经内置 Python、Node.js 和固定版本 Starling CLI。电脑已经安装过这些工具也没有关系：插件只使用自己目录内的私有副本，不覆盖、不升级、不卸载用户已有版本。
@@ -108,7 +108,7 @@ AI 改写是可选功能。关闭 AI 时，Starling TM 查询仍能正常运行�
 
 当前 AI 改写使用安装包内的 Content Review skill、Content Review Principles 和适用的 Game 或 Revenue Legal Guidelines；Style Guide 与 Glossary 不再加载或注入 Prompt。结果仍需 CD 审核；必需规则文件缺失、结构变量改变或真实 TM 分数未提升时，插件默认保持原文 A。
 
-版本 1.1.4 起，Inspire task 已完成但第一次 copies 暂时为空时，插件会只重读同一 task，不会重复创建和扣用新的生成任务。若三次读取仍无可用 revision，错误会附带安全的响应形状与 prompt 长度诊断；请把完整错误发给维护者。
+Inspire task 已完成但第一次 copies 暂时为空时，插件会只重读同一 task，不会重复创建和扣用新的生成任务。若三次读取仍无可用 pass copy，错误会附带安全的响应形状与 prompt 长度诊断；请把完整错误发给维护者。
 
 版本 1.2.0 起，插件查询 Starling Top-3 TM，只对 `50 ≤ Score A < 85` 的 source 创建一个 Inspire task，并最多生成三个结构化候选。结果在 Focus 中逐条确认；Final TM 与当前 Sheet 行全部写入成功后才成为 confirmed。旧 `CD review valid?` 列存在人工值时不会自动迁移。
 
@@ -118,7 +118,7 @@ AI 改写是可选功能。关闭 AI 时，Starling TM 查询仍能正常运行�
 
 1. 打开 [Inspire Writer](https://inspire.bytedance.net)，使用公司账号登录。
 2. 阅读 [Inspire Prototype 使用说明](https://bytedance.larkoffice.com/wiki/D8PswE6azi4d4uk4ep7cyxoPnfc)；这是当前 Inspire Writer Pilot 的说明文档。
-3. 向 Inspire Pilot owner 申请个人 OpenAPI Access Key；LIVE CD workspace 已在插件中固定配置，普通用户不需要索取或填写 `teamId`。当前 Pilot 对接人是逯鹏宇。
+3. 向 Inspire Pilot owner 申请个人 OpenAPI Access Key；`TM_inspire` Agent ID 与已验证 Version 7 已在插件中固定配置，普通用户不需要索取或填写 Agent ID、version 或 `teamId`。当前 Pilot 对接人是逯鹏宇。
 4. 不要使用其他人的 Access Key。
 5. 回到 Settings，勾选 `Enable AI rewrite`。
 6. `LLM Provider` 选择 `Inspire Writer`。
@@ -213,8 +213,8 @@ Wiki 地址中的 node token 不是 Spreadsheet token。插件会自动调用 Wi
 假设原文列有一条 `You look tired.`：
 
 - 插件先在 Starling 中取得最多三个历史 TM 候选，并显示第一名 Orig Match %。
-- 只有 `50 ≤ Orig Match % < 85` 且 AI 已开启时，Inspire 为该 source 创建一个 task，并最多返回三个结构化候选。
-- 插件校验 token、URL、数字、语义与风险，并使用 Prompt 中适用的 Legal 证据，再显示有效候选的真实 Post-TM。
+- 只有 `50 ≤ Orig Match % < 85` 且 AI 已开启时，Inspire 为该 source 创建一个 Custom Agent task，并最多返回三个 pass copy，客户端将其包装为内部结构化候选。
+- 插件校验 token、URL、数字、品牌 token、语义与风险，并使用 Prompt 中适用的 Legal 证据，再显示有效候选的真实 Post-TM。
 - 你在 `Review & edit` 中选择或编辑最终 C；点击 `Confirm & save` 后，Final TM 和当前 Sheet 行写入全部成功才完成。
 
 AI 改写的是英文 source，不会自动生成目标语言译文。
@@ -280,7 +280,7 @@ ROI_Test 的查看权限由飞书分享设置控制。发布应用、上传插�
 
 ### 显示 No AI rewrite
 
-先确认 `Enable AI rewrite` 已勾选，Provider、API Key 和 Model 已填写并保存。LIVE CD workspace 已内置，无需填写 teamId。Orig Match 已达到 85% 时，插件也可能不需要调用 AI。
+先确认 `Enable AI rewrite` 已勾选，Provider、API Key 和 Model 已填写并保存。`TM_inspire` Agent Version 7 已内置，无需填写 Agent ID、version 或 teamId。Orig Match 已达到 85% 时，插件也可能不需要调用 AI。
 
 ### 飞书连接成功但无法写入
 

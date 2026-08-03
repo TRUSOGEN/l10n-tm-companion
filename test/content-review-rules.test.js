@@ -1,6 +1,15 @@
 /** Content Review 规则资产与确定性检索测试。 */
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { buildContentReviewContext, selectLegalGuideline } from '../lib/content-review-rules.js';
+
+const tmAlignmentPrompt = readFileSync(
+  new URL('../skills/cd-content-review-version-2/references/tm-alignment-prompt.md', import.meta.url),
+  'utf8',
+);
+assert.match(tmAlignmentPrompt, /one to three separate native copy results/i);
+assert.match(tmAlignmentPrompt, /original source unchanged as the sole native copy result/i);
+assert.doesNotMatch(tmAlignmentPrompt, /\[\[SKIP:/, '运行时 TM Alignment 资产不得继续注入旧 skip contract');
 
 assert.equal(selectLegalGuideline('Complete this gameplay mission').kind, 'game');
 assert.equal(selectLegalGuideline('Send a Gift in a LIVE').kind, 'revenue');

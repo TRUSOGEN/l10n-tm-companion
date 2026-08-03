@@ -131,7 +131,7 @@ console.log('\n=== ai-translate.js: rewriteSourceWithAI (TM 优化改写) ===');
   assert('改写prompt禁止翻译', p.toLowerCase().includes('not translate') || p.includes('do NOT translate'));
   assert('改写prompt含英文TM source', p.includes('LIVE will begin shortly'));
   assert('改写prompt不把target translation当source', !p.includes('直播即将开始'));
-  assert('Inspire Writer prompt 使用原生单条 revision 契约', p.includes('Return one rewritten source only')
+  assert('Inspire Writer prompt 使用原生 copy 契约', p.includes('Return one to three separate source-language copy results')
     && !p.includes('"rewrite_viable"'));
   const reviewed = buildRewritePrompt({
     source_text: 'TikTok LIVE',
@@ -149,9 +149,9 @@ console.log('\n=== ai-translate.js: rewriteSourceWithAI (TM 优化改写) ===');
   assert('改写prompt包含 Skill 核心审阅规则', reviewed.includes('Content Review Skill evidence'));
   assert('改写prompt不再包含 Style Guide 证据', !reviewed.includes('Style Guide evidence'));
   assert('改写prompt不再包含 Glossary 证据', !reviewed.includes('Glossary evidence'));
-  assert('Writer revision 契约位于 prompt 前部', reviewed.indexOf('WRITER REVISION CONTRACT') >= 0
-    && reviewed.indexOf('WRITER REVISION CONTRACT') < 1500);
-  assert('改写prompt使用明确跳过标记', reviewed.includes('[[SKIP:INSUFFICIENT_REWRITE_SPACE]]'));
+  assert('Writer copy 契约位于 prompt 前部', reviewed.indexOf('WRITER NATIVE COPY CONTRACT') >= 0
+    && reviewed.indexOf('WRITER NATIVE COPY CONTRACT') < 1500);
+  assert('改写prompt使用原文不变的跳过契约', reviewed.includes('return the original source unchanged'));
 
   const bounded = buildRewritePrompt({
     source_text: 'Special Fly Love lock',
@@ -168,20 +168,20 @@ console.log('\n=== ai-translate.js: rewriteSourceWithAI (TM 优化改写) ===');
   assert('改写prompt总长度不超过12k字符', bounded.length <= 12000, `actual ${bounded.length}`);
 }
 
-// Inspire Writer 的真实 copies 契约返回普通 revision 文本，客户端负责结构化包装。
+// Inspire Writer Custom Agent 的真实 copies 契约返回 pass copy，客户端负责结构化包装。
 {
   const origFetch = globalThis.fetch;
   globalThis.fetch = async (url) => {
-    if (url.endsWith('/openapi/tasks')) {
+    if (url.endsWith('/openapi/agents/6a7036d4ef9ca901ee5c7a65/tasks')) {
       return { ok: true, status: 200, json: async () => ({ _id: 'plain-task', status: 'completed' }), text: async () => '' };
     }
     return {
       ok: true,
       status: 200,
-      json: async () => ({ copies: [{ revisions: [
-        { revision: 'You have reached the customizable perks limit.', title: 'Best', score: 0.94 },
-        { revision: 'The customizable perks limit has been reached.', title: 'Alternative', score: 0.86 },
-      ] }] }),
+      json: async () => ({ copies: [
+        { status: 'pass', copy: 'You have reached the customizable perks limit.', summary: 'Passed.' },
+        { status: 'pass', copy: 'The customizable perks limit has been reached.', summary: 'Passed.' },
+      ] }),
       text: async () => '',
     };
   };
@@ -199,31 +199,28 @@ console.log('\n=== ai-translate.js: rewriteSourceWithAI (TM 优化改写) ===');
     inspireRequestGate: async () => {},
   });
   globalThis.fetch = origFetch;
-  assert('普通 Inspire revision 被包装为结构化候选', out[0].ai_candidates.length === 2
+  assert('Inspire pass copy 被包装为结构化候选', out[0].ai_candidates.length === 2
     && out[0].ai_candidates.every((candidate) => candidate.structure_valid === true));
-  assert('普通 Inspire revision 不再报 candidate_json_missing', out[0].ai_translation === 'You have reached the customizable perks limit.'
+  assert('Inspire copy 不再要求 JSON envelope', out[0].ai_translation === 'You have reached the customizable perks limit.'
     && !out[0].ai_candidates.some((candidate) => candidate.structure_error === 'candidate_json_missing'));
 }
 
-// 一个 Inspire task 返回一个结构化 envelope，内部最多包含三个 TM 对齐候选。
+// 一个 Inspire Agent task 返回最多三个原生 copy，并按文本去重。
 {
   const origFetch = globalThis.fetch;
   let batchUsage = null;
   globalThis.fetch = async (url) => {
-    if (url.endsWith('/openapi/tasks')) {
-      return { ok: true, status: 200, json: async () => ({ _id: 'task-1', status: 'completed' }), text: async () => '' };
+    if (url.endsWith('/openapi/agents/6a7036d4ef9ca901ee5c7a65/tasks')) {
+      return { ok: true, status: 200, json: async () => ({ _id: 'task-1', status: 'completed', agentVersionNumber: 7, agentType: 'chat' }), text: async () => '' };
     }
     return {
       ok: true,
       status: 200,
-      json: async () => ({ copies: [{ revisions: [
-        {
-          revision: '{"rewrite_viable":true,"reason_code":null,"candidates":[{"tm_rank":1,"decision":"rewrite","semantic_status":"same_meaning","ai_translation":"Best rewrite","reasoning":"Matches the reviewed evidence.","changes":[],"risks":[],"reuse_tm":false},{"tm_rank":2,"decision":"rewrite","semantic_status":"same_meaning","ai_translation":"Second rewrite","reasoning":"Aligns with TM 2.","changes":[],"risks":[],"reuse_tm":false}]}',
-          title: 'best',
-          score: 0.95,
-        },
-        { revision: 'Alternative', title: 'alt', score: 0.8 },
-      ] }] }),
+      json: async () => ({ copies: [
+        { status: 'pass', copy: 'Best rewrite', summary: 'Passed first.' },
+        { status: 'pass', copy: 'Second rewrite', summary: 'Passed second.' },
+        { status: 'pass', copy: 'Second rewrite', summary: 'Duplicate.' },
+      ] }),
       text: async () => '',
     };
   };
@@ -234,16 +231,16 @@ console.log('\n=== ai-translate.js: rewriteSourceWithAI (TM 优化改写) ===');
     llmEndpoint: 'https://inspire.bytedance.net/writer/api',
     llmApiKey: 'wak_test',
     llmModel: 'gemini_3f',
-    inspireTeamId: 'team-1',
     llmThinkingLevel: 'low',
     onAiBatchComplete: (usage) => { batchUsage = usage; },
   });
   globalThis.fetch = origFetch;
-  assert('Inspire 解析 envelope 第一条候选', out[0].ai_translation === 'Best rewrite');
-  assert('Inspire 保留结构化 reasoning', out[0].reasoning.includes('Matches the reviewed evidence.'));
-  assert('Inspire 保留 envelope 内全部候选', out[0].ai_candidates.length === 2
+  assert('Inspire 采用第一条 pass copy', out[0].ai_translation === 'Best rewrite');
+  assert('Inspire 保留原生 copy summary', out[0].reasoning.includes('Passed first.'));
+  assert('Inspire 保留去重后的全部候选', out[0].ai_candidates.length === 2
     && out[0].ai_candidates.every((candidate) => candidate.structure_valid === true));
   assert('Inspire 保存 task id', out[0].ai_task_id === 'task-1');
+  assert('Inspire 保存 Agent version', out[0].ai_agent_version === 7);
   assert('Inspire 保存单条 HTTP 请求数', out[0].ai_http_request_count === 2);
   assert('Inspire 汇总 Pilot 请求用量', batchUsage?.taskCount === 1 && batchUsage?.requestCount === 2 && batchUsage?.pollCount === 0);
 }
@@ -261,17 +258,13 @@ console.log('\n=== ai-translate.js: rewriteSourceWithAI (TM 优化改写) ===');
 {
   const origFetch = globalThis.fetch;
   globalThis.fetch = async (url) => {
-    if (url.endsWith('/openapi/tasks')) {
+    if (url.endsWith('/openapi/agents/6a7036d4ef9ca901ee5c7a65/tasks')) {
       return { ok: true, status: 200, json: async () => ({ _id: 'skip-task', status: 'completed' }), text: async () => '' };
     }
     return {
       ok: true,
       status: 200,
-      json: async () => ({ copies: [{ revisions: [{
-        revision: '{"rewrite_viable":false,"reason_code":"INSUFFICIENT_REWRITE_SPACE","candidates":[]}',
-        title: 'skip',
-        score: 0.9,
-      }] }] }),
+      json: async () => ({ copies: [{ status: 'pass', copy: 'Special Fly Love lock', summary: 'No change.' }] }),
       text: async () => '',
     };
   };
@@ -286,7 +279,7 @@ console.log('\n=== ai-translate.js: rewriteSourceWithAI (TM 优化改写) ===');
   });
   globalThis.fetch = origFetch;
   assert('Inspire 明确跳过时不生成候选审计占位', out[0].ai_candidates.length === 0);
-  assert('Inspire 明确跳过原因可见', out[0].reasoning.includes('INSUFFICIENT_REWRITE_SPACE'));
+  assert('Inspire 原样返回 source 时跳过原因可见', out[0].reasoning.includes('original source unchanged'));
 }
 
 // 低分文案按最多 3 个并发调用 Inspire，结果顺序必须与输入一致。
@@ -296,7 +289,7 @@ console.log('\n=== ai-translate.js: rewriteSourceWithAI (TM 优化改写) ===');
   let activeCreates = 0;
   let maxActiveCreates = 0;
   globalThis.fetch = async (url) => {
-    if (url.endsWith('/openapi/tasks')) {
+    if (url.endsWith('/openapi/agents/6a7036d4ef9ca901ee5c7a65/tasks')) {
       taskIndex += 1;
       const currentTask = taskIndex;
       activeCreates += 1;
@@ -309,7 +302,7 @@ console.log('\n=== ai-translate.js: rewriteSourceWithAI (TM 优化改写) ===');
     return {
       ok: true,
       status: 200,
-      json: async () => ({ copies: [{ revisions: [{ revision: `rewrite-${taskId}`, title: 'best', score: 0.9 }] }] }),
+      json: async () => ({ copies: [{ status: 'pass', copy: `rewrite-${taskId}`, summary: 'best' }] }),
       text: async () => '',
     };
   };
@@ -317,7 +310,7 @@ console.log('\n=== ai-translate.js: rewriteSourceWithAI (TM 优化改写) ===');
     Array.from({ length: 4 }, (_, index) => ({ source_text: `Source ${index}`, tm_source: 'TM', similarity: 50 })),
     {
       llmProvider: 'inspire', llmEndpoint: 'https://inspire.bytedance.net/writer/api',
-      llmApiKey: 'wak_test', llmModel: 'gemini_3f', inspireTeamId: 'team-1', aiConcurrency: 3,
+      llmApiKey: 'wak_test', llmModel: 'gemini_3f', aiConcurrency: 3,
       inspireRequestGate: async () => {},
     },
   );
@@ -333,7 +326,7 @@ console.log('\n=== ai-translate.js: rewriteSourceWithAI (TM 优化改写) ===');
   let activeCreates = 0;
   let maxActiveCreates = 0;
   globalThis.fetch = async (url) => {
-    if (url.endsWith('/openapi/tasks')) {
+    if (url.endsWith('/openapi/agents/6a7036d4ef9ca901ee5c7a65/tasks')) {
       taskIndex += 1;
       const currentTask = taskIndex;
       activeCreates += 1;
@@ -346,7 +339,7 @@ console.log('\n=== ai-translate.js: rewriteSourceWithAI (TM 优化改写) ===');
     return {
       ok: true,
       status: 200,
-      json: async () => ({ copies: [{ revisions: [{ revision: `rewrite-${taskId}`, title: 'best', score: 0.9 }] }] }),
+      json: async () => ({ copies: [{ status: 'pass', copy: `rewrite-${taskId}`, summary: 'best' }] }),
       text: async () => '',
     };
   };
@@ -355,7 +348,7 @@ console.log('\n=== ai-translate.js: rewriteSourceWithAI (TM 优化改写) ===');
     Array.from({ length: pilotTaskCount }, (_, index) => ({ source_text: `Pilot source ${index}`, tm_source: 'TM', similarity: 50 })),
     {
       llmProvider: 'inspire', llmEndpoint: 'https://inspire.bytedance.net/writer/api',
-      llmApiKey: 'wak_test', llmModel: 'gemini_3f', inspireTeamId: 'team-1', aiConcurrency: 99,
+      llmApiKey: 'wak_test', llmModel: 'gemini_3f', aiConcurrency: 99,
       inspireRequestGate: async () => {},
     },
   );
@@ -368,7 +361,7 @@ console.log('\n=== ai-translate.js: rewriteSourceWithAI (TM 优化改写) ===');
     Array.from({ length: pilotTaskCount }, (_, index) => ({ source_text: `Default Pilot source ${index}`, tm_source: 'TM', similarity: 50 })),
     {
       llmProvider: 'inspire', llmEndpoint: 'https://inspire.bytedance.net/writer/api',
-      llmApiKey: 'wak_test', llmModel: 'gemini_3f', inspireTeamId: 'team-1',
+      llmApiKey: 'wak_test', llmModel: 'gemini_3f',
       inspireRequestGate: async () => {},
     },
   );
@@ -382,7 +375,7 @@ console.log('\n=== ai-translate.js: rewriteSourceWithAI (TM 优化改写) ===');
   const progressEvents = [];
   let taskIndex = 0;
   globalThis.fetch = async (url) => {
-    if (url.endsWith('/openapi/tasks')) {
+    if (url.endsWith('/openapi/agents/6a7036d4ef9ca901ee5c7a65/tasks')) {
       taskIndex += 1;
       return { ok: true, status: 200, json: async () => ({ _id: `progress-task-${taskIndex}`, status: 'pending' }), text: async () => '' };
     }
@@ -392,7 +385,7 @@ console.log('\n=== ai-translate.js: rewriteSourceWithAI (TM 优化改写) ===');
     return {
       ok: true,
       status: 200,
-      json: async () => ({ copies: [{ revisions: [{ revision: 'Progress rewrite', title: 'done', score: 0.9 }] }] }),
+      json: async () => ({ copies: [{ status: 'pass', copy: 'Progress rewrite', summary: 'done' }] }),
       text: async () => '',
     };
   };
@@ -400,7 +393,7 @@ console.log('\n=== ai-translate.js: rewriteSourceWithAI (TM 优化改写) ===');
     Array.from({ length: 10 }, (_, index) => ({ source_text: `Progress source ${index}`, tm_source: 'TM', similarity: 50 })),
     {
       llmProvider: 'inspire', llmEndpoint: 'https://inspire.bytedance.net/writer/api',
-      llmApiKey: 'wak_test', llmModel: 'gemini_3f', inspireTeamId: 'team-1',
+      llmApiKey: 'wak_test', llmModel: 'gemini_3f',
       inspireRequestGate: async () => {},
       onAiProgress: (event) => progressEvents.push(event),
     },
@@ -417,7 +410,7 @@ console.log('\n=== ai-translate.js: rewriteSourceWithAI (TM 优化改写) ===');
   const origFetch = globalThis.fetch;
   let batchUsage = null;
   globalThis.fetch = async (url) => {
-    if (url.endsWith('/openapi/tasks')) {
+    if (url.endsWith('/openapi/agents/6a7036d4ef9ca901ee5c7a65/tasks')) {
       return { ok: true, status: 200, json: async () => ({ _id: 'failed-pilot-task', status: 'completed' }), text: async () => '' };
     }
     return { ok: false, status: 500, json: async () => ({}), text: async () => 'copies unavailable' };
@@ -426,7 +419,7 @@ console.log('\n=== ai-translate.js: rewriteSourceWithAI (TM 优化改写) ===');
     [{ source_text: 'Failed Pilot source', tm_source: 'TM', similarity: 50 }],
     {
       llmProvider: 'inspire', llmEndpoint: 'https://inspire.bytedance.net/writer/api',
-      llmApiKey: 'wak_test', llmModel: 'gemini_3f', inspireTeamId: 'team-1',
+      llmApiKey: 'wak_test', llmModel: 'gemini_3f',
       inspireRequestGate: async () => {},
       onAiBatchComplete: (usage) => { batchUsage = usage; },
     },

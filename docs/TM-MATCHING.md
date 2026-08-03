@@ -17,7 +17,7 @@ Batch 首轮显式发送 `limit=3`，每个 source 返回按原始顺序保留�
 
 Focus 以 `tm_candidates` 作为 Top-3 的权威数据。若检测到旧版 Native Host 只返回首条 `tm_source`、`tm_match` 与 `similarity`，界面保留这条真实命中并显示 `Native Host update required`，不得在已有正分时误报 `No TM match`。AI 没有有效候选时继续显示 `None`，并同步显示生成关闭、配置缺失、API 失败、结构错误或安全门禁原因；`None` 本身不代表未调用 Inspire。
 
-Inspire Writer `/copies` 的真实契约是每个 `revision` 返回一条普通改写文本，而不是 JSON envelope。Prompt 首尾固定 Writer revision 协议，要求一条同语言改写或明确的 `[[SKIP:INSUFFICIENT_REWRITE_SPACE]]`；一个 task 最多读取三个 revision，客户端将每条包装为结构化候选，再执行 protected token、URL、数字与真实 Post-TM 门禁。旧版 JSON envelope 继续兼容，疑似损坏的 JSON 仍正确失败。规则证据总预算不超过 5,200 字符，完整 prompt 硬上限为 12,000 字符。普通 CD 路径既不展示 target locale，也不展示 TM target translation；Starling 仍要求 locale 参数，因此程序确定性采用所选项目共同 locale 排序后的第一项，全部相同项目选择会得到相同查询 scope。
+Inspire Provider 固定调用 `TM_inspire` Custom Agent Version 7。真实 `/copies` 契约是每个 `status=pass` 的 `copy` 返回一条普通改写文本；Prompt 首尾固定 Writer native copy 协议，要求一至三条同语言改写，无安全改写时原样返回 source。客户端过滤 `status=fail`、空 copy 与原样 source，按文本去重后最多包装三条内部结构化候选，再执行 protected token、URL、数字、全大写、单字符或 CamelCase 品牌 token 与真实 Post-TM 门禁。规则证据总预算不超过 5,200 字符，完整 prompt 硬上限为 12,000 字符。普通 CD 路径既不展示 target locale，也不展示 TM target translation；Starling 仍要求 locale 参数，因此程序确定性采用所选项目共同 locale 排序后的第一项，全部相同项目选择会得到相同查询 scope。
 
 ## Sheet 的 A/B/C 审阅与 ROI 边界（2026-07-20）
 

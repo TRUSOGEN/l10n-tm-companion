@@ -10,7 +10,8 @@ import {
 const baseConfig = {
   endpoint: 'https://inspire.bytedance.net/writer/api',
   accessKey: 'wak_test_only',
-  teamId: 'team-live-cd',
+  agentId: 'agent-live-tm',
+  agentVersion: 7,
   model: 'gemini_3f',
   thinkingLevel: 'low',
   pollIntervalMs: 0,
@@ -46,7 +47,7 @@ assert.equal(best.revision, 'Best choice', '应选择最高分非空 revision');
   const requestSlots = [];
   const fetchImpl = async (url, init = {}) => {
     requests.push({ url, init });
-    if (url.endsWith('/openapi/tasks')) {
+    if (url.endsWith('/openapi/agents/agent-live-tm/tasks')) {
       return response(200, { _id: 'task-1', status: 'pending' });
     }
     if (url.endsWith('/openapi/tasks/task-1/status')) {
@@ -55,14 +56,12 @@ assert.equal(best.revision, 'Best choice', '应选择最高分非空 revision');
     if (url.endsWith('/openapi/tasks/task-1/copies')) {
       return response(200, {
         status: 'completed',
-        copies: [{
-          revisions: [
-            { revision: 'Send a LIVE Gift', title: 'Aligned with TM', score: 0.92 },
-            { revision: 'Send LIVE Gifts', title: 'Alternative', score: 0.81 },
-            { revision: 'Send the LIVE Gift', title: 'Third', score: 0.73 },
-            { revision: 'LIVE Gift sending', title: 'Fourth', score: 0.62 },
-          ],
-        }],
+        copies: [
+          { status: 'pass', copy: 'Send a LIVE Gift', summary: 'Aligned with TM' },
+          { status: 'pass', copy: 'Send LIVE Gifts', summary: 'Alternative' },
+          { status: 'pass', copy: 'Send the LIVE Gift', summary: 'Third' },
+          { status: 'pass', copy: 'LIVE Gift sending', summary: 'Fourth' },
+        ],
       });
     }
     throw new Error(`Unexpected URL: ${url}`);
@@ -85,7 +84,8 @@ assert.equal(best.revision, 'Best choice', '应选择最高分非空 revision');
   assert.equal(result.pollCount, 1, '结果应记录 status polling 次数');
   assert.equal(requests[0].init.headers.Authorization, 'Bearer wak_test_only');
   const createBody = JSON.parse(requests[0].init.body);
-  assert.equal(createBody.teamId, 'team-live-cd');
+  assert.equal(createBody.version, 7);
+  assert.ok(!('teamId' in createBody));
   assert.equal(createBody.llmModel, 'gemini_3f');
   assert.equal(createBody.thinkingLevel, 'low');
 }
@@ -93,7 +93,7 @@ assert.equal(best.revision, 'Best choice', '应选择最高分非空 revision');
 {
   let copiesRequests = 0;
   const fetchImpl = async (url) => {
-    if (url.endsWith('/openapi/tasks')) {
+    if (url.endsWith('/openapi/agents/agent-live-tm/tasks')) {
       return response(200, { _id: 'task-delayed-copies', status: 'completed' });
     }
     if (url.endsWith('/copies')) {
@@ -102,9 +102,7 @@ assert.equal(best.revision, 'Best choice', '应选择最高分非空 revision');
         ? response(200, { status: 'completed', copies: [] })
         : response(200, {
           status: 'completed',
-          copies: [{
-            revisions: [{ revision: 'Delayed visible revision', title: 'ready', score: 0.9 }],
-          }],
+          copies: [{ status: 'pass', copy: 'Delayed visible revision', summary: 'ready' }],
         });
     }
     throw new Error(`Unexpected URL: ${url}`);
@@ -120,7 +118,7 @@ assert.equal(best.revision, 'Best choice', '应选择最高分非空 revision');
 
 {
   const fetchImpl = async (url) => {
-    if (url.endsWith('/openapi/tasks')) return response(200, { _id: 'task-failed', status: 'pending' });
+    if (url.endsWith('/openapi/agents/agent-live-tm/tasks')) return response(200, { _id: 'task-failed', status: 'pending' });
     return response(200, { status: 'failed' });
   };
   await assert.rejects(
@@ -154,12 +152,12 @@ assert.equal(best.revision, 'Best choice', '应选择最高分非空 revision');
 {
   let createBody = null;
   const fetchImpl = async (url, init = {}) => {
-    if (url.endsWith('/openapi/tasks')) {
+    if (url.endsWith('/openapi/agents/agent-live-tm/tasks')) {
       createBody = JSON.parse(init.body);
       return response(200, { _id: 'task-migrated-model', status: 'completed' });
     }
     return response(200, {
-      copies: [{ revisions: [{ revision: 'Migrated model output', title: 'ok', score: 0.9 }] }],
+      copies: [{ status: 'pass', copy: 'Migrated model output', summary: 'ok' }],
     });
   };
   await createInspireRewrite({
@@ -177,13 +175,13 @@ assert.equal(best.revision, 'Best choice', '应选择最高分非空 revision');
 
 {
   const fetchImpl = async (url) => {
-    if (url.endsWith('/openapi/tasks')) return response(200, { _id: 'task-empty', status: 'completed' });
-    return response(200, { status: 'completed', copies: [{ revisions: [] }] });
+    if (url.endsWith('/openapi/agents/agent-live-tm/tasks')) return response(200, { _id: 'task-empty', status: 'completed' });
+    return response(200, { status: 'completed', copies: [{ status: 'fail', copy: 'Rejected' }] });
   };
   await assert.rejects(
     createInspireRewrite({ prompt: 'x', config: baseConfig, fetchImpl }),
-    /no usable revision.*copies=1, revisions=0, revisionKeys=none, promptChars=1/,
-    '没有可用 revision 时必须报告响应形状并禁止伪装成功',
+    /no usable pass copy.*copies=1, passCopies=0, copyKeys=copy\|status, promptChars=1/,
+    '没有可用 pass copy 时必须报告响应形状并禁止伪装成功',
   );
 }
 
