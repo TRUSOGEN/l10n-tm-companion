@@ -88,7 +88,12 @@ function installStatefulArchiveFetch({ failOnceAt = '' } = {}) {
       const condition = body?.filter?.conditions?.[0];
       const matches = table.records.filter((record) => (
         String(record.fields?.[condition?.field_name] || '') === String(condition?.value?.[0] || '')
-      ));
+      )).map((record) => ({
+        record_id: record.record_id,
+        fields: Object.fromEntries(
+          (body.field_names || []).map((fieldName) => [fieldName, record.fields?.[fieldName]]),
+        ),
+      }));
       return ok({ items: matches, total: matches.length, has_more: false });
     }
     if (options.method === 'GET' && url.pathname.endsWith('/records')) {
