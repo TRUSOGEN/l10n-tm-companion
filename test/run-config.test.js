@@ -2,10 +2,13 @@
 
 import {
   buildFastTmScope,
+  buildAutomaticRoiScopes,
+  isEnglishLocale,
   buildLocaleScopes,
   normalizeProject,
   targetLocaleIntersection,
   toggleProjectSelection,
+  validateAutomaticRoiRunConfig,
   validateRunConfig,
 } from '../lib/run-config.js';
 
@@ -228,4 +231,22 @@ assert.equal(validateRunConfig({
   projectIds: [513, 404],
 }).reason, 'project_unavailable', '运行校验必须保留不可用项目错误');
 
-console.log('run-config tests: 44 passed, 0 failed');
+const automaticRoi = validateAutomaticRoiRunConfig({
+  projects: [normalizeProject({
+    id: 2001,
+    name: 'Automatic ROI',
+    sourceLocale: 'en',
+    targetLocales: ['en', 'en-GB', 'ja-JP', 'zh-Hans'],
+  })],
+  projectIds: [2001],
+});
+assert.equal(automaticRoi.status, 'ready', 'ROI 单开关配置应无需 vendor 或语言选择');
+assert.deepEqual(automaticRoi.vendors, ['RWS', 'Pactera']);
+assert.deepEqual(automaticRoi.scopes.map((scope) => scope.targetLocale), ['ja-JP', 'zh-Hans']);
+assert.equal(isEnglishLocale('en-GB'), true);
+assert.equal(isEnglishLocale('ja-JP'), false);
+assert.equal(buildAutomaticRoiScopes({
+  projects: [englishTarget], projectIds: [999],
+}).reason, 'non_english_locale_required', 'ROI 必须排除英语并在无其他语言时正确失败');
+
+console.log('run-config tests: 51 passed, 0 failed');

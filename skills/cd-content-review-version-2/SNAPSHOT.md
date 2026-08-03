@@ -9,6 +9,6 @@
 | `references/style-guide.md` | `76e8b96f98a52d80fa8ee7782a2ec7b0eb5c4e0b6dc7dbfbb5182575090b9946` |
 | `references/glossary.md` | `6ff564807c85712e9d12ccb9d7d56c030419e5584225366bbb69f97b49247b2c` |
 | `references/game-legal-guidelines.md` | `d457aca54735932e4a4539a0b91a176adc70869763473b2b011775fbaf4171d8` |
-| `references/revenue-legal-guidelines.md` | `b35693ef64dc291cca713582f965a9677bc7d1f46713bba160fe80d981d0a3a7` |
+| `references/revenue-legal-guidelines.md` | `540f4a7293e80a6defa4fe0e730fab5b8d311bb5e0e19402075e752ed39e3d50` |
 
 Skill 中的 live-reference 指令描述其规范来源；当前线下插件使用上述版本化快照，不能把它声称为实时更新的规则。

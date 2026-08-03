@@ -4,7 +4,7 @@
 
 ## 先看这里
 
-L10n TM Companion 会读取飞书表格中的英文原文，查询 Starling Top-3 TM，并按需调用 Inspire Writer 生成英文改写候选。CD 只需在 Focus 中修改例外项，其余默认结果可通过 `Confirm & write remaining` 批量确认；Final TM 和当前 Sheet 行全部写入成功后，该条才算完成。
+L10n TM Companion 会读取飞书表格中的英文原文，查询 Starling Top-3 TM，并按需调用 Inspire Writer 生成英文改写候选。CD 只需在 `Review & edit` 中修改例外项，其余默认结果可通过 `Confirm & save remaining` 批量确认；Final TM 和当前 Sheet 行全部写入成功后，该条才显示 `Saved`。
 
 安装和使用需要：
 
@@ -106,7 +106,7 @@ Starling 是 TM 查询的必需配置。
 
 AI 改写是可选功能。关闭 AI 时，Starling TM 查询仍能正常运行。
 
-版本 1.1.3 起，AI 改写会使用安装包内的 Content Review skill、Style Guide、Glossary 和适用的 Game 或 Revenue Legal Guidelines。结果仍需 CD 审核；规则文件缺失、结构变量改变或真实 TM 分数未提升时，插件默认保持原文 A。
+当前 AI 改写使用安装包内的 Content Review skill、Content Review Principles 和适用的 Game 或 Revenue Legal Guidelines；Style Guide 与 Glossary 不再加载或注入 Prompt。结果仍需 CD 审核；必需规则文件缺失、结构变量改变或真实 TM 分数未提升时，插件默认保持原文 A。
 
 版本 1.1.4 起，Inspire task 已完成但第一次 copies 暂时为空时，插件会只重读同一 task，不会重复创建和扣用新的生成任务。若三次读取仍无可用 revision，错误会附带安全的响应形状与 prompt 长度诊断；请把完整错误发给维护者。
 
@@ -203,10 +203,10 @@ Wiki 地址中的 node token 不是 Spreadsheet token。插件会自动调用 Wi
 7. 确认来源列是 A、数据起始行是 2，并把输出起始列选择为 B；确认后插件会使用 B:G，依次生成 `Best TM Match`、`Orig Match %`、`Rewritten Segment`、`Post-TM %`、`Reached 85%?` 和 `Final TM %`，不会覆盖 A 列原文。
 8. 点击“读取原文 → 查询 TM → AI 改写”。
 9. 等待 TM 查询和 AI 改写完成。处理期间不要关闭 Side Panel、刷新扩展或切换到另一份表格。
-10. 在“结果”页点击 Focus；Top-3 TM 和多个 AI 候选默认折叠，需要比较时再展开。
-11. 第一次保持 AI 关闭，在 Focus 中保留或编辑一条最终 C，再点击该条 Confirm，先验证 Final TM 与飞书单行写入。
+10. 在“结果”页点击 `Review & edit`；Top-3 TM 和多个 AI 候选默认折叠，需要比较时再展开。
+11. 第一次保持 AI 关闭，在审阅页保留或编辑一条最终 C，再点击 `Confirm & save`，先验证 Final TM 与飞书单行写入。
 12. 核对读取结果恰好是 3 条、确认后 B:G 六列已写入测试 Sheet、A 列原文没有被覆盖。
-13. 再到 Settings 开启 AI 并重新运行；检查只有 50–85 区间创建 AI 候选，只修改需要调整的条目，然后点击 `Confirm & write remaining` 批量确认其余结果。
+13. 再到 Settings 开启 AI 并重新运行；检查只有 50–85 区间创建 AI 候选，只修改需要调整的条目，然后点击 `Confirm & save remaining` 批量确认其余结果。
 
 ### 一个简单例子
 
@@ -214,8 +214,8 @@ Wiki 地址中的 node token 不是 Spreadsheet token。插件会自动调用 Wi
 
 - 插件先在 Starling 中取得最多三个历史 TM 候选，并显示第一名 Orig Match %。
 - 只有 `50 ≤ Orig Match % < 85` 且 AI 已开启时，Inspire 为该 source 创建一个 task，并最多返回三个结构化候选。
-- 插件校验 token、URL、数字、Glossary、Legal 和语义，再显示有效候选的真实 Post-TM。
-- 你在 Focus 中选择或编辑最终 C；点击 Confirm 后，Final TM 和当前 Sheet 行写入全部成功才完成。
+- 插件校验 token、URL、数字、语义与风险，并使用 Prompt 中适用的 Legal 证据，再显示有效候选的真实 Post-TM。
+- 你在 `Review & edit` 中选择或编辑最终 C；点击 `Confirm & save` 后，Final TM 和当前 Sheet 行写入全部成功才完成。
 
 AI 改写的是英文 source，不会自动生成目标语言译文。
 
@@ -223,7 +223,7 @@ AI 改写的是英文 source，不会自动生成目标语言译文。
 
 - Starling Batch API 每个请求最多处理 10 条 source，插件会自动拆批，并最多并发处理 5 个批次。
 - 一次读取 100 条时，界面仍会逐条显示进度，这是正常现象；用户不需要手动分成 10 次。
-- CD 只需打开并修改例外项；结果页的 `Confirm & write remaining` 会跳过 confirmed 条目，批量查询其余 Final TM，并按真实 Sheet 行号合并连续 B-G 写入区间。
+- CD 只需打开并修改例外项；结果页的 `Confirm & save remaining` 会跳过已保存条目，批量查询其余 Final TM，并按真实 Sheet 行号合并连续 B-G 写入区间。
 - Inspire 的客户端请求上限不等于账号真实额度。当前 Pilot 请按获批额度使用，不要主动做 100 QPS 压测。
 - `GPT 5.4 + high` 会明显慢于 `Gemini 3 Flash + low`。日常批量任务优先选择后者。
 - 运行中出现 `Inspire Writer rewriting Row 10…` 说明该行仍在服务端处理。先等待；超过插件显示的超时时间后，应看到明确错误。

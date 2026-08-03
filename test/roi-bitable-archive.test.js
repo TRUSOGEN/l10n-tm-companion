@@ -176,6 +176,28 @@ test('零条确认时禁止生成 ROI 归档 payload', () => {
   }), /roi_archive_requires_confirmed_review/);
 });
 
+test('第二个 vendor Run 不重复写 source-grain 审阅记录', () => {
+  const payload = buildRoiArchivePayload({
+    runId: 'roi-pactera-scope-only',
+    startedAt: '2026-07-31T00:00:00.000Z',
+    vendor: 'Pactera',
+    sourceSegmentCount: 1,
+    summary: {
+      status: 'complete', selectedScopeCount: 1, completeScopeCount: 1,
+      coveredSegmentCount: 1, subtotalFullTranslation: 0.3, subtotalBefore: 0.2,
+      subtotalAfter: 0.1, subtotalSaving: 0.1, incompleteScopes: [],
+    },
+    scopeRuns: [{
+      scope: { key: '513:en:fr', projectId: 513, sourceLocale: 'en', targetLocale: 'fr' },
+      items: [finalItem()],
+    }],
+    reviewItems: [{ review_status: 'confirmed' }],
+    includeReviewItems: false,
+  });
+  assert.equal(payload.items.length, 0);
+  assert.equal(payload.scopes.length, 1);
+});
+
 test('多项目语言 scope 在一条记录中保留全部项目 ID', () => {
   const payload = buildRoiArchivePayload({
     runId: 'roi-shared-locale',

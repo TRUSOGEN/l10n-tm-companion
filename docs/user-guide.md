@@ -1,6 +1,6 @@
 # L10n TM Companion 使用教程
 
-本教程面向使用飞书表格、Starling TM 和 ROI_Test 的内容运营、CD 与本地化同学。默认快速运行得到原文 A、Starling Top-3 TM 与真实 Score A；启用 AI 后，只有 `50 ≤ Score A < 85` 的 source 创建一个 Inspire task，最多生成三个结构化候选。CD 只需在 Focus 中修改例外项，其余默认结果可以批量确认；插件查询 Final TM、同步对应 Sheet 行，ROI mode 开启时再计算 A-C 整车节省。
+本教程面向使用飞书表格、Starling TM 和 ROI_Test 的内容运营、CD 与本地化同学。默认快速运行得到原文 A、Starling Top-3 TM 与真实 Score A；启用 AI 后，只有 `50 ≤ Score A < 85` 的 source 创建一个 Inspire task，最多生成三个结构化候选。CD 只需在“Review & edit / 审阅与修改”中修改例外项，其余默认结果可以批量确认；插件查询 Final TM、同步对应 Sheet 行，ROI mode 开启时再计算 A-C 整车节省。
 
 ```mermaid
 flowchart LR
@@ -9,7 +9,7 @@ flowchart LR
   D -->|是| B[一个 Inspire task 生成最多三个候选]
   D -->|否| F[跳过 AI]
   B --> SAFE[安全校验与逐候选 Post-TM]
-  F --> FOCUS[Focus 人工编辑]
+  F --> FOCUS[审阅与修改]
   SAFE --> FOCUS
   FOCUS --> TM3[单条查询 Final TM]
   TM3 --> SHEET[单行六列写入并 confirmed]
@@ -21,8 +21,8 @@ flowchart LR
 | 版本 | 内容 | 用途 |
 | --- | --- | --- |
 | A | 原始英文文案 | 第一次 TM 查询，得到 Score A |
-| B | 通过安全门禁的 AI 英文候选 | 第二次真实 TM 查询，得到 Post-TM Score，供 CD 在 Focus 审阅 |
-| C | CD 在 Focus 中确认的最终英文文案 | Final TM 查询和当前行写回均成功后成为 confirmed，也是实际送翻文案 |
+| B | 通过安全门禁的 AI 英文候选 | 第二次真实 TM 查询，得到 Post-TM Score，供 CD 审阅 |
+| C | CD 在“审阅与修改”中确认的最终英文文案 | Final TM 查询和当前行写回均成功后成为 confirmed，也是实际送翻文案 |
 
 正式节省只按 `TM Cost(A) - TM Cost(C)` 计算。Score B 不进入 ROI 金额。
 
@@ -151,12 +151,12 @@ Working spreadsheet 不绑定固定文档。自动模式采用当前打开的任
 | --- | --- | --- |
 | 1 | `Best TM Match` | 插件写入 |
 | 2 | `Orig Match %` | 插件写入 Score A |
-| 3 | `Rewritten Segment` | 插件写入 Focus 中确认的最终 C |
+| 3 | `Rewritten Segment` | 插件写入“审阅与修改”中确认的最终 C |
 | 4 | `Post-TM %` | 插件写入所选有效 AI 候选的真实 Post-TM；纯人工文案可为空 |
 | 5 | `Reached 85%?` | 插件按 Final TM 是否达到 85 写入 |
 | 6 | `Final TM %` | 插件写入最终 C 的真实 Final TM |
 
-初次查询只在 Side Panel 展示结果，不写 Sheet。CD 可以在 Focus 中单条确认例外项，也可以用结果页的 `Confirm & write remaining` 批量确认其余默认结果。批量流程仍逐项通过本地门禁并查询 Final TM，再把相邻 Sheet 行合并成连续 B-G 区间写入；Final TM 或 Sheet 写入失败的条目保持未确认。普通 Spreadsheet 不显示任何 ROI 金额。
+初次查询只在 Side Panel 展示结果，不写 Sheet。CD 可以在“Review & edit / 审阅与修改”中单条点击 `Confirm & save`，也可以用结果页的 `Confirm & save remaining` 批量确认其余默认结果。批量流程仍逐项通过本地门禁并查询 Final TM，再把相邻 Sheet 行合并成连续 B-G 区间写入；Final TM 或 Sheet 写入失败的条目保持未确认。普通 Spreadsheet 不显示任何 ROI 金额。
 
 插件会在写入前检查来源列与输出六列是否重叠，并检查输出表头。空表头会初始化；旧六列表头仅在 `CD review valid?` 数据区为空时迁移，发现任意旧人工 review 值会停止并报告冲突。首次在正式表格使用时建议先复制一个 Sheet，用两至三条样本确认列布局；插件不提供一键撤销。
 
@@ -166,39 +166,39 @@ Working spreadsheet 不绑定固定文档。自动模式采用当前打开的任
 
 1. 打开存放文案的飞书电子表格，再点击扩展图标打开 Side Panel。
 2. 勾选一至十个当前账号有权限的 Starling 项目。普通 CD 路径不显示 target language；程序自动选择全部项目共同支持的第一个 locale 作为内部 Starling 查询参数。
-3. 普通 CD 运行保持 ROI mode 关闭；此时 Vendor、费率和多语言 coverage 不参与查询。
-4. 需要整车计价时开启 ROI mode，再选择 Vendor 与 `Shared ROI target languages`；这里选择一次，全部项目使用同一组语言。
+3. 普通 CD 运行保持 ROI mode 关闭；此时费率和多语言 coverage 不参与查询。
+4. 需要整车计价时只开启 ROI mode。程序自动覆盖全部项目共同支持的非英文目标语言，并对 RWS 与 Pactera 同时计算；用户不选择 Vendor 或语言。
 5. 在 `Working spreadsheet` 选择 Spreadsheet 与 Sheet，确认来源列、数据起始行、输出起始列和前五条 source 预览。
 
-快速路径把全部已选项目与一个共同 target locale 合成单个 Batch scope。ROI mode 开启后，选择器取全部项目 target locale 的交集，再过滤 Vendor 没有精确费率的语言；每个共享语言生成一个携带全部已选项目 ID 的 Batch scope。Review 首屏和 Confirm 只等待展示 scope；其余语言在用户点击归档并确认记录数后以最多三个 scope 并发补齐 A/B/C TM。项目之间没有共同可计费语言时插件会明确停止 ROI 运行。
+快速路径把全部已选项目与一个共同 target locale 合成单个 Batch scope。ROI mode 开启后，程序取全部项目 target locale 的交集，排除全部英语变体；每个共享语言生成一个携带全部已选项目 ID 的 Batch scope。Review 首屏保留 A/B 供 CD 选择候选；其余语言以最多三个 scope 并发补齐正式 ROI 所需的 A/C TM，不会按语言重复查询候选 B。RWS 与 Pactera 只复用这些 TM 快照各自套用精确费率；某 vendor 缺少精确语言费率时，该 vendor 的 scope 保持 `incomplete`，不会借用另一家价格。项目之间没有共同非英文目标语言时插件会明确停止 ROI 运行。
 
 ### 生成 A 与候选 B
 
 1. 点击 `Read source → Query TM → AI rewrite`。
 2. 插件查询 A 的 Starling Top-3 TM，第一名得分是 Score A。
 3. `49.99` 跳过 AI，`50` 与 `84.99` 进入 AI，`85` 跳过 AI；每条进入 AI 的 source 只创建一个 Inspire task，最多保留三个结构化候选。
-4. Inspire Writer 的普通 revision 先由客户端包装为结构化候选，再校验 placeholder/token、URL、数字、Prompt 中的 Glossary、Legal 与 meaning-preservation 契约，最后查询真实 Post-TM；疑似损坏的结构化输出继续正确失败。
-5. 只有全部安全校验通过且 `Post-TM > Score A` 的候选进入 Focus 可选列表；没有有效候选时显示 `None`，并在下方显示 AI 关闭、配置缺失、API 失败、结构错误或安全门禁原因。
+4. Inspire Writer 的普通 revision 先由客户端包装为结构化候选，再校验 placeholder/token、URL、数字、Prompt 中的 Legal 与 meaning-preservation 契约，最后查询真实 Post-TM；疑似损坏的结构化输出继续正确失败。
+5. 只有全部安全校验通过且 `Post-TM > Score A` 的候选进入“Review & edit / 审阅与修改”可选列表；没有有效候选时显示 `None`，并在下方显示 AI 关闭、配置缺失、API 失败、结构错误或安全门禁原因。
 
-Score A 低于 50 或达到 85 时，插件不会发起 Inspire task，但 CD 仍可在 Focus 中手工填写最终 C。
+Score A 低于 50 或达到 85 时，插件不会发起 Inspire task，但 CD 仍可在“Review & edit / 审阅与修改”中手工填写最终 C。
 
-结果卡片严格按 Sheet 原文行号排列，使用 `TM → Post → Final` 分阶段颜色、相对 Score A 的箭头和独立状态标签，只保留 `Focus`。Review 顶部的 `All / Improved` 筛选显示各自数量；`Improved` 只展示真实 Post-TM 查询完整且 `Post-TM > 原 TM` 的条目，筛选不会改变确认、写回与归档范围。Focus 默认折叠 Top-3 TM 与多 AI 候选，完整显示 Source，并提供可自动伸缩的最终 C 编辑框；被拒候选不伪装成可选项，并显示拒绝原因。升级时必须运行新版安装器并完全退出 Chrome 后重开；只刷新扩展无法更新 Native Host。旧 Host 仅返回首条 TM 时，Focus 会保留该条真实命中并明确提示升级，不会把正分显示成 `No TM match`。
+结果卡片严格按 Sheet 原文行号排列，使用 `TM → Post → Final` 分阶段颜色、相对 Score A 的箭头和用户状态标签，只保留 `Review & edit / 审阅与修改`。Review 顶部的 `All / Improved` 筛选显示各自数量；`Improved` 只展示真实 Post-TM 查询完整且 `Post-TM > 原 TM` 的条目，筛选不会改变确认、写回与归档范围。审阅视图默认折叠 Top-3 TM 与多 AI 候选，完整显示 Source，并提供可自动伸缩的最终 C 编辑框；内部 `dirty` 状态显示为 `Edited · confirm again / 已修改，需重新确认`。升级时必须运行新版安装器并完全退出 Chrome 后重开；只刷新扩展无法更新 Native Host。旧 Host 仅返回首条 TM 时，审阅视图会保留该条真实命中并明确提示升级，不会把正分显示成 `No TM match`。
 
-Inspire 的改写 prompt 使用安装包内版本化保存的 TM Alignment Prompt、Content Review skill、Content Review Principles、Style Guide、Glossary，以及按场景选择的唯一一份 Game 或 Revenue Legal Guidelines。相关证据经过确定性检索并受字符预算约束，Writer revision 协议固定在 prompt 首尾；规则文件缺失时 AI 改写会停止并显示真实错误，不会退回无规则 prompt。`/copies` 返回的普通 revision 会被包装为结构化候选，因此不会再误报 `candidate_json_missing`；短文案没有安全改写空间时使用 `[[SKIP:INSUFFICIENT_REWRITE_SPACE]]`。
+Inspire 的改写 prompt 使用安装包内版本化保存的 TM Alignment Prompt、Content Review skill、Content Review Principles，以及按场景选择的唯一一份 Game 或 Revenue Legal Guidelines。相关证据经过确定性检索并受字符预算约束，Writer revision 协议固定在 prompt 首尾；规则文件缺失时 AI 改写会停止并显示真实错误，不会退回无规则 prompt。`/copies` 返回的普通 revision 会被包装为结构化候选，因此不会再误报 `candidate_json_missing`；短文案没有安全改写空间时使用 `[[SKIP:INSUFFICIENT_REWRITE_SPACE]]`。
 
-### 在 Focus 逐条确认最终 C
+### 在“Review & edit / 审阅与修改”逐条确认最终 C
 
-默认快速路径和 ROI mode 都使用同一个 Focus 确认入口。
+默认快速路径和 ROI mode 都使用同一个审阅确认入口。
 
-1. 点击某条结果的 `Focus`，选择一个有效 AI 候选，或直接编辑最终英文文案 C。
-2. 点击该条的 Confirm。
+1. 点击某条结果的 `Review & edit`，选择一个有效 AI 候选，或直接编辑最终英文文案 C。
+2. 点击该条的 `Confirm & save`。
 3. 插件先检查最终 C 非空且 protected token 与 A 完全一致，再查询 Final TM。
 4. Final TM 完整后，插件把当前行六列写入 Working spreadsheet；全部成功才显示 confirmed。
-5. confirmed 文案再次编辑会变为 dirty，必须重新 Confirm；旧 Final TM 不再有效。
+5. 已保存文案再次编辑后显示 `Edited · confirm again / 已修改，需重新确认`，必须点击 `Confirm changes & save`；旧 Final TM 不再有效。
 
 ### 批量确认其余默认结果
 
-只在 Focus 中编辑真正需要调整的条目。编辑完成后回到结果页，点击 `Confirm & write remaining`；已经 confirmed 的条目会跳过，未确认条目使用当前 Final copy 执行同一套 protected token 门禁、真实 Final TM 查询和 Sheet 写入。候选默认文本在进入 Focus 前已经通过结构、URL、数字、Glossary、Legal、语义与 Post-TM 门禁；人工直接编辑的文本视为 CD 明确业务决策，确认阶段仍会重新检查 protected token 与 Final TM。批量写回按真实行号排序，相邻行合并为连续六列区间，空洞行保持独立区间，避免覆盖未包含在本次确认中的数据。失败项进入 error 并保留原文案，其余成功项仍可成为 confirmed。
+只在“Review & edit / 审阅与修改”中编辑真正需要调整的条目。编辑完成后回到结果页，点击 `Confirm & save remaining`；已经 confirmed 的条目会跳过，未确认条目使用当前 Final copy 执行同一套 protected token 门禁、真实 Final TM 查询和 Sheet 写入。候选默认文本在进入审阅视图前已经通过结构、URL、数字、语义、风险与 Post-TM 门禁；人工直接编辑的文本视为 CD 明确业务决策，确认阶段仍会重新检查 protected token 与 Final TM。批量写回按真实行号排序，相邻行合并为连续六列区间，空洞行保持独立区间，避免覆盖未包含在本次确认中的数据。失败项保留原文案并显示 `Save failed / 保存失败`，其余成功项显示 `Saved / 已保存`。
 
 关闭 Side Panel 后，插件只会在同一份 Spreadsheet 和同一个 Sheet 中恢复最近运行快照；切换目标或启动新运行会使旧快照不可用，因此完成归档前不要切换 Sheet 或开始新运行。
 
@@ -233,7 +233,7 @@ Inspire 的改写 prompt 使用安装包内版本化保存的 TM Alignment Promp
 | `After review at 85` | Final TM 达到 85 的累计条数 |
 | `Review uplift to 85` | 人工确认相对 AI 阶段新增达到 85 的条数 |
 
-`L10n ROI Scopes` 用于定位语言贡献与覆盖问题。每一行是一个携带全部项目 ID 的 target locale scope，包含语言级 `Full translation USD`、`TM Cost A USD`、`TM Cost C USD`、`Saving USD`、三阶段漏斗和 `Failure reasons`。
+`L10n ROI Scopes` 用于定位语言贡献与覆盖问题。每一行是一个携带全部项目 ID 的 target locale scope，包含语言级 `Full translation USD`、`TM Cost A USD`、`TM Cost C USD`、`Saving USD`、三阶段漏斗和 `Failure reasons`。同一批 TM 快照会分别写入 RWS 与 Pactera 两套 Run/Scope 记录；source-grain `L10n ROI Items` 只写一次，避免重复审阅数据。
 
 `L10n ROI Items` 用于 source 审核追踪。每条 source 每次 Run 只写一条记录，保存 Source、Best TM Match、Score A、AI rewrite、Score B、Final copy、Score C、确认状态与 Operator；它不会按 locale 复制，因此 18 条 source 与 35 个语言只生成 18 条 Item，而不是 630 条。
 
@@ -241,7 +241,7 @@ Inspire 的改写 prompt 使用安装包内版本化保存的 TM Alignment Promp
 
 当 `Write status=incomplete` 时，插件仍会汇总所有成功得到 A/C TM 与费率的文案，金额代表“已覆盖文案小计”。只有一条文案都无法计算时金额才保持空白，避免把未知金额写成 0 或完整整车节省。
 
-TM Cost 由每个 target locale scope 的固定 Vendor 费率、本地英文词数和真实 TM Score 计算，再汇总为整车金额。AIPE 是 AI post-editing 单价，T-only 是纯翻译单价；0–75 分按 AIPE 计价，(75,85]、(85,95]、(95,100) 分别按 T-only 的 60%、40%、20% 计价。100% 按 Starling 返回的 ICE/repetition/exact 分类计价；没有分类时保守按 T-only 的 20% 估算并记录 `exact_unclassified_conservative`。完整规则见[多语言 ROI 规则](multilingual-roi.md)。
+TM Cost 由每个 target locale scope 的 RWS 或 Pactera 精确费率、本地英文词数和真实 TM Score 计算，再汇总为各自的整车金额。AIPE 是 AI post-editing 单价，T-only 是纯翻译单价；0–75 分按 AIPE 计价，(75,85]、(85,95]、(95,100) 分别按 T-only 的 60%、40%、20% 计价。100% 按 Starling 返回的 ICE/repetition/exact 分类计价；没有分类时保守按 T-only 的 20% 估算并记录 `exact_unclassified_conservative`。完整规则见[多语言 ROI 规则](multilingual-roi.md)。
 
 ## 常见问题
 
@@ -253,7 +253,7 @@ TM Cost 由每个 target locale scope 的固定 Vendor 费率、本地英文词�
 
 这是覆盖状态，不是系统崩溃。打开 `L10n ROI Scopes`，查看 `Failure reasons`：常见原因包括 `final_source_text_missing`、`final_tm_missing`、`final_tm_query_failed` 和 `rate_missing_language_pair`。
 
-新建运行的语言选择器会过滤掉当前 Vendor 缺少精确费率的语言，因此正常情况下不应出现 `rate_missing_language_pair`。它通常出现在旧快照、历史 Run、费率配置更新后，或运行范围由旧版本保留下来的场景。
+ROI 自动覆盖全部共同非英文语言；RWS 与 Pactera 中任一家缺少精确费率时，该 vendor 的对应 scope 会显示 `rate_missing_language_pair` 并保留其他完整 scope 小计。它通常反映费率目录缺口、历史 Run 或费率配置更新，不影响 TM 查询本身。
 
 ### `ROI archive schema mismatch`
 

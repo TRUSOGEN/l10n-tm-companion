@@ -29,20 +29,16 @@ const runStep = html.indexOf('id="panel-3"');
 assert('主流程按项目、工作表、运行顺序排列',
   projectsStep >= 0 && projectsStep < spreadsheetStep && spreadsheetStep < runStep);
 assert('结果 Tab 明确标记为第 4 步', html.includes('class="tab-step-number">4</span>'));
-assert('主 UI 有 vendor', html.includes('id="run-vendor"'));
-assert('主 UI 有 ROI 语言覆盖容器', html.includes('id="roi-language-coverage"'));
-assert('ROI 语言支持一键全选', html.includes('id="roi-select-all"'));
-assert('ROI 语言支持一键取消全部', html.includes('id="roi-clear-all"'));
-assert('ROI 语言支持按 locale 搜索', html.includes('id="roi-locale-filter"'));
+assert('ROI 主 UI 不展示 vendor 选择', html.includes('id="roi-config" class="roi-config hidden" aria-hidden="true"'));
+assert('ROI 主 UI 不展示语言选择', html.includes('id="roi-language-details" class="run-subsection roi-only hidden" aria-hidden="true"'));
 assert('项目选择器可独立折叠', html.includes('id="run-project-details"'));
-assert('ROI 语言区可独立折叠', html.includes('id="roi-language-details"'));
 assert('CD 主界面不展示 Fast TM target language', !html.includes('id="run-target-locale"')
   && !html.includes('Fast TM target language'));
 assert('CD 的 Top-3 TM 只展示英文 source，不展示 target translation',
   !source.includes("${escapeHtml(candidate.target || '')}"));
 assert('主 UI 有 ROI 开关', html.includes('id="enable-roi"'));
 assert('ROI 配置可整体隐藏', html.includes('id="roi-config"'));
-assert('vendor 可计费共同语言范围说明', html.includes('Only common languages with an exact vendor word rate are shown'));
+assert('ROI 文案说明自动全语言计价', html.includes('all-language pricing and archive'));
 assert('说明 source rewrite 固定为英文', html.includes('AI rewrites the English source in English'));
 assert('主 UI 有项目卡片', html.includes('id="run-project-cards"'));
 assert('存在 Setup required', html.includes('id="setup-required"'));
@@ -56,19 +52,14 @@ assert('CD 快速路径自动选择内部参考 locale', !source.includes('fastT
   && !source.includes('tmTargetLocale'));
 assert('ROI 关闭时不解析费率', source.includes('if (!roiEnabled) return null'));
 assert('即时保存项目选择', source.includes('starlingProjectIds: [...selectedProjectIds]'));
-assert('即时保存共享 ROI 语言选择', source.includes('roiTargetLocales'));
-assert('全选和取消全部会持久化', source.includes('async function setAllRoiLocales'));
-assert('不再提供按项目分别选择 ROI 语言', !source.includes('async function setProjectRoiLocales'));
-assert('语言筛选在重新渲染后保留', source.includes('localeFilterQuery'));
-assert('当前 vendor 会过滤共同语言中的不可计费项', source.includes('eligibleSharedTargetLocales'));
-assert('vendor 切换会清理不可用语言选择', source.includes('reconcileRoiLocaleSelections();'));
-assert('vendor 切换会重置为该 vendor 的可计费语言', source.includes('resetToEligible: true'));
+assert('ROI 自动构建非英文语言 scope', source.includes('validateAutomaticRoiRunConfig('));
+assert('ROI 同时计算 RWS 与 Pactera', source.includes('ROI_VENDORS'));
 assert('运行配置不会在就绪时自动收起', !source.includes("if (ready) document.getElementById('run-config-details').open = false"));
-assert('显示已选与共同可用语言数', source.includes('availableScopeCount'));
+assert('自动语言范围基于共同 target locale', source.includes('eligibleSharedTargetLocales'));
 assert('可用 ROI scope 数不乘项目数', !source.includes('eligibleLocales.length * selectedProjectIds.length'));
 assert('缺费率不阻塞 TM', source.includes('TM optimization can run; ROI subtotal excludes those scopes'));
 assert('运行配置构建共享语言 scope', source.includes('buildLocaleScopes('));
-assert('汇总多语言 ROI', source.includes('summarizeMultilingualRoi('));
+assert('从共享 TM 快照派生双 vendor ROI', source.includes('deriveVendorRoiResults('));
 assert('结果页存在 ROI archive 按钮', html.includes('id="btn-write-roi-archive"'));
 assert('存在 ROI archive 预览区域', html.includes('id="roi-archive-preview"'));
 assert('Popup 使用固定 ROI archive 常量', source.includes('FIXED_ROI_ARCHIVE_URL'));

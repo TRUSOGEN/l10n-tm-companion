@@ -20,9 +20,22 @@ assert.equal(normalizeUiLanguage('zh-CN'), 'zh-CN');
 assert.equal(normalizeUiLanguage('fr'), 'en');
 assert.equal(t('detail', 'zh-CN'), '展开详情');
 assert.equal(t('detail', 'en'), 'Details');
+assert.equal(t('focus', 'en'), 'Review & edit');
+assert.equal(t('focus', 'zh-CN'), '审阅与修改');
+assert.equal(t('reviewStatusDirty', 'en'), 'Edited · confirm again');
+assert.equal(t('reviewStatusDirty', 'zh-CN'), '已修改，需重新确认');
+assert.equal(t('confirmReview', 'en'), 'Confirm & save');
+assert.equal(t('confirmReview', 'zh-CN'), '确认并保存');
+assert.equal(t('reconfirmReview', 'en'), 'Confirm changes & save');
+assert.equal(t('reconfirmReview', 'zh-CN'), '确认修改并保存');
 assert.match(t('roiSharedHint', 'zh-CN'), /共享目标语言只需选择一次/);
 assert.ok(html.includes('data-i18n="workflow"'));
 assert.ok(html.includes('id="ui-language"'));
+assert.ok(
+  html.includes('id="btn-confirm-remaining"')
+    && html.includes('data-i18n="confirmRemaining"'),
+  '批量确认按钮必须由同一套双语文案驱动',
+);
 assert.ok(css.includes('height: 100vh'), 'Side Panel 必须使用可用视口高度');
 assert.ok(options.includes('value="inspire"'));
 assert.ok(!options.includes('id="inspireTeamId"'));
@@ -37,4 +50,4 @@ assert.ok(css.includes('--motion-fast:'), '动效必须复用统一时长 token'
 assert.ok(css.includes('transform: translateY'), '进入动效只能使用 transform/opacity 等合成属性');
 assert.equal(typeof applyI18n, 'function');
 
-console.log('side-panel-i18n tests: 22 passed, 0 failed');
+console.log('side-panel-i18n tests: passed');

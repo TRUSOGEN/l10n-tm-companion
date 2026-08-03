@@ -46,6 +46,10 @@ assert(
   'ROI 归档前补算延后的语言 scope',
   popupSource.includes('await completeDeferredRoiScopesForArchive('),
 );
+const deferredRoiStart = popupSource.indexOf('async function completeDeferredRoiScopesForArchive');
+const deferredRoiEnd = popupSource.indexOf('/** 将当前整车 ROI 结果追加写入', deferredRoiStart);
+const deferredRoiSource = popupSource.slice(deferredRoiStart, deferredRoiEnd);
+assert('延后语言 ROI 不重复查询 AI 候选 B', !deferredRoiSource.includes('queryRewriteCandidateTmSnapshots('));
 assert('快速与 ROI scope 都通过统一入口携带全部项目 ID', popupSource.includes('function projectIdsForScope(scope)') && processItemsSource.includes('projectIdsForScope(scope)'));
 assert('默认流程不把 B 汇总为正式 ROI', !processItemsSource.includes('summarizeMultilingualRoi(scopeRuns)'));
 assert('Sheet display scope 不依赖 ROI 完整性', processItemsSource.includes("activeDisplayScopeKey = scopeRuns[0]?.scope.key || ''"));

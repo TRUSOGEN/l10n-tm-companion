@@ -684,6 +684,14 @@ def list_projects(message):
                 'ok': False,
                 'error': f'项目列表协议错误 at offset {offset}: data must be a list',
             }
+        if raw_total is None:
+            return {
+                'ok': False,
+                'error': (
+                    f'项目列表协议错误 at offset {offset}: '
+                    'total is required to verify a complete project list'
+                ),
+            }
         if pagination is not None:
             if not isinstance(pagination, dict):
                 return {
@@ -711,19 +719,18 @@ def list_projects(message):
                         f'requested {offset}, received {response_offset}'
                     ),
                 }
-        if raw_total is not None:
-            try:
-                expected_total = int(raw_total)
-            except (TypeError, ValueError):
-                return {
-                    'ok': False,
-                    'error': f'项目列表协议错误 at offset {offset}: invalid total',
-                }
-            if expected_total < 0:
-                return {
-                    'ok': False,
-                    'error': f'项目列表协议错误 at offset {offset}: invalid total',
-                }
+        try:
+            expected_total = int(raw_total)
+        except (TypeError, ValueError):
+            return {
+                'ok': False,
+                'error': f'项目列表协议错误 at offset {offset}: invalid total',
+            }
+        if expected_total < 0:
+            return {
+                'ok': False,
+                'error': f'项目列表协议错误 at offset {offset}: invalid total',
+            }
 
         for project_data in data:
             if not isinstance(project_data, dict):

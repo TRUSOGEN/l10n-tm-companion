@@ -65,7 +65,7 @@
         </li>
       </ol>
 
-      <!-- Run configuration: vendor、项目和整车 ROI 语言范围的唯一来源 -->
+      <!-- Run configuration: ROI 开关自动覆盖所有非英文共同语言，并计算 RWS/Pactera。 -->
       <details id="run-config-details" class="collapse run-config-collapse workflow-step-section" open>
         <summary><span id="run-config-summary">1. Projects · setup required</span></summary>
         <div class="run-config-body">
@@ -79,16 +79,12 @@
               <strong data-i18n="roiMode">ROI mode</strong>
               <small data-i18n="roiHint">Off by default. Turn on only for all-language pricing and archive.</small>
             </span>
-            <input type="checkbox" id="enable-roi" role="switch" aria-controls="roi-config roi-language-details">
+            <input type="checkbox" id="enable-roi" role="switch">
           </label>
-          <div id="roi-config" class="roi-config hidden">
-          <label for="run-vendor" data-i18n="vendor">Vendor</label>
+          <div id="roi-config" class="roi-config hidden" aria-hidden="true">
+          <label for="run-vendor">Internal ROI rate adapter</label>
           <select id="run-vendor" required>
-            <option value="">Select a vendor</option>
             <option value="RWS">RWS</option>
-            <option value="Pactera">Pactera</option>
-            <option value="Alconost">Alconost</option>
-            <option value="Skrivanek">Skrivanek</option>
           </select>
           </div>
           <details id="run-project-details" class="run-subsection" open>
@@ -104,7 +100,7 @@
               <p id="run-project-status" class="run-status"></p>
             </div>
           </details>
-          <details id="roi-language-details" class="run-subsection roi-only hidden">
+          <details id="roi-language-details" class="run-subsection roi-only hidden" aria-hidden="true">
             <summary><span data-i18n="roiLanguages">ROI coverage languages</span> <span id="roi-scope-count" class="run-scope-count">0 scopes</span></summary>
             <div class="run-subsection-body">
               <div class="roi-language-actions">
@@ -208,7 +204,7 @@
       </div>
       <div id="results" class="results"></div>
       <footer class="footer results-footer">
-        <button id="btn-confirm-remaining" type="button" class="btn btn-primary" disabled>Confirm & write remaining</button>
+        <button id="btn-confirm-remaining" type="button" class="btn btn-primary" disabled data-i18n="confirmRemaining">Confirm &amp; save remaining</button>
         <button id="btn-write-roi-archive" class="btn btn-success roi-only hidden" disabled data-i18n="writeRoi">Write ROI archive</button>
         <span id="selected-count-results">Selected 0/0</span>
       </footer>
@@ -219,13 +215,13 @@
   <div id="focus-overlay" class="focus-overlay hidden">
     <div class="focus-box">
       <div class="focus-header">
-        <span class="focus-title" data-i18n="focusTitle">Result detail</span>
+        <span class="focus-title" data-i18n="focusTitle">Review &amp; edit</span>
         <span class="focus-nav">
           <button id="focus-prev" class="focus-nav-btn" data-i18n="previous">Previous</button>
           <span id="focus-pos"></span>
           <button id="focus-next" class="focus-nav-btn" data-i18n="next">Next</button>
         </span>
-        <button id="focus-close" class="focus-close" aria-label="Close">✕</button>
+        <button id="focus-close" class="focus-close" aria-label="Close" data-i18n-aria-label="close">✕</button>
       </div>
       <div id="focus-body" class="focus-body"></div>
     </div>

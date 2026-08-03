@@ -1,6 +1,6 @@
 // 多语言 ROI 汇总回归：完整 scope 计入 subtotal，缺失 scope 保留可审计原因。
 import assert from 'node:assert/strict';
-import { buildRoiFunnelMetrics, summarizeMultilingualRoi } from '../lib/multilingual-roi.js';
+import { buildRoiFunnelMetrics, deriveVendorRoiResults, summarizeMultilingualRoi } from '../lib/multilingual-roi.js';
 
 let passed = 0;
 let failed = 0;
@@ -217,6 +217,31 @@ test('漏斗使用全部 source 与相同已确认样本分母', () => {
     afterReviewAt85: 2,
     reviewUpliftTo85: 1,
   });
+});
+
+test('双 vendor 从同一份 TM 快照派生金额，不复制 Starling 查询数据', () => {
+  const item = {
+    source_text: 'One two',
+    final_source_text: 'One two revised',
+    similarity: 70,
+    final_tm: { status: 'complete', score: 90 },
+    review_status: 'confirmed',
+  };
+  const results = deriveVendorRoiResults([{
+    scope: { key: '1:en:fr', sourceLocale: 'en', targetLocale: 'fr' },
+    items: [item],
+  }], {
+    schema_version: 1,
+    vendors: {
+      RWS: [{ source_locale: 'en', target_locale: 'fr', aipe_usd_per_1000_words: 1000, t_only_usd_per_1000_words: 2000 }],
+      Pactera: [{ source_locale: 'en', target_locale: 'fr', aipe_usd_per_1000_words: 3000, t_only_usd_per_1000_words: 4000 }],
+    },
+  }, ['RWS', 'Pactera']);
+  assert.deepEqual(Object.keys(results), ['RWS', 'Pactera']);
+  assert.notEqual(results.RWS.scopeRuns[0].items[0], item, '派生结果不得改写共享 TM 快照');
+  assert.equal(results.RWS.summary.status, 'complete');
+  assert.equal(results.Pactera.summary.status, 'complete');
+  assert.notEqual(results.RWS.summary.subtotalSaving, results.Pactera.summary.subtotalSaving);
 });
 
 console.log(`\nmultilingual-roi 测试: ${passed} 通过 / ${failed} 失败`);

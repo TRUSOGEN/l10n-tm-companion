@@ -6,7 +6,7 @@
 
 用户不需要打开 Terminal。首次使用时在 Settings 直接输入 Starling Access Key（AK）和 Secret Key（SK），保存后插件自动发现该账号有权限访问的项目；日常使用在 Side Panel 选择一至十个项目和一个共同 target locale。ROI 默认关闭，只有显式开启后才要求 vendor 和多语言覆盖范围。
 
-Side Panel 替代固定 420×600 的 action Popup。点击扩展图标打开持久面板，失焦不会销毁界面；结果卡只保留 Focus 入口，Focus 默认折叠长 Top-3 TM 与多 AI 候选，最终文案输入框按内容自动伸缩。顶部语言选择器即时切换中文与英文并持久化到当前 Chrome profile。按钮反馈、折叠内容、Tab、前八张结果卡和 Focus 视图使用 160–240ms 的 `transform/opacity` 动效；系统开启 reduced motion 时自动关闭这些动效，动效不等待网络也不阻塞输入。
+Side Panel 替代固定 420×600 的 action Popup。点击扩展图标打开持久面板，失焦不会销毁界面；结果卡只保留“Review & edit / 审阅与修改”入口，该视图默认折叠长 Top-3 TM 与多 AI 候选，最终文案输入框按内容自动伸缩。顶部语言选择器即时切换中文与英文并持久化到当前 Chrome profile。按钮反馈、折叠内容、Tab、前八张结果卡和审阅视图使用 160–240ms 的 `transform/opacity` 动效；系统开启 reduced motion 时自动关闭这些动效，动效不等待网络也不阻塞输入。
 
 ## 快速路径与 ROI mode
 
@@ -87,6 +87,8 @@ Popup 工作台按真实操作顺序固定为四步：`1 Projects → 2 Spreadsh
 
 Review 结果顶部提供 `All / Improved` 双选筛选并显示各自数量，默认展示全部。`Improved` 只保留真实 Post-TM 查询完整且 `Post-TM > 原 TM` 的条目；持平、下降、未查询和查询失败均不计为提升。筛选只改变当前列表和 Focus 前后导航范围，不改变批量确认、Sheet 写回、ROI 归档或原始运行快照。
 
+审阅卡不直接展示内部 `draft / confirming / confirmed / dirty / error` 枚举。英文界面映射为 `Ready to review / Saving… / Saved / Edited · confirm again / Save failed`，中文界面映射为 `待审阅 / 正在保存… / 已保存 / 已修改，需重新确认 / 保存失败`。单条主按钮使用 `Confirm & save / 确认并保存`，已保存文案再次编辑后使用 `Confirm changes & save / 确认修改并保存`，批量入口使用 `Confirm & save remaining / 确认并保存其余项目`。
+
 展开内容包括：
 
 1. vendor 四选一下拉框。
@@ -114,7 +116,7 @@ Inspire Writer 的 Pilot 默认同时保持最多五十个在途改写任务，�
 
 ## Content Review 规则与结果选择
 
-版本 1.2.0 将 TM Alignment Prompt、`cd-content-review-version-2`、Content Review Principles、Style Guide、Glossary、Game Legal Guidelines 与 Revenue Legal Guidelines 作为版本化 Markdown 快照随扩展发布。每条 Inspire prompt 对规则证据执行确定性检索和字符预算，完整 prompt 超过 12,000 字符时正确失败；Writer revision 协议固定在首尾，一个 task 最多读取三个普通 revision，客户端将其包装为结构化候选后再执行安全门禁与真实 Post-TM。任何规则文件缺失都使本条 AI 改写真实失败，禁止绕过规则继续生成。
+当前 Inspire Prompt 使用 TM Alignment Prompt、`cd-content-review-version-2`、Content Review Principles、Game Legal Guidelines 与 Revenue Legal Guidelines 的版本化 Markdown 快照。Style Guide 与 Glossary 不再加载或注入 Prompt。每条 Inspire prompt 对保留的规则证据执行确定性检索和字符预算，完整 prompt 超过 12,000 字符时正确失败；Writer revision 协议固定在首尾，一个 task 最多读取三个普通 revision，客户端将其包装为结构化候选后再执行安全门禁与真实 Post-TM。任何必需规则文件缺失都使本条 AI 改写真实失败，禁止绕过规则继续生成。
 
 结果卡片严格保持 Sheet 原始行号顺序。TM source 中可安全识别的模板语法只在 UI 中转换为可读预览，原始 TM 文本继续保留用于审计。最终选择固定为 `保持原文 A`、`使用 AI 候选 B` 与 `人工编辑`；只有 URL、placeholder、模板 token 和数字逐项保持一致且真实 Score B 高于 Score A 时，B 才默认选中，其余情况默认保持 A。
 
@@ -131,9 +133,15 @@ Inspire Writer 的 Pilot 默认同时保持最多五十个在途改写任务，�
 
 ## 普通 Sheet 输出 schema
 
-当前标准输出字段为六列：`Best TM Match`、`Orig Match %`、`Rewritten Segment`、`Post-TM %`、`Reached 85%?`、`Final TM %`，来源列、数据起始行与输出起始列由当前 Sheet 的布局配置决定。初次运行不写入候选；每条 Focus Confirm 在 Final TM 完整后一次写入该行六列。结果页另提供 `Confirm & write remaining`：已确认项跳过，其余项逐项执行同一本地门禁与 Final TM 查询，相邻真实行号合并为连续 B-G 区间写入，行号空洞不会被覆盖。
+当前标准输出字段为六列：`Best TM Match`、`Orig Match %`、`Rewritten Segment`、`Post-TM %`、`Reached 85%?`、`Final TM %`，来源列、数据起始行与输出起始列由当前 Sheet 的布局配置决定。初次运行不写入候选；每条 `Confirm & save` 在 Final TM 完整后一次写入该行六列。结果页另提供 `Confirm & save remaining`：已确认项跳过，其余项逐项执行同一本地门禁与 Final TM 查询，相邻真实行号合并为连续 B-G 区间写入，行号空洞不会被覆盖。
 
-Popup 关闭后会销毁页面内存。插件会在本机 `chrome.storage.local` 保存最近一轮 A/B/C、候选审计与逐条确认状态，使 CD 重新打开 Popup 后继续 Focus 审阅，或在已有 confirmed 条目时写 ROI archive。快照不包含 Starling、飞书或 LLM 凭证；启动新的 TM 运行会清除旧快照，快照最长保留七天，并且仅在同一份 Spreadsheet 中恢复。
+Popup 关闭后会销毁页面内存。插件会在本机 `chrome.storage.local` 保存最近一轮 A/B/C、候选审计与逐条确认状态，使 CD 重新打开 Popup 后继续“Review & edit / 审阅与修改”，或在已有 confirmed 条目时写 ROI archive。快照不包含 Starling、飞书或 LLM 凭证；启动新的 TM 运行会清除旧快照，快照最长保留七天，并且仅在同一份 Spreadsheet 中恢复。
+
+## 全语言 ROI 后台预计算的下一阶段边界
+
+会议提出“普通用户不选择 vendor 与语言、默认覆盖约 56 个目标语言，并在每条确认时后台预计算，最终只聚合归档”。该方向尚未启用。正式 ROI 当前以单次运行选择的一个 vendor 和精确按字费率为金额依据；启用全语言前必须先定义每个 locale 的权威 vendor、重叠语言优先级与费率缺失处理，否则同一 source 会产生不唯一金额。
+
+后台任务需要在 Side Panel 关闭后继续运行，因此不能依赖会被销毁的 Popup 内存或可能休眠的 MV3 Service Worker。推荐在 Native Host 增加持久任务队列与按 `run_id + source_id + locale + final_text_hash` 幂等的结果缓存，记录 queued、running、complete、incomplete 状态；Final TM 与 Sheet 单条保存仍保持当前同步事务，56-language ROI 作为独立任务异步执行。上线前必须用真实 18 条与 100 条样本测量 Starling 请求量、并发、P95 完成时间和失败恢复，并按已批准的客户端 QPS 配置容量。
 
 空输出区会初始化新六列表头。发现旧六列表头且旧 `Rewritten Segment` 与 review 数据均为空时，插件可迁移为新 schema；只要旧审阅数据非空，就抛出 `legacy_cd_review_data_conflict` 并停止写入。
 

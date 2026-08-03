@@ -33,16 +33,16 @@
 - [ ] 关闭 AI 后运行至少两个有完整费率的语言 scope，结果页每个 complete scope 均计入 Before/After，整车 Saving 为 0
 - [ ] 进度条显示「查询 Starling Top-3 TM」→「AI 改写原文」→「查询候选 Post-TM」→「查看结果」，期间没有 Source String Key 查询步骤
 - [ ] 多语言运行时进度条显示当前项目、target locale 与 scope 序号；任一 scope 首轮 TM 失败后，其他 scope 仍继续，结果页将失败 scope 列入 incomplete 清单
-- [ ] 步骤指示器进入「查看结果」，结果卡片只显示 source、TM/Post-TM/Final TM 摘要、状态和 Focus
-- [ ] 结果卡片顺序与 Sheet 原始行号一致；Focus 展示 Top-3 TM、有效 AI 候选、分数差、最终 C 编辑框与逐条 Confirm
+- [ ] 步骤指示器进入「查看结果」，结果卡片只显示 source、TM/Post-TM/Final TM 摘要、用户状态和 `Review & edit`
+- [ ] 结果卡片顺序与 Sheet 原始行号一致；`Review & edit` 展示 Top-3 TM、有效 AI 候选、分数差、最终 C 编辑框与 `Confirm & save`
 - [ ] 49.99 不创建 Inspire task，50 创建，84.99 创建，85 不创建；进入链路的每条 source 只创建一个 task，最多返回三个结构化候选
-- [ ] Inspire prompt 使用随包分发的 Skill、Principles、Style Guide、Glossary 和唯一一份适用 Legal Guidelines；删去任一规则文件后改写真实失败
-- [ ] Focus 只展示通过 token、URL、数字、Glossary、Legal、语义、风险和真实 Post-TM 门禁的 AI 候选；重复文案只显示一次，无有效候选时显示 None
+- [ ] Inspire prompt 使用随包分发的 Skill、Principles 和唯一一份适用 Legal Guidelines；删去任一必需规则文件后改写真实失败
+- [ ] 审阅视图只展示通过 token、URL、数字、语义、风险和真实 Post-TM 门禁的 AI 候选；重复文案只显示一次，无有效候选时显示 None
 - [ ] 点击候选后该卡片显示 Selected、蓝色边框和选中圆点，其他候选恢复 Select，Final copy 与选中文案一致；键盘 focus 清晰可见
 - [ ] 改写后二次 TM 查询失败时，卡片显示 `Post-TM incomplete` 和真实错误原因；首轮 TM 结果仍保留，页面不显示伪造的 post-rewrite 0 分
-- [ ] 点击单条 Confirm 后，依次完成 protected-token 校验、Final TM 与当前 Sheet 行六列写入，全部成功后状态才为 confirmed
+- [ ] 点击单条 `Confirm & save` 后，依次完成 protected-token 校验、Final TM 与当前 Sheet 行六列写入，全部成功后界面状态才为 `Saved`
 - [ ] Final TM 或 Sheet 写入故意失败时，该条保持未确认并展示真实错误；重试成功后才 confirmed
-- [ ] confirmed 文案再次编辑后状态变为 dirty，旧 Final TM 清空，必须重新 Confirm
+- [ ] 已保存文案再次编辑后显示 `Edited · confirm again`，旧 Final TM 清空，必须点击 `Confirm changes & save`
 - [ ] 打开飞书表格，B-G 正确写入（B Best TM / C Orig% / D Final C / E Post-TM% / F Reached85? / G Final TM%）
 - [ ] H-J 如有历史数据保持不变，插件没有产生 H-J 写入请求
 - [ ] **row alignment 不错位**：A 列若有空行，B-F 仍对应真实行号

@@ -26,6 +26,11 @@ assert(!html.includes('Configure secure token exchange'), '按钮必须使用用
 assert(!html.includes('Do not send the App Secret to normal users.'), '不得展示与部门分发方式冲突的警告');
 assert(!html.includes('Open the step-by-step installation and usage guide'), 'Settings 不再展示使用手册入口');
 assert(!html.includes('Read the Inspire Prototype guide'), 'Settings 不再展示 Inspire Guide 入口');
+assert(
+  html.includes('Best TM Match, Orig Match %, Rewritten Segment, Post-TM %, Reached 85%?, and Final TM %.'),
+  '动态列说明必须使用当前真实六列及其顺序',
+);
+assert(!html.includes('New Match %') && !html.includes('CD review valid?'), '设置页不得继续展示旧版列名');
 assert(styles.includes('.setup-steps') && styles.includes('.setup-step-number'), '四步清单必须使用紧凑编号样式');
 assert(styles.includes('.owner-secret-button'), 'App Secret 填写按钮必须使用明确的主操作样式');
 

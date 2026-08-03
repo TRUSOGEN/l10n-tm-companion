@@ -21,6 +21,8 @@ assert(source.includes('class="score-rail"'), '结果卡必须显示 A/B/C 分�
 assert(source.includes('score-arrow'), '结果卡必须显示阶段箭头');
 assert(source.includes('scoreDelta(snapshot.score, baseline)'), 'Post-TM 和 Final TM 必须显示相对 Score A 的变化');
 assert(source.includes('reviewStatusTag(reviewStatus)'), 'draft/dirty/confirmed 必须渲染为状态标签');
+assert(source.includes("t(`reviewStatus${statusKey}`, uiLanguage)"), '审阅状态必须映射为用户动作，禁止直接显示内部枚举');
+assert(!source.includes("const label = normalized.charAt(0).toUpperCase() + normalized.slice(1)"), '界面不得直接显示 Dirty 等内部状态名');
 assert(html.includes('id="review-filter-all"')
   && html.includes('id="review-filter-improved"'), 'Review 顶部必须提供 All / Improved 双选筛选');
 assert(source.includes("filterReviewItems(items, reviewFilter)"), '结果渲染必须使用统一的 Review 筛选函数');
@@ -38,4 +40,4 @@ assert(styles.includes('.score-stage.tm')
   && styles.includes('.score-stage.post')
   && styles.includes('.score-stage.final'), 'TM、Post-TM、Final TM 必须使用可区分的阶段样式');
 
-console.log('popup responsive review UI tests: 20 passed, 0 failed');
+console.log('popup responsive review UI tests: passed');

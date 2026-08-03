@@ -1,10 +1,12 @@
 # L10n TM Companion
 
-当前线下交付版本为 **1.3.3**：Review 首屏只等待一个展示语言 scope，完整多语言 A/B/C ROI 在用户确认归档后以最多三个 scope 受控并发补齐；ROI_Test 增量升级为 Runs、Scopes、Items 三层审计，并自动补齐六个基础视图与写入前容量检查。OAuth 同时请求“特定记录读取”`base:record:read` 与“列出/查询记录”`base:record:retrieve`；插件只信任飞书 token 响应实际返回的 scope，1.3.2 及更早保存的 scope 状态会要求一次性重新授权。
+当前线下交付版本为 **1.3.4**：审阅入口改为明确的 `Review & edit / 审阅与修改`，内部状态映射为用户可执行文案，Settings 同步真实六列 schema；项目发现要求 `/projects` 返回可验证的 `total` 后才接受完整列表。Review 首屏仍只等待一个展示语言 scope，TM、AI、Sheet 写入和正式 A-C ROI 语义保持不变。
 
-Chrome MV3 Side Panel 扩展：从输入源读取英文原文 A → 查询 Starling Top-3 TM → 仅对 `50 ≤ Score A < 85` 的 source 创建一个 Inspire task → 最多生成三个结构化候选并逐个查询真实 Post-TM → 在 Focus 中人工编辑最终 C → 单条确认或批量确认其余默认结果 → 查询 Final TM 并同步当前 Sheet 行 → 按需将正式 A−C ROI 归档到 ROI_Test。个人 Access Key 模式的 Inspire Writer 和其余流程均在用户本机执行；生产分发 Inspire 时需要租户签名代理。
+服务端 OAuth Broker 与异步 ROI Worker 的实施规格见 [`docs/oauth-broker-async-roi.md`](docs/oauth-broker-async-roi.md)。该方案用于内部 Agent 开发与部署，尚未在 1.3.4 启用。
 
-AI 候选链路使用半开区间 **`50 ≤ Score A < 85`**：`49.99` 不创建 Inspire task，`50` 与 `84.99` 创建，`85` 不创建。Score A 低于 50 时缺少足够可靠的 TM 证据，85 及以上已经达标；两类条目仍可进入 Focus 人工编辑。
+Chrome MV3 Side Panel 扩展：从输入源读取英文原文 A → 查询 Starling Top-3 TM → 仅对 `50 ≤ Score A < 85` 的 source 创建一个 Inspire task → 最多生成三个结构化候选并逐个查询真实 Post-TM → 在“Review & edit / 审阅与修改”中编辑最终 C → 单条确认或批量确认其余默认结果 → 查询 Final TM 并同步当前 Sheet 行 → 按需将正式 A−C ROI 归档到 ROI_Test。个人 Access Key 模式的 Inspire Writer 和其余流程均在用户本机执行；生产分发 Inspire 时需要租户签名代理。
+
+AI 候选链路使用半开区间 **`50 ≤ Score A < 85`**：`49.99` 不创建 Inspire task，`50` 与 `84.99` 创建，`85` 不创建。Score A 低于 50 时缺少足够可靠的 TM 证据，85 及以上已经达标；两类条目仍可进入“Review & edit / 审阅与修改”人工编辑。
 
 默认运行是快速 CD 路径：程序确定一个内部共同 target locale，对全部已选项目执行一次 Batch TM scope；ROI 默认关闭，不加载费率、不展开多语言 scope，也不显示归档操作。用户显式开启 ROI mode 后，Review 仍只等待一个展示 scope；其余共享 target locales 在确认写入 ROI_Test 后补算，避免 18 条 source × 35 个语言让首屏和 Confirm 同步等待。
 
@@ -13,8 +15,8 @@ AI 候选链路使用半开区间 **`50 ≤ Score A < 85`**：`49.99` 不创建 
 - 📥 从飞书文档/电子表格抓取原文（全文 / 选中文字）
 - 🔄 调用 Starling 批量 TM Match API 查询 TM 记忆（Orig Match%，默认 PPE）
 - 🤖 每条满足 50–85 门禁的 source 只创建一个 Inspire task；prompt 在首尾固定 Writer revision 协议，Inspire 原生返回最多三个普通改写 revision，客户端再将其包装为结构化候选并执行安全门禁与真实 Post-TM
-- 🛡️ 每个候选依次经过结构、placeholder/token、URL、数字、Glossary、Legal、语义状态与风险校验；随后用真实 Post-TM 验证 `Score B > Score A`，失败候选保留审计信息但不进入可选列表
-- ✅ Focus 是唯一编辑入口：CD 可采用通过门禁的 AI 候选或手动编辑 C；例外项可单条 Confirm，其余默认结果可一键批量确认。两种入口都按 `本地校验 → Final TM → Sheet 写入 → confirmed` 完成，任一步失败都保持未确认
+- 🛡️ 每个候选依次经过结构、placeholder/token、URL、数字、语义状态与风险校验；Prompt 保留适用的 Legal 证据，随后用真实 Post-TM 验证 `Score B > Score A`，失败候选保留审计信息但不进入可选列表
+- ✅ “Review & edit / 审阅与修改”是唯一编辑入口：CD 可采用通过门禁的 AI 候选或手动编辑 C；例外项可单条 `Confirm & save`，其余默认结果可一键批量确认。内部 `draft / dirty / confirmed` 状态在界面映射为用户动作，不直接展示技术枚举
 - 🔀 对比生成 Comment（`no_tm` / `same` / `improved` / `different`）
 - ⚠️ Starling 查询失败时明确展示错误并停止流程，避免把接口失败伪装成「无 TM 命中」
 - 📤 已确认条目按真实行号写入六列：`Best TM Match`、`Orig Match %`、`Rewritten Segment`、`Post-TM %`、`Reached 85%?`、`Final TM %`
@@ -40,14 +42,14 @@ AI 候选链路使用半开区间 **`50 ≤ Score A < 85`**：`49.99` 不创建 
    → 最多三个结构化候选；49.99 / 85 等边界严格跳过
    （Inspire Writer 直连 OpenAPI；Claude/OpenAI-compatible 继续经本机桥接）
    ↓
-④ 候选安全校验与二次 TM：逐个校验结构、token、URL、数字、Glossary、Legal 和语义
+④ 候选安全校验与二次 TM：逐个校验结构、token、URL、数字、语义与风险
    → 对结构有效候选批量查询真实 Post-TM；只有安全且 Score B > Score A 的候选可选
    ↓
-⑤ 结果卡片只提供 Focus 入口；展示 Top-3 TM、有效 AI 候选、Post-TM 分数与差值
+⑤ 结果卡片只提供“Review & edit”入口；展示 Top-3 TM、有效 AI 候选、Post-TM 分数与差值
    ↓
-⑥ CD 在 Focus 中选择候选或编辑最终 C
+⑥ CD 在“Review & edit”中选择候选或编辑最终 C
    ↓
-⑦ 单条 Confirm 或 `Confirm & write remaining`：校验最终 C → 查询 Final TM → 写入当前 Sheet 的六列 → 标记 confirmed
+⑦ 单条 `Confirm & save` 或 `Confirm & save remaining`：校验最终 C → 查询 Final TM → 写入当前 Sheet 的六列 → 标记完成
    ↓
 ⑧ 至少一条确认后可点击 Write ROI archive：用户先确认记录数，再补齐延后语言并顺序写入 Runs → Scopes → Items
 ```
@@ -132,8 +134,8 @@ Side Panel 默认采用当前 Spreadsheet，也可在 `Working spreadsheet` 粘�
 4. 从当前 Spreadsheet 打开 Side Panel，选择 Sheet，确认来源列、数据起始行和输出起始列；需要其他表格时展开 `Use a different spreadsheet`
 5. 点击 `Read source → Query TM → AI rewrite`；文档 DOM 抓取位于折叠的 `Other sources`
 6. 自动触发 Top-3 TM；只有 `50 ≤ Score A < 85` 且 AI 已开启的 source 创建 Inspire task，并最多产生三个候选
-7. 在结果卡片点击 `Focus`，查看 Top-3 TM、通过安全门禁的 AI 候选及真实 Post-TM；没有有效 AI 时显示 `None`
-8. 只修改需要人工调整的最终 C；例外项可在 Focus 单条 Confirm，其余项点击 `Confirm & write remaining` 批量完成。Final TM 与对应六列全部写入成功后才显示 confirmed
+7. 在结果卡片点击 `Review & edit`，查看 Top-3 TM、通过安全门禁的 AI 候选及真实 Post-TM；没有有效 AI 时显示 `None`
+8. 只修改需要人工调整的最终 C；例外项可单条点击 `Confirm & save`，其余项点击 `Confirm & save remaining` 批量完成。Final TM 与对应六列全部写入成功后才显示 `Saved`
 9. 需要整车 ROI 时，在运行前开启 ROI mode、选择 vendor 与 coverage languages；至少确认一条后归档会保留未确认缺口和所有有效小计
 10. 点击 `Write ROI archive`；ROI_Test 的 `L10n ROI Runs` 保存本车 A−C ROI 与 pre-AI / after-AI / after-review 漏斗指标
 

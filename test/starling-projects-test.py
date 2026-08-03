@@ -128,6 +128,35 @@ class StarlingProjectsTest(unittest.TestCase):
         self.assertFalse(result['ok'])
         self.assertIn('offset mismatch', result['error'])
 
+    def test_list_projects_rejects_response_without_total(self):
+        """缺少 total 时无法证明列表完整，必须正确失败。"""
+        payload = {
+            'ok': True,
+            'data': {
+                'data': [project(project_id) for project_id in range(1, 9)],
+                'pagination': {'offset': 0, 'limit': 25},
+            },
+        }
+
+        with mock.patch.object(
+            self.bridge.subprocess,
+            'run',
+            return_value=subprocess.CompletedProcess(
+                ['/test/starling-cli'],
+                returncode=0,
+                stdout=json.dumps(payload),
+                stderr='',
+            ),
+        ):
+            result = self.bridge.list_projects({
+                'cli_path': '/test/starling-cli',
+                'access_key': 'test-ak',
+                'secret_key': 'test-sk',
+            })
+
+        self.assertFalse(result['ok'])
+        self.assertIn('total', result['error'])
+
 
 if __name__ == '__main__':
     unittest.main()

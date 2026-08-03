@@ -23,7 +23,7 @@ const expectedRuleHashes = {
   'references/style-guide.md': '76e8b96f98a52d80fa8ee7782a2ec7b0eb5c4e0b6dc7dbfbb5182575090b9946',
   'references/glossary.md': '6ff564807c85712e9d12ccb9d7d56c030419e5584225366bbb69f97b49247b2c',
   'references/game-legal-guidelines.md': 'd457aca54735932e4a4539a0b91a176adc70869763473b2b011775fbaf4171d8',
-  'references/revenue-legal-guidelines.md': 'b35693ef64dc291cca713582f965a9677bc7d1f46713bba160fe80d981d0a3a7',
+  'references/revenue-legal-guidelines.md': '540f4a7293e80a6defa4fe0e730fab5b8d311bb5e0e19402075e752ed39e3d50',
 };
 
 const digest = crypto.createHash('sha256').update(Buffer.from(manifest.key, 'base64')).digest().subarray(0, 16);
@@ -56,7 +56,7 @@ assert.ok(progressSource.includes('--self-test'), '进度窗口必须提供无 G
 assert.ok(offlineManual.includes('桌面'), '非技术手册必须说明从桌面手动选择加载目录');
 assert.ok(!offlineManual.includes('Command + Shift + G'), '正式手册不得继续依赖无效的前往文件夹快捷键');
 assert.ok(packageScript.includes('docs/offline-install-manual.md'), '线下包必须包含非技术用户手册');
-assert.equal(manifest.version, '1.3.3', '实际 OAuth scope 校验修复使用 1.3.3 版本');
+assert.equal(manifest.version, '1.3.4', '会议反馈的审阅文案与项目完整性优化使用 1.3.4 版本');
 assert.ok(popupHtml.includes('Read source → Query TM → AI rewrite'), '线下包主入口必须描述完整查询链路');
 assert.ok(!popupHtml.includes('id="btn-write-bitable"'), '线下包不得包含旧的全局主流程写回按钮');
 assert.ok(!popupHtml.includes('id="btn-write-results"'), '线下包不得包含旧的全局结果写回按钮');
@@ -66,7 +66,7 @@ assert.ok(
   '线下手册必须说明新 AI 边界与 Sheet schema',
 );
 assert.ok(
-  offlineManual.includes('Confirm & write remaining')
+  offlineManual.includes('Confirm & save remaining')
     && offlineManual.includes('Owner/受控 Pilot'),
   '线下手册必须说明批量确认入口与无 broker 时的分发边界',
 );

@@ -33,13 +33,15 @@ import {
   buildLocaleScopes,
   normalizeProject,
   paginateProjects,
+  ROI_VENDORS,
   targetLocaleIntersection,
   toggleProjectSelection,
+  validateAutomaticRoiRunConfig,
   validateRunConfig,
 } from './lib/run-config.js';
 import { resolveWordRate } from './lib/pricing-rules.js';
 import { calculateRoiForItem } from './lib/roi-calculation.js';
-import { summarizeMultilingualRoi } from './lib/multilingual-roi.js';
+import { deriveVendorRoiResults, summarizeMultilingualRoi } from './lib/multilingual-roi.js';
 import {
   completeDeferredLocaleScopes,
   partitionPriorityScope,
@@ -87,7 +89,8 @@ let accessibleProjects = [];
 let selectedProjectIds = [];
 let projectPageIndex = 0;
 let selectedRoiLocales = null;
-let runVendor = '';
+let runVendor = 'RWS';
+let vendorRoiResults = {};
 let rateCatalog = null;
 let activeRunConfig = null;
 let multilingualRoiSummary = null;
@@ -447,7 +450,8 @@ async function initializeRunConfiguration() {
   roiEnabled = config.enableROI === true;
   uiLanguage = applyI18n(document, normalizeUiLanguage(config.uiLanguage));
   document.getElementById('ui-language').value = uiLanguage;
-  runVendor = config.vendor || '';
+  // ROI 只保留一个开关，RWS/Pactera 均从同一份 TM 快照派生。
+  runVendor = 'RWS';
   selectedProjectIds = Array.isArray(config.starlingProjectIds)
     ? config.starlingProjectIds.map(Number).filter(Number.isInteger)
     : [];
@@ -562,21 +566,14 @@ function sharedLocalesFromLegacySelection(legacy, projectIds) {
 function eligibleSharedTargetLocales() {
   const projects = selectedProjects();
   const commonLocales = targetLocaleIntersection(projects);
-  if (!rateCatalog || !runVendor) return commonLocales;
-  return commonLocales.filter((targetLocale) => projects.every((project) => resolveWordRate(rateCatalog, {
-    vendor: runVendor,
-    sourceLang: project.sourceLocale,
-    targetLang: targetLocale,
-  }).status === 'ready'));
+  return commonLocales.filter((targetLocale) => !/^en(?:-|$)/i.test(targetLocale));
 }
 
 /** 清理过期语言，并在首次进入或切换 vendor 时默认勾选全部共同可计费语言。 */
 function reconcileRoiLocaleSelections({ resetToEligible = false } = {}) {
   if (!selectedProjectIds.length) return;
   const eligibleLocales = eligibleSharedTargetLocales();
-  selectedRoiLocales = resetToEligible || !Array.isArray(selectedRoiLocales)
-    ? eligibleLocales
-    : [...new Set(selectedRoiLocales.filter((locale) => eligibleLocales.includes(locale)))];
+  selectedRoiLocales = eligibleLocales;
 }
 
 /** 全选或清空所有项目共享的 ROI coverage languages，并保留用户选择。 */
@@ -627,8 +624,8 @@ async function persistRunConfiguration() {
 /** 渲染项目卡、共享语言覆盖、费率状态与折叠摘要。 */
 function renderRunConfiguration() {
   document.getElementById('enable-roi').checked = roiEnabled;
-  document.getElementById('roi-config').classList.toggle('hidden', !roiEnabled);
-  document.getElementById('roi-language-details').classList.toggle('hidden', !roiEnabled);
+  document.getElementById('roi-config').classList.add('hidden');
+  document.getElementById('roi-language-details').classList.add('hidden');
   document.getElementById('btn-write-roi-archive').classList.toggle('hidden', !roiEnabled);
   document.getElementById('run-vendor').value = runVendor;
   const cards = document.getElementById('run-project-cards');
@@ -665,18 +662,15 @@ function renderRunConfiguration() {
   );
   document.getElementById('run-project-count').textContent = `${selectedProjectIds.length}/10`;
 
-  if (roiEnabled) {
-    renderLanguageCoverage();
-    renderPricingStatus();
-  }
+  if (roiEnabled) reconcileRoiLocaleSelections();
 
   const localeConfig = roiEnabled
     ? buildLocaleScopes({ projects: accessibleProjects, projectIds: selectedProjectIds, selectedLocales: selectedRoiLocales || [] })
     : buildFastTmScope({ projects: accessibleProjects, projectIds: selectedProjectIds });
-  const ready = localeConfig.status === 'ready' && (!roiEnabled || runVendor);
+  const ready = localeConfig.status === 'ready';
   document.getElementById('run-config-summary').textContent = ready
     ? roiEnabled
-      ? `1. Projects · ${runVendor} · ${localeConfig.sourceLocale} · ${localeConfig.scopes.length} ROI scopes · ${selectedProjectIds.length} selected`
+      ? `1. Projects · RWS + Pactera · ${localeConfig.sourceLocale} · ${localeConfig.scopes.length} non-English ROI scopes · ${selectedProjectIds.length} selected`
       : `1. Projects · ${localeConfig.sourceLocale} · ${selectedProjectIds.length} selected`
     : '1. Projects · setup required';
   syncWorkflowSteps();
@@ -777,11 +771,9 @@ async function ensureWorkflowReady() {
     return null;
   }
   const result = roiEnabled
-    ? validateRunConfig({
-      vendor: runVendor,
+    ? validateAutomaticRoiRunConfig({
       projects: accessibleProjects,
       projectIds: selectedProjectIds,
-      selectedLocales: selectedRoiLocales || [],
     })
     : buildFastTmScope({
       projects: accessibleProjects,
@@ -790,9 +782,9 @@ async function ensureWorkflowReady() {
   if (result.status !== 'ready') {
     const messages = {
       project_required: 'Select at least one project.',
-      vendor_required: 'Select one of the four vendors.',
-      locale_scope_required: 'Select at least one ROI coverage language.',
-      no_common_target_locale: 'All selected projects must share at least one priced target language for ROI.',
+      non_english_locale_required: 'ROI needs at least one shared non-English target language.',
+      locale_scope_required: 'ROI needs at least one shared non-English target language.',
+      no_common_target_locale: 'All selected projects must share at least one target language for ROI.',
       target_locale_unavailable: 'Selected projects do not support the same internal reference locale.',
       source_locale_mismatch: 'Selected projects must share one source locale.',
       project_unavailable: 'Refresh projects and reselect accessible projects.',
@@ -809,7 +801,7 @@ async function ensureWorkflowReady() {
   activeRunConfig = {
     ...result,
     roiEnabled,
-    vendor: roiEnabled ? runVendor : '',
+    vendors: roiEnabled ? [...ROI_VENDORS] : [],
     accessKey: config.starlingAccessKey,
     secretKey: config.starlingSecretKey,
   };
@@ -1317,6 +1309,22 @@ function projectIdsForScope(scope) {
   throw new Error('Scope has no project IDs.');
 }
 
+/**
+ * 从已完成的 A/B/C TM 快照派生 RWS 与 Pactera 金额。
+ *
+ * 此函数只做本地费率计算，绝不触发新的 Starling 请求；RWS 结果继续作为既有
+ * Summary/UI 的兼容视图，两个 vendor 的完整结果用于归档。
+ */
+function refreshVendorRoiResults() {
+  if (!roiEnabled || !rateCatalog) {
+    vendorRoiResults = {};
+    multilingualRoiSummary = null;
+    return;
+  }
+  vendorRoiResults = deriveVendorRoiResults(multilingualScopeRuns, rateCatalog, ROI_VENDORS);
+  multilingualRoiSummary = vendorRoiResults.RWS?.summary || null;
+}
+
 // ===== 处理流程：每个共享语言的多项目 scope 执行 A TM → AI 候选 B → B TM =====
 
 async function processItems(items) {
@@ -1427,7 +1435,7 @@ async function processItems(items) {
   activeWorkflowContext = {
     spreadsheetToken: config.spreadsheetToken || '',
     sheetId: config.sheetId || '',
-    vendor: roiEnabled ? runVendor : '',
+    vendors: roiEnabled ? [...ROI_VENDORS] : [],
     roiEnabled,
     projectIds: [...selectedProjectIds],
     roiScopes: runConfig.scopes.map((scope) => ({
@@ -1625,7 +1633,8 @@ function reviewStatusTag(status) {
   const normalized = ['draft', 'confirming', 'confirmed', 'dirty', 'error'].includes(status)
     ? status
     : 'draft';
-  const label = normalized.charAt(0).toUpperCase() + normalized.slice(1);
+  const statusKey = normalized.charAt(0).toUpperCase() + normalized.slice(1);
+  const label = t(`reviewStatus${statusKey}`, uiLanguage);
   return `<span class="review-status-tag status-${normalized}">${escapeHtml(label)}</span>`;
 }
 
@@ -1970,9 +1979,7 @@ async function confirmReviewItem(item) {
       scopeItem.review = confirmed;
       scopeItem.review_status = 'confirmed';
     });
-    multilingualRoiSummary = roiEnabled
-      ? summarizeMultilingualRoi(multilingualScopeRuns)
-      : null;
+    refreshVendorRoiResults();
     finalValidationAttempted = true;
     processedItems = buildProcessedDisplayItems(multilingualScopeRuns);
     await persistWorkflowSnapshot();
@@ -2132,9 +2139,7 @@ async function confirmRemainingReviewItems() {
       });
     }
 
-    multilingualRoiSummary = roiEnabled
-      ? summarizeMultilingualRoi(multilingualScopeRuns)
-      : null;
+    refreshVendorRoiResults();
     finalValidationAttempted = true;
     processedItems = buildProcessedDisplayItems(multilingualScopeRuns);
     await persistWorkflowSnapshot();
@@ -2222,7 +2227,7 @@ async function completeDeferredRoiScopesForArchive(config) {
   const finalByKey = new Map(
     processedItems.map((item) => [reviewItemKey(item), item]),
   );
-  const vendor = activeWorkflowContext?.vendor || runVendor;
+  const vendor = 'RWS';
   multilingualScopeRuns = await completeDeferredLocaleScopes({
     allScopes,
     existingScopeRuns: multilingualScopeRuns,
@@ -2242,24 +2247,9 @@ async function completeDeferredRoiScopesForArchive(config) {
       scope.targetLocale,
       { ...tmOpts, projectIds: projectIdsForScope(scope) },
     ),
-    queryPostRewriteTm: async (scopeItems, scope) => {
-      const nestedSnapshots = await queryRewriteCandidateTmSnapshots(
-        scopeItems,
-        scope.sourceLocale,
-        scope.targetLocale,
-        { ...tmOpts, projectIds: projectIdsForScope(scope) },
-      );
-      return scopeItems.map((item, index) => {
-        if (!Array.isArray(item.ai_candidates) || item.ai_candidates.length === 0) {
-          return { status: 'not_required' };
-        }
-        const evaluated = evaluateRewriteCandidates(item, nestedSnapshots[index]);
-        item.ai_candidates = evaluated.candidates;
-        item.ai_translation = evaluated.displayText;
-        item.ai_quality = evaluated;
-        return evaluated.representativePostTm;
-      });
-    },
+    // B 仅服务首屏的候选审阅；延后语言的正式 ROI 只依赖 A 与确认后的 C。
+    // 不按 56 个语言重复查询最多三个 AI 候选，避免无业务价值的请求放大。
+    queryPostRewriteTm: (scopeItems) => scopeItems.map(() => ({ status: 'not_required' })),
     resolveRate: (scope) => resolveWordRate(catalog, {
       vendor,
       sourceLang: scope.sourceLocale,
@@ -2284,7 +2274,7 @@ async function completeDeferredRoiScopesForArchive(config) {
       { ...tmOpts, projectIds: projectIdsForScope(scope) },
     ),
   });
-  multilingualRoiSummary = summarizeMultilingualRoi(multilingualScopeRuns);
+  refreshVendorRoiResults();
   processedItems = buildProcessedDisplayItems(multilingualScopeRuns);
   finalValidationAttempted = true;
   await persistWorkflowSnapshot();
@@ -2324,22 +2314,41 @@ async function writeCurrentRoiArchive() {
       feishuUser = await authorizeFeishuUser({ returnUrl });
     }
     await completeDeferredRoiScopesForArchive(config);
-    const runId = createRoiArchiveRunId();
-    const payload = buildRoiArchivePayload({
-      runId,
-      startedAt: new Date().toISOString(),
-      vendor: activeWorkflowContext?.vendor || runVendor,
-      sourceSegmentCount: extractedItems.length,
-      projects: activeWorkflowContext?.projectIds || selectedProjectIds,
-      summary: multilingualRoiSummary,
-      scopeRuns: multilingualScopeRuns,
-      reviewItems: processedItems,
-      operator: feishuUser.profile,
-      displayScopeKey: activeDisplayScopeKey,
+    const baseRunId = createRoiArchiveRunId();
+    const startedAt = new Date().toISOString();
+    const archivePlans = ROI_VENDORS.map((vendor, index) => {
+      const vendorResult = vendorRoiResults[vendor];
+      if (!vendorResult) throw new Error(`ROI result missing for ${vendor}`);
+      return {
+        vendor,
+        runId: `${baseRunId}-${vendor.toLowerCase()}`,
+        payload: buildRoiArchivePayload({
+          runId: `${baseRunId}-${vendor.toLowerCase()}`,
+          startedAt,
+          vendor,
+          sourceSegmentCount: extractedItems.length,
+          projects: activeWorkflowContext?.projectIds || selectedProjectIds,
+          summary: vendorResult.summary,
+          scopeRuns: vendorResult.scopeRuns,
+          reviewItems: processedItems,
+          includeReviewItems: index === 0,
+          operator: feishuUser.profile,
+          displayScopeKey: activeDisplayScopeKey,
+        }),
+      };
     });
     button.textContent = 'Writing ROI archive...';
-    const result = await writeRoiArchive({ config, payload });
-    showRoiArchiveResult(true, { runId, ...result });
+    const archiveResults = await Promise.all(archivePlans.map(async (plan) => ({
+      vendor: plan.vendor,
+      runId: plan.runId,
+      ...(await writeRoiArchive({ config, payload: plan.payload })),
+    })));
+    showRoiArchiveResult(true, {
+      runId: archiveResults.map((result) => `${result.vendor}: ${result.runId}`).join(' · '),
+      scopeRecordCount: archiveResults.reduce((total, result) => total + result.scopeRecordCount, 0),
+      itemRecordCount: archiveResults.reduce((total, result) => total + result.itemRecordCount, 0),
+      status: archiveResults.map((result) => `${result.vendor} ${result.status}`).join(', '),
+    });
   } catch (error) {
     showRoiArchiveResult(false, error instanceof Error ? error.message : String(error));
   } finally {
