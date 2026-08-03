@@ -134,7 +134,7 @@ Popup 关闭后会销毁页面内存。插件会在本机 `chrome.storage.local`
 
 1.5 已在客户端启用“普通用户不选择 vendor 与语言”的自动范围：覆盖全部项目共同支持的非英语目标语言，RWS 与 Pactera 共用一套 TM snapshot 并分别计价。Review 首屏只等待展示 scope，归档确认后由 Side Panel 以最多三个 scope 并发补齐延后语言 A/C；因此关闭 Side Panel 仍会中断当前本地补算。
 
-源码已经包含持久化 OAuth Broker 与异步 ROI Backend 的关闭态实现。生产切换后，后台任务按 `run_id + source_id + locale + final_text_hash` 幂等执行，记录 queued、running、complete、incomplete 状态；Final TM 与 Sheet 单条保存仍保持当前同步事务。公司网关、身份、Secret Manager/KMS、Feishu、Starling、ROI_Test 与数据保留门禁完成前，feature flag 必须关闭。上线前必须用真实 3、18 与 100 条样本测量请求量、并发、P50/P95、失败恢复和金额 parity，并按获批的 batch size、QPS 与并发配置容量。
+源码已经包含持久化 OAuth Broker 与异步 ROI Backend 的关闭态实现。feature flag 关闭时继续使用已有的本机 Keychain Secret 与 Feishu OAuth 路径；受信扩展会把本次 broker-off 选择显式传给 Native Host，Broker 开启后则禁止静默回退。生产切换后，后台任务按 `run_id + source_id + locale + final_text_hash` 幂等执行，记录 queued、running、complete、incomplete 状态；Final TM 与 Sheet 单条保存仍保持当前同步事务。公司网关、身份、Secret Manager/KMS、Feishu、Starling、ROI_Test 与数据保留门禁完成前，feature flag 必须关闭。上线前必须用真实 3、18 与 100 条样本测量请求量、并发、P50/P95、失败恢复和金额 parity，并按获批的 batch size、QPS 与并发配置容量。
 
 空输出区会初始化新六列表头。发现旧六列表头且旧 `Rewritten Segment` 与 review 数据均为空时，插件可迁移为新 schema；只要旧审阅数据非空，就抛出 `legacy_cd_review_data_conflict` 并停止写入。
 

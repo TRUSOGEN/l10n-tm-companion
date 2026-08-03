@@ -210,14 +210,15 @@ LEGACY_SECRET_DISABLED_ERROR = {
 
 
 def _legacy_secret_dev_only(fn):
-    """Gate a legacy secret-bearing action behind L10N_LOCAL_SECRET_DEV_ONLY.
+    """仅允许显式选择的 legacy 本地 Secret 动作。
 
-    When the flag is off (production default), the wrapped action returns a
-    stable error without ever invoking the underlying helper so that no local
-    secret storage / user OAuth / tenant token exchange can be reached.
+    Broker 关闭时，受信扩展在检查 feature flag 后传入
+    ``allow_legacy_local_secret=true``，保持 1.5 之前的本地 OAuth/归档能力；
+    Broker 开启时默认不传该标记，因此仍禁止静默回退。环境变量只保留给开发测试。
     """
     def wrapper(message):
-        if not LEGACY_LOCAL_SECRET_DEV_ONLY:
+        browser_authorized = message.get('allow_legacy_local_secret') is True
+        if not (LEGACY_LOCAL_SECRET_DEV_ONLY or browser_authorized):
             return dict(LEGACY_SECRET_DISABLED_ERROR)
         return fn(message)
     wrapper.__name__ = getattr(fn, '__name__', 'wrapped')

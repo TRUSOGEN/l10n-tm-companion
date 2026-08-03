@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """A4: native host legacy-secret action gating.
 
-When L10N_LOCAL_SECRET_DEV_ONLY is unset / '0' (production default), the four
-mutable / secret-bearing legacy actions MUST return an explicit error and MUST
-NOT reach the underlying feishu_oauth helper. When L10N_LOCAL_SECRET_DEV_ONLY='1',
-the same actions must be allowed through to the old helper (dev-only).
+When L10N_LOCAL_SECRET_DEV_ONLY is unset / '0', the four mutable / secret-bearing
+legacy actions reject unqualified requests. They are allowed only when the trusted
+extension explicitly marks a broker-off legacy choice, or when the developer-only
+environment flag is set to '1'.
 
 Read-only informational actions (feishu_oauth_info, feishu_secret_status) remain
 available so the Settings UI can display configuration hints without touching
@@ -170,6 +170,19 @@ class NativeLegacySecretGatingTests(unittest.TestCase):
         self.assertIn('load_app_secret', names)
         self.assertIn('get_tenant_access_token', names)
 
+    def test_browser_authorized_legacy_actions_allowed_when_env_off(self):
+        """Broker 关闭时，受信扩展可显式授权现有本地 Secret 路径。"""
+        os.environ['L10N_LOCAL_SECRET_DEV_ONLY'] = '0'
+        self._reload_bridge()
+
+        result = self._dispatch(
+            'feishu_user_oauth',
+            return_url='https://example.com',
+            allow_legacy_local_secret=True,
+        )
+        self.assertTrue(result.get('ok'), result)
+        self.assertIn('authorize_user', [name for name, _ in self.fake_oauth.calls])
+
 
 if __name__ == '__main__':
     out_dir = ROOT / 'temp' / 'broker-rollout'
@@ -178,4 +191,4 @@ if __name__ == '__main__':
     result = runner.run(unittest.defaultTestLoader.loadTestsFromTestCase(NativeLegacySecretGatingTests))
     if not result.wasSuccessful():
         sys.exit(1)
-    print('PASS A4 Python legacy-secret gating: four secret actions blocked in production, dev-only opt-in works.')
+    print('PASS A4 Python legacy-secret gating: broker-on blocks fallback; broker-off and dev opt-in work.')

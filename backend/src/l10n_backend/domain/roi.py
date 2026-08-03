@@ -329,81 +329,42 @@ class RoiService:
         item.display_final_tm_json = payload.get("display_final_tm") or {}
         item.review_status = "confirmed"
 
-        # Enqueue C jobs for all policy locales.
+        # Enqueue one immutable C job per confirmed item and policy locale.
         source_locale = run.source_locale
         project_ids = list(run.project_ids_json)
-        chunk_size = self.settings.starling_batch_size
-        # We enqueue one C item per locale here; debounce/batching happens in
-        # the worker via a short wait window per (run, locale, stage). For
-        # strict delivery guarantees we queue per-item jobs; the worker may
-        # coalesce into batches when leasing.
         run.revision += 1
         run.c_state = "queued"
-        # Collect all currently confirmed items per locale for this run to
-        # ensure idempotent re-queues on replay.
-        confirmed_items = self.db.execute(
-            select(RoiItem).where(RoiItem.run_id == run_id, RoiItem.review_status == "confirmed")
-        ).scalars().all()
-        confirmed_ids = [ci.item_id for ci in confirmed_items]
         for locale in {lp.target_locale for lp in self.policy.locales.values() if lp.source_locale == source_locale}:
-            # schedule batches over all confirmed items (idempotent by unique key)
-            for batch_idx, batch in enumerate(_chunk(confirmed_ids, chunk_size)):
-                text_hash_concat = hashlib.sha256(
-                    ("|".join(sorted(batch))).encode("utf-8")
-                ).hexdigest()
-                # The unique key on (run_id, item_id, locale, stage, text_hash,
-                # policy_version) would reject repeated batch items, so we use
-                # item_id=batch:<idx> per locale here.
-                existing = self.db.execute(
-                    select(RoiJob).where(
-                        RoiJob.run_id == run_id,
-                        RoiJob.locale == locale,
-                        RoiJob.stage == "C",
-                        RoiJob.task_type == "starling_batch_tm",
-                        RoiJob.item_id == f"batch:{batch_idx}",
-                        RoiJob.policy_version == run.policy_version,
-                    )
-                ).scalar_one_or_none()
-                payload_job = {
+            job = RoiJob(
+                job_id=generate_uuid7_like(),
+                run_id=run_id,
+                item_id=item.item_id,
+                locale=locale,
+                stage="C",
+                text_hash=final_hash,
+                policy_version=run.policy_version,
+                task_type="starling_batch_tm",
+                payload_json={
                     "stage": "C",
                     "source_locale": source_locale,
                     "target_locale": locale,
                     "project_ids": project_ids,
-                    "item_ids": batch,
-                    "batch_index": batch_idx,
+                    "item_ids": [item.item_id],
                     "policy_version": run.policy_version,
-                }
-                if existing is None:
-                    job = RoiJob(
-                        job_id=generate_uuid7_like(),
-                        run_id=run_id,
-                        item_id=f"batch:{batch_idx}",
-                        locale=locale,
-                        stage="C",
-                        text_hash=text_hash_concat,
-                        policy_version=run.policy_version,
-                        task_type="starling_batch_tm",
-                        payload_json=payload_job,
-                        status="queued",
-                        attempts=0,
-                        fencing_token=0,
-                    )
-                    self.db.add(job)
-                    self.db.add(
-                        RoiOutboxEvent(
-                            event_id=generate_uuid7_like(),
-                            run_id=run_id,
-                            event_type="roi.run.c_jobs_enqueued",
-                            payload_json={"job_id": job.job_id, "locale": locale, "stage": "C"},
-                        )
-                    )
-                else:
-                    existing.payload_json = payload_job
-                    if existing.status in {"terminal_failure", "failed"}:
-                        existing.status = "queued"
-                        existing.attempts = 0
-                        existing.last_error_code = ""
-                        existing.last_error_message = ""
+                },
+                status="queued",
+                attempts=0,
+                fencing_token=0,
+            )
+            self.db.add(job)
+            self.db.add(
+                RoiOutboxEvent(
+                    event_id=generate_uuid7_like(),
+                    run_id=run_id,
+                    event_type="roi.run.c_jobs_enqueued",
+                    payload_json={"job_id": job.job_id, "locale": locale, "stage": "C"},
+                )
+            )
         return run, item, run.revision
 
     # ----- archive -----
@@ -495,17 +456,20 @@ class RoiService:
                 RoiScopeResult.status == "complete",
             )
         ) or 0
-        confirmed_count = self.db.scalar(
-            select(func.count(RoiItem.id)).where(RoiItem.run_id == run_id, RoiItem.review_status == "confirmed")
-        ) or 0
+        current_final_hashes = self._current_confirmed_hashes(run_id)
+        confirmed_count = len(current_final_hashes)
         expected_c = confirmed_count * run.selected_scope_count
-        complete_c = self.db.scalar(
-            select(func.count(RoiScopeResult.id)).where(
+        complete_c_rows = self.db.execute(
+            select(RoiScopeResult.item_id, RoiScopeResult.text_hash).where(
                 RoiScopeResult.run_id == run_id,
                 RoiScopeResult.stage == "C",
                 RoiScopeResult.status == "complete",
             )
-        ) or 0
+        ).all()
+        complete_c = sum(
+            1 for item_id, text_hash in complete_c_rows
+            if current_final_hashes.get(item_id) == text_hash
+        )
         complete_pairs = self._count_complete_pairs(run_id)
         # compute complete_scope_count after seal
         complete_scope_count = self._count_complete_scopes(run_id)
@@ -550,8 +514,19 @@ class RoiService:
         }
 
     # ----- aggregation helpers -----
+    def _current_confirmed_hashes(self, run_id: str) -> dict[str, str]:
+        """返回本轮当前已确认文本的 item→hash 映射，排除历史 C 版本。"""
+        items = self.db.execute(
+            select(RoiItem).where(
+                RoiItem.run_id == run_id,
+                RoiItem.review_status == "confirmed",
+            )
+        ).scalars().all()
+        return {item.item_id: item.final_hash for item in items if item.final_hash}
+
     def _count_complete_pairs(self, run_id: str) -> int:
         # Count (item, locale) where both A and C are complete.
+        current_final_hashes = self._current_confirmed_hashes(run_id)
         a = self.db.execute(
             select(RoiScopeResult.item_id, RoiScopeResult.locale).where(
                 RoiScopeResult.run_id == run_id,
@@ -559,13 +534,18 @@ class RoiService:
                 RoiScopeResult.status == "complete",
             )
         ).all()
-        c = self.db.execute(
-            select(RoiScopeResult.item_id, RoiScopeResult.locale).where(
+        c_rows = self.db.execute(
+            select(RoiScopeResult.item_id, RoiScopeResult.locale, RoiScopeResult.text_hash).where(
                 RoiScopeResult.run_id == run_id,
                 RoiScopeResult.stage == "C",
                 RoiScopeResult.status == "complete",
             )
         ).all()
+        c = {
+            (item_id, locale)
+            for item_id, locale, text_hash in c_rows
+            if current_final_hashes.get(item_id) == text_hash
+        }
         return len(set(a) & set(c))
 
     def _count_complete_scopes(self, run_id: str) -> int:
@@ -576,13 +556,20 @@ class RoiService:
         # every item has complete A; unconfirmed items seal incomplete.
         items = self.db.execute(select(RoiItem).where(RoiItem.run_id == run_id)).scalars().all()
         item_ids = [it.item_id for it in items]
-        confirmed_ids = {it.item_id for it in items if it.review_status == "confirmed"}
+        current_final_hashes = {
+            item.item_id: item.final_hash
+            for item in items
+            if item.review_status == "confirmed" and item.final_hash
+        }
         complete = 0
         for lp in self.policy.locales.values():
             if lp.source_locale != run.source_locale:
                 continue
             ok = True
             for iid in item_ids:
+                if iid not in current_final_hashes:
+                    ok = False
+                    break
                 a = self.db.execute(
                     select(RoiScopeResult).where(
                         RoiScopeResult.run_id == run_id,
@@ -594,24 +581,25 @@ class RoiService:
                 if not a or a.status != "complete":
                     ok = False
                     break
-                if iid in confirmed_ids:
-                    c = self.db.execute(
-                        select(RoiScopeResult).where(
-                            RoiScopeResult.run_id == run_id,
-                            RoiScopeResult.locale == lp.target_locale,
-                            RoiScopeResult.item_id == iid,
-                            RoiScopeResult.stage == "C",
-                        )
-                    ).scalar_one_or_none()
-                    if not c or c.status != "complete":
-                        ok = False
-                        break
+                c = self.db.execute(
+                    select(RoiScopeResult).where(
+                        RoiScopeResult.run_id == run_id,
+                        RoiScopeResult.locale == lp.target_locale,
+                        RoiScopeResult.item_id == iid,
+                        RoiScopeResult.stage == "C",
+                        RoiScopeResult.text_hash == current_final_hashes[iid],
+                    )
+                ).scalar_one_or_none()
+                if not c or c.status != "complete":
+                    ok = False
+                    break
             if ok:
                 complete += 1
         return complete
 
     def _sum_saving(self, run_id: str) -> Decimal | None:
         # Sum per (item, locale) A.cost - C.cost for complete pairs only.
+        current_final_hashes = self._current_confirmed_hashes(run_id)
         a_rows = self.db.execute(
             select(RoiScopeResult.item_id, RoiScopeResult.locale, RoiScopeResult.cost_usd).where(
                 RoiScopeResult.run_id == run_id,
@@ -620,13 +608,22 @@ class RoiService:
             )
         ).all()
         c_rows = self.db.execute(
-            select(RoiScopeResult.item_id, RoiScopeResult.locale, RoiScopeResult.cost_usd).where(
+            select(
+                RoiScopeResult.item_id,
+                RoiScopeResult.locale,
+                RoiScopeResult.text_hash,
+                RoiScopeResult.cost_usd,
+            ).where(
                 RoiScopeResult.run_id == run_id,
                 RoiScopeResult.stage == "C",
                 RoiScopeResult.status == "complete",
             )
         ).all()
-        c_idx = {(iid, loc): cost for iid, loc, cost in c_rows}
+        c_idx = {
+            (item_id, locale): cost
+            for item_id, locale, text_hash, cost in c_rows
+            if current_final_hashes.get(item_id) == text_hash
+        }
         total: Decimal | None = None
         for iid, loc, a_cost in a_rows:
             c_cost = c_idx.get((iid, loc))

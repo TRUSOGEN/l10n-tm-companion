@@ -139,7 +139,7 @@ def test_create_run_and_archive_shadow(client: TestClient, tmp_path):
 
     revision = run["revision"]
     finals = ["Book your flight now.", "Please confirm your selected seat."]
-    for item, final in zip(items, finals, strict=True):
+    for confirmed_index, (item, final) in enumerate(zip(items, finals, strict=True), start=1):
         r = client.put(
             f"/v1/roi/runs/{run['run_id']}/items/{item['item_id']}/final",
             headers={**dev, "Idempotency-Key": f"final:{item['item_id']}:{sha256_hex(final)}"},
@@ -160,10 +160,41 @@ def test_create_run_and_archive_shadow(client: TestClient, tmp_path):
         )
         assert r.status_code == 202, r.text
         revision = r.json()["revision"]
+        with session_scope() as db:
+            while worker.run_once(db):
+                pass
+        status_after_confirm = client.get(f"/v1/roi/runs/{run['run_id']}", headers=dev).json()
+        assert status_after_confirm["coverage"]["complete_c_lines"] == status_after_confirm["coverage"]["expected_c_lines"], (
+            f"confirmation {confirmed_index} did not enqueue fresh C coverage: {status_after_confirm['coverage']}"
+        )
 
+    revised_again = "Book your flight immediately."
+    response = client.put(
+        f"/v1/roi/runs/{run['run_id']}/items/row-2/final",
+        headers={**dev, "Idempotency-Key": f"reconfirm:{sha256_hex(revised_again)}"},
+        json={
+            "expected_revision": revision,
+            "final_text": revised_again,
+            "final_text_hash": sha256_hex(revised_again),
+            "confirmed_at": dt.datetime.now(dt.timezone.utc).isoformat(),
+            "sheet_write_receipt": {
+                "document_token": "sht-1",
+                "sheet_id": "sh-1",
+                "row": 2,
+                "output_range": "B2:G2",
+                "output_hash": sha256_hex(revised_again + ":written"),
+            },
+            "display_final_tm": {"score": 91.0, "match_category": None},
+        },
+    )
+    assert response.status_code == 202, response.text
+    revision = response.json()["revision"]
     with session_scope() as db:
         while worker.run_once(db):
             pass
+    status_after_reconfirm = client.get(f"/v1/roi/runs/{run['run_id']}", headers=dev).json()
+    assert status_after_reconfirm["coverage"]["complete_c_lines"] == status_after_reconfirm["coverage"]["expected_c_lines"]
+    assert status_after_reconfirm["coverage"]["complete_a_c_pairs"] == status_after_reconfirm["coverage"]["expected_c_lines"]
 
     r = client.post(
         f"/v1/roi/runs/{run['run_id']}/archive",
@@ -179,3 +210,88 @@ def test_create_run_and_archive_shadow(client: TestClient, tmp_path):
     status = client.get(f"/v1/roi/runs/{run['run_id']}", headers=dev).json()
     assert status["archive_state"] in {"complete", "incomplete"}
     assert status["coverage"]["complete_a_lines"] >= 1
+
+
+def test_archive_with_unconfirmed_items_is_incomplete_but_keeps_valid_pairs(client: TestClient, tmp_path):
+    """未确认条目必须形成 gap，已确认 A-C pair 仍保留有效小计证据。"""
+    _sess, ex = _do_oauth_exchange(client)
+    dev = _auth_headers(ex["device_session_token"])
+    sources = ["First source line.", "Second source line."]
+    items = [
+        {
+            "item_id": f"row-{index}",
+            "source_key": f"key-{index}",
+            "sheet_row": index,
+            "source_text": text,
+            "source_hash": sha256_hex(text),
+        }
+        for index, text in enumerate(sources, start=2)
+    ]
+    response = client.post(
+        "/v1/roi/runs",
+        headers={**dev, "Idempotency-Key": "create-partial-run"},
+        json={
+            "client_run_id": f"partial-{int(time.time() * 1000)}",
+            "started_at": dt.datetime.now(dt.timezone.utc).isoformat(),
+            "sheet": {"document_token": "sht-1", "sheet_id": "sh-1", "source_range": "A2:A3"},
+            "projects": [{"project_id": "278", "name": "TikTok_main"}],
+            "display_scope": {"source_locale": "en", "target_locale": "fr", "project_ids": ["278"]},
+            "items": items,
+        },
+    )
+    assert response.status_code == 201, response.text
+    run = response.json()
+    settings = Settings(
+        database_url=f"sqlite:///{tmp_path}/test.db",
+        roi_policy_path=str(Path(__file__).resolve().parents[1] / "config" / "policy.example.json"),
+        async_roi_enabled=True,
+        legacy_local_secret_dev_only=True,
+    )
+    worker = RoiWorker(
+        settings=settings,
+        policy=load_policy_from_path(settings.roi_policy_path),
+        starling=InMemoryStarlingGateway(),
+        crypto=InsecureDevEnvelopeCrypto(),
+    )
+    with session_scope() as db:
+        while worker.run_once(db):
+            pass
+
+    final_text = "First confirmed final."
+    response = client.put(
+        f"/v1/roi/runs/{run['run_id']}/items/row-2/final",
+        headers={**dev, "Idempotency-Key": f"partial-final:{sha256_hex(final_text)}"},
+        json={
+            "expected_revision": run["revision"],
+            "final_text": final_text,
+            "final_text_hash": sha256_hex(final_text),
+            "confirmed_at": dt.datetime.now(dt.timezone.utc).isoformat(),
+            "sheet_write_receipt": {
+                "document_token": "sht-1",
+                "sheet_id": "sh-1",
+                "row": 2,
+                "output_range": "B2:G2",
+                "output_hash": sha256_hex(final_text + ":written"),
+            },
+            "display_final_tm": {"score": 90.0, "match_category": None},
+        },
+    )
+    assert response.status_code == 202, response.text
+    revision = response.json()["revision"]
+    with session_scope() as db:
+        while worker.run_once(db):
+            pass
+
+    response = client.post(
+        f"/v1/roi/runs/{run['run_id']}/archive",
+        headers={**dev, "Idempotency-Key": "archive-partial-run"},
+        json={"expected_revision": revision, "requested_at": dt.datetime.now(dt.timezone.utc).isoformat()},
+    )
+    assert response.status_code == 202, response.text
+    with session_scope() as db:
+        while worker.run_once(db):
+            pass
+    status = client.get(f"/v1/roi/runs/{run['run_id']}", headers=dev).json()
+    assert status["archive_state"] == "incomplete"
+    assert status["complete_scope_count"] == 0
+    assert status["coverage"]["complete_a_c_pairs"] > 0

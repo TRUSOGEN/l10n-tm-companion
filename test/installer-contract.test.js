@@ -92,6 +92,10 @@ assert.ok(packageScript.includes('native-host/starling-bridge.py'), '线下包�
 assert.ok(packageScript.includes('native-host/feishu_oauth_broker.py'), '线下包必须包含 Feishu Broker Native Host 模块');
 assert.ok(packageScript.includes('native-host/roi_broker_client.py'), '线下包必须包含异步 ROI Broker Native Host 模块');
 assert.ok(packageScript.includes('runtime/bin'), '线下包必须封装私有运行环境');
+assert.ok(
+  fs.readFileSync(path.join(root, 'scripts/run-full-regression.sh'), 'utf8').includes('test/*.py'),
+  '完整回归必须发现所有顶层 Python 测试命名形式',
+);
 assert.ok(installScript.includes('runtime/bin'), '安装时必须优先使用插件私有运行环境');
 assert.ok(
   installScript.includes('_resolve_starling_cli_root') && installScript.includes('starling-agent-core'),
@@ -162,4 +166,4 @@ try {
   fs.rmSync(isolatedRoot, { recursive: true, force: true });
 }
 
-console.log('installer contract tests: 52 passed, 0 failed');
+console.log('installer contract tests: 53 passed, 0 failed');

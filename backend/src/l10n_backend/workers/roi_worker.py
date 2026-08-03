@@ -443,19 +443,23 @@ class RoiWorker:
         else:
             run.a_state = "running" if a_total or a_jobs_pending else "queued"
         # c_state
-        confirmed_count = db.scalar(
-            select(func.count(RoiItem.id)).where(RoiItem.run_id == run_id, RoiItem.review_status == "confirmed")
-        ) or 0
-        c_total = db.scalar(
-            select(func.count(RoiScopeResult.id)).where(
-                RoiScopeResult.run_id == run_id, RoiScopeResult.stage == "C"
+        confirmed_items = db.execute(
+            select(RoiItem).where(RoiItem.run_id == run_id, RoiItem.review_status == "confirmed")
+        ).scalars().all()
+        current_final_hashes = {item.item_id: item.final_hash for item in confirmed_items if item.final_hash}
+        current_c_rows = db.execute(
+            select(RoiScopeResult.item_id, RoiScopeResult.text_hash, RoiScopeResult.status).where(
+                RoiScopeResult.run_id == run_id,
+                RoiScopeResult.stage == "C",
             )
-        ) or 0
-        c_failed = db.scalar(
-            select(func.count(RoiScopeResult.id)).where(
-                RoiScopeResult.run_id == run_id, RoiScopeResult.stage == "C", RoiScopeResult.status == "failed"
-            )
-        ) or 0
+        ).all()
+        current_c_statuses = [
+            status for item_id, text_hash, status in current_c_rows
+            if current_final_hashes.get(item_id) == text_hash
+        ]
+        confirmed_count = len(current_final_hashes)
+        c_total = len(current_c_statuses)
+        c_failed = sum(status == "failed" for status in current_c_statuses)
         c_jobs_pending = db.scalar(
             select(func.count(RoiJob.job_id)).where(
                 RoiJob.run_id == run_id, RoiJob.stage == "C", RoiJob.status.in_(["queued", "running"])
@@ -517,6 +521,9 @@ class RoiWorker:
         for locale in locales:
             scope_ok = True
             for item in all_items:
+                if item.review_status != "confirmed":
+                    scope_ok = False
+                    break
                 a = db.execute(
                     select(RoiScopeResult).where(
                         RoiScopeResult.run_id == run.run_id,
@@ -528,21 +535,21 @@ class RoiWorker:
                 if not a or a.status != "complete":
                     scope_ok = False
                     break
-                if item.review_status == "confirmed":
-                    c = db.execute(
-                        select(RoiScopeResult).where(
-                            RoiScopeResult.run_id == run.run_id,
-                            RoiScopeResult.item_id == item.item_id,
-                            RoiScopeResult.locale == locale,
-                            RoiScopeResult.stage == "C",
-                        )
-                    ).scalar_one_or_none()
-                    if not c or c.status != "complete":
-                        scope_ok = False
-                        break
-                    if a.cost_usd is not None and c.cost_usd is not None:
-                        val = Decimal(a.cost_usd) - Decimal(c.cost_usd)
-                        total_saving = val if total_saving is None else total_saving + val
+                c = db.execute(
+                    select(RoiScopeResult).where(
+                        RoiScopeResult.run_id == run.run_id,
+                        RoiScopeResult.item_id == item.item_id,
+                        RoiScopeResult.locale == locale,
+                        RoiScopeResult.stage == "C",
+                        RoiScopeResult.text_hash == item.final_hash,
+                    )
+                ).scalar_one_or_none()
+                if not c or c.status != "complete":
+                    scope_ok = False
+                    break
+                if a.cost_usd is not None and c.cost_usd is not None:
+                    val = Decimal(a.cost_usd) - Decimal(c.cost_usd)
+                    total_saving = val if total_saving is None else total_saving + val
             if scope_ok:
                 complete_scopes += 1
         run.complete_scope_count = complete_scopes

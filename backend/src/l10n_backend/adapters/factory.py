@@ -58,9 +58,10 @@ def _normalize_env(env_name: str) -> str:
         return env
     if env in _DEV_ENVS:
         return env or "dev"
-    # Unknown environment names are treated conservatively as dev to avoid
-    # breaking local setups, but we recommend explicit configuration.
-    return env
+    raise ValueError(
+        f"Unsupported L10N_ENV {env_name!r}; expected one of "
+        f"{sorted(_DEV_ENVS | _PROD_ENVS)}"
+    )
 
 
 def _build_prod_secret_provider(settings: Settings) -> SecretManagerAdapter:

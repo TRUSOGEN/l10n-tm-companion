@@ -113,6 +113,11 @@ assert.deepEqual(await getFeishuCredentialStatus(), { configured: true });
 assert.equal(await saveFeishuAppSecret('secret-once'), 'tenant-saved');
 assert.equal(await getFeishuAccessToken(), 'tenant-saved', '保存后应复用短期 token 缓存');
 assert.equal(calls.some((call) => call.payload?.app_secret === 'secret-once'), true);
+assert.equal(
+  calls.find((call) => call.payload?.action === 'feishu_save_secret')?.payload?.allow_legacy_local_secret,
+  true,
+  'Broker 关闭时必须把已验证的 legacy 选择显式传给 Native Host',
+);
 assert.equal(calls.every((call) => call.action === 'native_feishu_credentials'), true);
 
 const originalPageUrl = 'https://bytedance.larkoffice.com/wiki/original';
@@ -122,6 +127,7 @@ assert.equal(authorization.profile.userId, 'u_test');
 assert.equal(authorization.profile.avatarUrl, 'https://example.com/avatar.png');
 const oauthCall = calls.find((call) => call.payload?.action === 'feishu_user_oauth');
 assert.equal(oauthCall.payload.return_url, originalPageUrl, 'OAuth 必须把原页面 URL 传给本机 callback');
+assert.equal(oauthCall.payload.allow_legacy_local_secret, true);
 assert.equal(localState.feishuUserAuthSchemaVersion, 2, '新版 token 必须记录实际 scope 校验版本');
 assert.equal((await getFeishuUserAuthorizationStatus()).connected, true);
 assert.equal(await getFeishuAccessToken(), 'user-token', '有效用户 token 应优先用于用户身份调用');
@@ -158,5 +164,6 @@ const ownerSetup = await configureFeishuApplication();
 assert.deepEqual(ownerSetup, { configured: true });
 assert.equal(calls.at(-1).payload.action, 'feishu_configure_app_secret');
 assert.equal('app_secret' in calls.at(-1).payload, false, 'Owner setup 不得让 App Secret 经过 Chrome');
+assert.equal(calls.at(-1).payload.allow_legacy_local_secret, true);
 
 console.log('feishu auth tests: 33 passed, 0 failed');

@@ -304,6 +304,50 @@ await testAsync('按 Run → Scopes → Items → Run status 顺序写入三层�
   assert.equal(writes[2].url.includes('/tables/tblItems/records/batch_create'), true);
 });
 
+await testAsync('第二个 vendor 只写 Run 与 Scopes，复用第一份共享 Items', async () => {
+  const calls = mockFetch([
+    { json: { code: 0, data: { node: { obj_type: 'bitable', obj_token: 'appROI' } } } },
+    { json: { code: 0, data: { items: [
+      { name: 'L10n ROI Runs', table_id: 'tblRuns' },
+      { name: 'L10n ROI Scopes', table_id: 'tblScopes' },
+      { name: 'L10n ROI Items', table_id: 'tblItems' },
+    ] } } },
+    { json: { code: 0, data: { items: fieldsFor(RUNS_FIELD_SCHEMA) } } },
+    { json: { code: 0, data: { items: fieldsFor(SCOPES_FIELD_SCHEMA) } } },
+    { json: { code: 0, data: { items: fieldsFor(ITEMS_FIELD_SCHEMA) } } },
+    { json: { code: 0, data: { items: ROI_VIEW_DEFINITIONS
+      .filter((view) => view.tableKey === 'runsTableId')
+      .map((view) => ({ view_name: view.viewName })) } } },
+    { json: { code: 0, data: { items: ROI_VIEW_DEFINITIONS
+      .filter((view) => view.tableKey === 'scopesTableId')
+      .map((view) => ({ view_name: view.viewName })) } } },
+    { json: { code: 0, data: { items: ROI_VIEW_DEFINITIONS
+      .filter((view) => view.tableKey === 'itemsTableId')
+      .map((view) => ({ view_name: view.viewName })) } } },
+    { json: { code: 0, data: { items: [], total: 6 } } },
+    { json: { code: 0, data: { items: [], total: 101 } } },
+    { json: { code: 0, data: { items: [], total: 1001 } } },
+    { json: { code: 0, data: { record: { record_id: 'recPacteraRun' } } } },
+    { json: { code: 0, data: { records: [{ record_id: 'recPacteraScope' }] } } },
+    { json: { code: 0, data: { record: { record_id: 'recPacteraRun' } } } },
+  ]);
+  const result = await writeRoiArchive({
+    config: archiveConfig(),
+    payload: {
+      run: { fields: { 'Run ID': 'roi-pactera', 'Write status': 'complete' } },
+      scopes: [{ fields: { Scope: '513:en:fr', 'Run ID': 'roi-pactera', 'ROI status': 'complete' } }],
+      items: [],
+    },
+  });
+  assert.deepEqual(result, {
+    runRecordId: 'recPacteraRun',
+    scopeRecordCount: 1,
+    itemRecordCount: 0,
+    status: 'complete',
+  });
+  assert.equal(calls.some((call) => call.url.includes('/tables/tblItems/records/batch_create')), false);
+});
+
 await testAsync('任一表达到 20,000 条容量上限时在写入前正确失败', async () => {
   const calls = mockFetch([
     { json: { code: 0, data: { node: { obj_type: 'bitable', obj_token: 'appROI' } } } },

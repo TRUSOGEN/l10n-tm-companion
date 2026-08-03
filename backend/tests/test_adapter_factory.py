@@ -25,6 +25,12 @@ def test_dev_defaults_build_insecure_adapters():
     assert isinstance(adapters.secret_provider, EnvVarSecretProvider)
 
 
+def test_unknown_environment_name_fails_closed():
+    """环境名拼写错误不能落入不安全的开发 adapter。"""
+    with pytest.raises(ValueError, match="Unsupported L10N_ENV"):
+        build_runtime_adapters(Settings(env_name="prd"))
+
+
 def test_starling_batch_size_requires_explicit_supported_limit():
     """Backend 默认保持 10，允许经审批配置 40，拒绝客户端范围外的值。"""
     assert Settings().starling_batch_size == 10

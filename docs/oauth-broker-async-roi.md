@@ -70,6 +70,8 @@ sequenceDiagram
 
 OAuth session 五分钟有效且一次性使用。Broker 只接受精确 allowlist 中的 localhost redirect URI，并校验公司身份、state、PKCE、scope 和授权码状态。长期 `device_session_token` 保存到 macOS Keychain，服务端只保存 hash；短期 Feishu access token 可以沿用当前 Chrome storage，以兼容 Working Sheet API。refresh token 永不返回插件。
 
+1.5 的 Broker feature flag 默认关闭。关闭态继续保留既有本机 Keychain App Secret 与 Feishu OAuth 功能，由受信扩展在检查 feature flag 后显式授权对应 Native Host 动作；Broker 开启后不发送该授权标记，任何 Broker 失败都直接暴露，不回退本地 Secret。
+
 长期刷新使用 grant endpoint，不复用五分钟 OAuth session。服务端按 grant 串行化 refresh，并使用 `refreshing → active | refresh_uncertain` 正确处理“Feishu 已轮换但数据库未提交”的崩溃窗口；该窗口要求用户重新授权，禁止伪装刷新成功或重复消费旧 token。
 
 ### 权限与安全

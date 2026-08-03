@@ -34,7 +34,7 @@ log "ALL_JS_TESTS_PASSED"
 log ""
 log "--- all Python test files ---"
 python_fail=0
-for f in test/*test.py; do
+for f in test/*.py; do
   if PYTHONPATH="$ROOT" "$PYTHON_BIN" "$f" >> "$OUT" 2>&1; then log "OK $f"; else log "FAIL $f"; python_fail=1; fi
 done
 if [ "$python_fail" -ne 0 ]; then exit 1; fi

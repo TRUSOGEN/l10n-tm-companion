@@ -244,5 +244,39 @@ test('双 vendor 从同一份 TM 快照派生金额，不复制 Starling 查询�
   assert.notEqual(results.RWS.summary.subtotalSaving, results.Pactera.summary.subtotalSaving);
 });
 
+test('正式双 vendor ROI 只汇总已确认 A-C，未确认条目保留 incomplete', () => {
+  const confirmed = {
+    source_text: 'Confirmed source',
+    final_source_text: 'Confirmed final',
+    similarity: 70,
+    final_tm: { status: 'complete', score: 90 },
+    review_status: 'confirmed',
+  };
+  const draft = {
+    source_text: 'Draft source',
+    ai_translation: 'Draft AI candidate',
+    similarity: 70,
+    post_rewrite_tm: { status: 'complete', score: 92 },
+    review_status: 'draft',
+  };
+  const results = deriveVendorRoiResults([{
+    scope: { key: '1:en:fr', sourceLocale: 'en', targetLocale: 'fr' },
+    items: [confirmed, draft],
+  }], {
+    schema_version: 1,
+    vendors: {
+      RWS: [{ source_locale: 'en', target_locale: 'fr', aipe_usd_per_1000_words: 1000, t_only_usd_per_1000_words: 2000 }],
+      Pactera: [{ source_locale: 'en', target_locale: 'fr', aipe_usd_per_1000_words: 3000, t_only_usd_per_1000_words: 4000 }],
+    },
+  }, ['RWS', 'Pactera']);
+  for (const vendor of ['RWS', 'Pactera']) {
+    const vendorResult = results[vendor];
+    assert.equal(vendorResult.summary.status, 'incomplete');
+    assert.equal(vendorResult.summary.coveredSegmentCount, 1);
+    assert.equal(vendorResult.scopeRuns[0].items[1].roi.status, 'incomplete');
+    assert.equal(vendorResult.scopeRuns[0].items[1].roi.reason, 'final_source_text_missing');
+  }
+});
+
 console.log(`\nmultilingual-roi 测试: ${passed} 通过 / ${failed} 失败`);
 if (failed > 0) process.exit(1);
