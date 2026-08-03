@@ -55,6 +55,80 @@ function fieldsFor(schema) {
   return schema.map((field, index) => ({ field_id: `fld${index}`, field_name: field.field_name, type: field.type }));
 }
 
+/** 安装可跨两次 writeRoiArchive 调用保留远端状态的 Feishu API fake。 */
+function installStatefulArchiveFetch({ failOnceAt = '' } = {}) {
+  const tables = {
+    tblRuns: { name: 'L10n ROI Runs', schema: RUNS_FIELD_SCHEMA, records: [] },
+    tblScopes: { name: 'L10n ROI Scopes', schema: SCOPES_FIELD_SCHEMA, records: [] },
+    tblItems: { name: 'L10n ROI Items', schema: ITEMS_FIELD_SCHEMA, records: [] },
+  };
+  const calls = [];
+  let failed = false;
+  let sequence = 0;
+  globalThis.fetch = async (rawUrl, options = {}) => {
+    const url = new URL(String(rawUrl));
+    const body = options.body ? JSON.parse(options.body) : null;
+    calls.push({ url: url.toString(), options, body });
+    const ok = (data) => ({ ok: true, json: async () => ({ code: 0, data }) });
+    if (url.pathname.endsWith('/wiki/v2/spaces/get_node')) {
+      return ok({ node: { obj_type: 'bitable', obj_token: 'appROI' } });
+    }
+    if (url.pathname.endsWith('/tables')) {
+      return ok({ items: Object.entries(tables).map(([table_id, table]) => ({ table_id, name: table.name })) });
+    }
+    const tableId = url.pathname.match(/\/tables\/(tbl[^/]+)/)?.[1];
+    const table = tables[tableId];
+    if (!table) throw new Error(`Unexpected stateful fake URL: ${url}`);
+    if (url.pathname.endsWith('/fields')) return ok({ items: fieldsFor(table.schema) });
+    if (url.pathname.endsWith('/views')) {
+      const key = tableId === 'tblRuns' ? 'runsTableId' : (tableId === 'tblScopes' ? 'scopesTableId' : 'itemsTableId');
+      return ok({ items: ROI_VIEW_DEFINITIONS.filter((view) => view.tableKey === key).map((view) => ({ view_name: view.viewName })) });
+    }
+    if (url.pathname.endsWith('/records/search')) {
+      const condition = body?.filter?.conditions?.[0];
+      const matches = table.records.filter((record) => (
+        String(record.fields?.[condition?.field_name] || '') === String(condition?.value?.[0] || '')
+      ));
+      return ok({ items: matches, total: matches.length, has_more: false });
+    }
+    if (options.method === 'GET' && url.pathname.endsWith('/records')) {
+      return ok({ items: [], total: table.records.length });
+    }
+    if (options.method === 'POST' && url.pathname.endsWith('/records')) {
+      const record = { record_id: `rec${++sequence}`, fields: body.fields };
+      table.records.push(record);
+      return ok({ record });
+    }
+    if (options.method === 'POST' && url.pathname.endsWith('/records/batch_create')) {
+      const created = body.records.map((record) => ({ record_id: `rec${++sequence}`, fields: record.fields }));
+      table.records.push(...created);
+      const stage = tableId === 'tblScopes' ? 'scopes' : 'items';
+      if (!failed && failOnceAt === stage) {
+        failed = true;
+        throw new Error(`simulated ${stage} response loss after remote commit`);
+      }
+      return ok({ records: created });
+    }
+    const recordId = url.pathname.match(/\/records\/(rec[^/]+)$/)?.[1];
+    if (options.method === 'PUT' && recordId) {
+      const record = table.records.find((entry) => entry.record_id === recordId);
+      if (!record) throw new Error(`Unknown record ${recordId}`);
+      record.fields = body.fields;
+      return ok({ record });
+    }
+    throw new Error(`Unexpected stateful fake operation: ${options.method || 'GET'} ${url}`);
+  };
+  return { calls, tables };
+}
+
+function resumableWritePayload(runId) {
+  return {
+    run: { fields: { 'Run ID': runId, 'Write status': 'complete' } },
+    scopes: [{ fields: { Scope: '513:en:fr', 'Run ID': runId, 'ROI status': 'complete' } }],
+    items: [{ fields: { 'Item ID': `${runId}:1`, 'Run ID': runId } }],
+  };
+}
+
 function archiveConfig() {
   return {
     feishuUserAccessToken: 'user-token',
@@ -270,10 +344,12 @@ await testAsync('按 Run → Scopes → Items → Run status 顺序写入三层�
     { json: { code: 0, data: { items: ROI_VIEW_DEFINITIONS
       .filter((view) => view.tableKey === 'itemsTableId')
       .map((view) => ({ view_name: view.viewName })) } } },
+    { json: { code: 0, data: { items: [], total: 0, has_more: false } } },
     { json: { code: 0, data: { items: [], total: 5 } } },
     { json: { code: 0, data: { items: [], total: 100 } } },
     { json: { code: 0, data: { items: [], total: 1000 } } },
     { json: { code: 0, data: { record: { record_id: 'recRun' } } } },
+    { json: { code: 0, data: { items: [{ record_id: 'recRun', fields: { 'Run ID': 'roi-success', 'Write status': 'writing' } }], total: 1, has_more: false } } },
     { json: { code: 0, data: { records: [{ record_id: 'recScope' }] } } },
     { json: { code: 0, data: { records: [{ record_id: 'recItem' }] } } },
     { json: { code: 0, data: { record: { record_id: 'recRun' } } } },
@@ -297,7 +373,9 @@ await testAsync('按 Run → Scopes → Items → Run status 顺序写入三层�
   assert.equal(calls.some((call) => call.url.includes('/tables/tblScopes/records/batch_create')), true);
   assert.equal(calls.some((call) => call.url.includes('/tables/tblItems/records/batch_create')), true);
   const writes = calls.filter((call) => (
-    call.url.includes('/records') && ['POST', 'PUT'].includes(call.options.method)
+    call.url.includes('/records')
+      && !call.url.includes('/records/search')
+      && ['POST', 'PUT'].includes(call.options.method)
   ));
   assert.equal(writes[0].url.includes('/tables/tblRuns/records'), true);
   assert.equal(writes[1].url.includes('/tables/tblScopes/records/batch_create'), true);
@@ -324,10 +402,12 @@ await testAsync('第二个 vendor 只写 Run 与 Scopes，复用第一份共享 
     { json: { code: 0, data: { items: ROI_VIEW_DEFINITIONS
       .filter((view) => view.tableKey === 'itemsTableId')
       .map((view) => ({ view_name: view.viewName })) } } },
+    { json: { code: 0, data: { items: [], total: 0, has_more: false } } },
     { json: { code: 0, data: { items: [], total: 6 } } },
     { json: { code: 0, data: { items: [], total: 101 } } },
     { json: { code: 0, data: { items: [], total: 1001 } } },
     { json: { code: 0, data: { record: { record_id: 'recPacteraRun' } } } },
+    { json: { code: 0, data: { items: [{ record_id: 'recPacteraRun', fields: { 'Run ID': 'roi-pactera', 'Write status': 'writing' } }], total: 1, has_more: false } } },
     { json: { code: 0, data: { records: [{ record_id: 'recPacteraScope' }] } } },
     { json: { code: 0, data: { record: { record_id: 'recPacteraRun' } } } },
   ]);
@@ -346,6 +426,49 @@ await testAsync('第二个 vendor 只写 Run 与 Scopes，复用第一份共享 
     status: 'complete',
   });
   assert.equal(calls.some((call) => call.url.includes('/tables/tblItems/records/batch_create')), false);
+});
+
+await testAsync('Run 已创建且 Scope 响应丢失后按稳定键续写，不重复 Run 或 Scope', async () => {
+  const fake = installStatefulArchiveFetch({ failOnceAt: 'scopes' });
+  const payload = resumableWritePayload('roi-resume-scope');
+  await assert.rejects(
+    writeRoiArchive({ config: archiveConfig(), payload }),
+    /simulated scopes response loss after remote commit/,
+  );
+  const result = await writeRoiArchive({ config: archiveConfig(), payload });
+  assert.equal(result.status, 'complete');
+  assert.equal(fake.tables.tblRuns.records.length, 1);
+  assert.equal(fake.tables.tblScopes.records.length, 1);
+  assert.equal(fake.tables.tblItems.records.length, 1);
+});
+
+await testAsync('Scopes 和 Items 已远端成功但 Item 响应丢失时只完成状态，不重复明细', async () => {
+  const fake = installStatefulArchiveFetch({ failOnceAt: 'items' });
+  const payload = resumableWritePayload('roi-resume-item');
+  await assert.rejects(
+    writeRoiArchive({ config: archiveConfig(), payload }),
+    /simulated items response loss after remote commit/,
+  );
+  const result = await writeRoiArchive({ config: archiveConfig(), payload });
+  assert.equal(result.status, 'complete');
+  assert.equal(fake.tables.tblRuns.records.length, 1);
+  assert.equal(fake.tables.tblScopes.records.length, 1);
+  assert.equal(fake.tables.tblItems.records.length, 1);
+});
+
+await testAsync('同一 Run ID 已有多条 Run 时正确失败且不追加明细', async () => {
+  const fake = installStatefulArchiveFetch();
+  const payload = resumableWritePayload('roi-duplicate');
+  fake.tables.tblRuns.records.push(
+    { record_id: 'recDuplicate1', fields: { 'Run ID': 'roi-duplicate', 'Write status': 'writing' } },
+    { record_id: 'recDuplicate2', fields: { 'Run ID': 'roi-duplicate', 'Write status': 'writing' } },
+  );
+  await assert.rejects(
+    writeRoiArchive({ config: archiveConfig(), payload }),
+    /duplicate Run ID: roi-duplicate \(2 records\)/,
+  );
+  assert.equal(fake.tables.tblScopes.records.length, 0);
+  assert.equal(fake.tables.tblItems.records.length, 0);
 });
 
 await testAsync('任一表达到 20,000 条容量上限时在写入前正确失败', async () => {
@@ -368,6 +491,7 @@ await testAsync('任一表达到 20,000 条容量上限时在写入前正确失�
     { json: { code: 0, data: { items: ROI_VIEW_DEFINITIONS
       .filter((view) => view.tableKey === 'itemsTableId')
       .map((view) => ({ view_name: view.viewName })) } } },
+    { json: { code: 0, data: { items: [], total: 0, has_more: false } } },
     { json: { code: 0, data: { items: [], total: 20000 } } },
   ]);
   await assert.rejects(
@@ -381,7 +505,11 @@ await testAsync('任一表达到 20,000 条容量上限时在写入前正确失�
     }),
     /L10n ROI Runs capacity exceeded: 20000 \+ 1 > 20000/,
   );
-  assert.equal(calls.some((call) => call.options.method === 'POST' && call.url.includes('/records')), false);
+  assert.equal(calls.some((call) => (
+    call.options.method === 'POST'
+      && call.url.includes('/records')
+      && !call.url.includes('/records/search')
+  )), false);
 });
 
 await testAsync('99991679 必须废弃当前 token 并提示发布新版本后重新授权', async () => {

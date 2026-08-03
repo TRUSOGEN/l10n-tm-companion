@@ -146,7 +146,7 @@ ROI archive 独立于 Working spreadsheet，固定指向 [ROI_Test](https://byte
 
 结果页在至少一条 source 完成 `本地校验 → Final TM → Sheet 写入` 并成为 confirmed 后启用 `Write ROI archive`；单条与批量确认使用相同 confirmed 语义，零确认整车必须拒绝归档。Review 和 Confirm 只等待展示 scope；点击归档后先显示固定目标、确认/未确认数量与预计记录数，用户取消时不补算延后语言也不调用飞书写入。用户确认后，插件以最多三个 scope 并发补齐其余语言 A/C，再分别写入 RWS 与 Pactera 的 Runs/Scopes，并只在第一份写入 Items。Runs 保存整车金额、Operator 与漏斗；Scopes 保存语言金额、覆盖与漏斗；Items 每条 source 只保存一条 A/B/C 审核记录。已有表缺字段时只创建缺失字段；同名字段类型冲突时停止并报告 schema mismatch。
 
-RWS 与 Pactera 的本地写入计划会在首次写入前随运行快照保存。任一 vendor 写入失败后，错误信息会列出已完成 vendor；再次点击归档时复用同一组 Run ID，跳过已完成 vendor并仅续写失败项。关闭再打开 Side Panel 也按相同状态恢复，直到启动新运行或显式重置。
+RWS 与 Pactera 的本地写入计划会在首次写入前随运行快照保存。任一 vendor 写入失败后，错误信息会列出已完成 vendor；再次点击归档时复用同一组 Run ID，跳过已完成 vendor并仅续写失败项。真实 writer 会查询既有 Run/Scope/Item 并只追加缺失业务键，因此 Run 创建、Scope 批量写入或 Item 批量写入后发生响应丢失也可安全续写；同一 Run ID 已有多条 Run 时停止并报告数据冲突。关闭再打开 Side Panel 也按相同状态恢复，直到启动新运行或显式重置。
 
 Settings 不允许编辑固定 App ID，也不展示 App Secret 输入框；Chrome storage 中的历史 `feishuAppId` / `feishuAppSecret` 会在升级时清除。普通用户在 Side Panel 首页点击 `Authorize`，完成后首页立即显示姓名、user ID 和头像并重跑环境检查。回调页只确认收到 authorization response，只有 v2 token 交换、用户资料读取与本地保存全部成功后才显示已授权。应用 Owner 需为用户身份开通并发布细分 Sheet scope、`wiki:node:read`、Bitable table/field scope、`base:record:read`、`base:record:retrieve`、`base:record:create`、`base:record:update`、`base:view:read`、`base:view:write_only`、`contact:user.base:readonly` 与 `contact:user.employee_id:readonly`，并登记 localhost 回调地址。1.3.0 新增记录读取与视图权限，已有用户必须重新授权一次；1.3.1 起，插件会比较本地 token scope 与当前必需 scope，缺失时首页显示具体权限并切换为 `Reconnect`；1.3.2 修正容量预检的“列出记录”权限为 `base:record:retrieve`；1.3.3 只信任 v2 token 响应实际返回的 scope，并一次性废弃 1.3.2 及更早无法证明 scope 来源的本地 token。用户未授权、应用权限未发布、token broker/Keychain 未配置或文档权限不足时，读写与归档停止并展示真实错误。
 

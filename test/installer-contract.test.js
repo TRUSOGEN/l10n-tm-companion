@@ -81,6 +81,12 @@ assert.ok(
   packageScript.includes("--exclude='.DS_Store'") && packageScript.includes("--exclude='._*'"),
   '线下包必须过滤 macOS Finder 元数据，避免不可移植文件导致构建失败',
 );
+assert.ok(
+  packageScript.includes('--norsrc')
+    && packageScript.includes('--noextattr')
+    && !packageScript.includes('--sequesterRsrc'),
+  '最终 ZIP 必须禁止 resource fork 和扩展属性，不能生成 __MACOSX/._*',
+);
 for (const [relativePath, expectedHash] of Object.entries(expectedRuleHashes)) {
   const assetPath = path.join(contentReviewRoot, relativePath);
   assert.ok(fs.existsSync(assetPath), `规则快照必须存在：${relativePath}`);

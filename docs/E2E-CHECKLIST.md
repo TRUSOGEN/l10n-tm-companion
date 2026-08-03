@@ -65,6 +65,7 @@
 - [ ] 删除一个漏斗字段后再次写入，插件只创建缺失字段；把同名字段改为错误类型时显示 schema mismatch，且不创建新的 Run 记录
 - [ ] 临时撤销 Scope 表写入权限后运行，已创建 Run 最终为 `write_failed` 并记录真实 API 失败原因
 - [ ] 模拟 RWS 成功、Pactera 首次失败；再次点击归档只重试 Pactera，两个 vendor 均复用首次持久化的 Run ID，RWS 不产生重复记录
+- [ ] 分别模拟 Scope 与 Item 已远端提交但响应丢失；重试按 Run ID、Scope、Item ID 只补缺失记录，同一 Run ID 出现两条 Run 时明确停止
 - [ ] 任一归档表达到 20,000 条上限时，在创建 Run 记录前明确报 capacity exceeded
 
 ## 错误恢复（T23 可操作提示）

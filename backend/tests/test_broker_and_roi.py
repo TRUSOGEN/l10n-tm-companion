@@ -7,13 +7,14 @@ import time
 from pathlib import Path
 
 from fastapi.testclient import TestClient
+from sqlalchemy import select
 
 from l10n_backend.config import Settings
 from l10n_backend.crypto import InsecureDevEnvelopeCrypto, generate_pkce_pair, sha256_hex
 from l10n_backend.domain.policy import load_policy_from_path
 from l10n_backend.domain.pricing import resolve_tm_pricing
 from l10n_backend.models.db import session_scope
-from l10n_backend.models import RoiRun
+from l10n_backend.models import RoiJob, RoiRun
 from l10n_backend.workers.roi_worker import InMemoryStarlingGateway, RoiWorker
 
 
@@ -217,6 +218,43 @@ def test_create_run_and_archive_shadow(client: TestClient, tmp_path):
     status_after_reconfirm = client.get(f"/v1/roi/runs/{run['run_id']}", headers=dev).json()
     assert status_after_reconfirm["coverage"]["complete_c_lines"] == status_after_reconfirm["coverage"]["expected_c_lines"]
     assert status_after_reconfirm["coverage"]["complete_a_c_pairs"] == status_after_reconfirm["coverage"]["expected_c_lines"]
+
+    # A→B→C→A 必须复用历史 A hash 的 job/result，不能再次插入同一唯一键。
+    historical_final = finals[0]
+    response = client.put(
+        f"/v1/roi/runs/{run['run_id']}/items/row-2/final",
+        headers={**dev, "Idempotency-Key": f"reconfirm-historical:{sha256_hex(historical_final)}"},
+        json={
+            "expected_revision": revision,
+            "final_text": historical_final,
+            "final_text_hash": sha256_hex(historical_final),
+            "confirmed_at": dt.datetime.now(dt.timezone.utc).isoformat(),
+            "sheet_write_receipt": {
+                "document_token": "sht-1",
+                "sheet_id": "sh-1",
+                "row": 2,
+                "output_range": "B2:G2",
+                "output_hash": sha256_hex(historical_final + ":written-again"),
+            },
+            "display_final_tm": {"score": 93.0, "match_category": None},
+        },
+    )
+    assert response.status_code == 202, response.text
+    revision = response.json()["revision"]
+    with session_scope() as db:
+        historical_jobs = db.execute(
+            select(RoiJob).where(
+                RoiJob.run_id == run["run_id"],
+                RoiJob.item_id == "row-2",
+                RoiJob.stage == "C",
+                RoiJob.text_hash == sha256_hex(historical_final),
+            )
+        ).scalars().all()
+        assert len(historical_jobs) == len(load_policy_from_path(settings.roi_policy_path).locales)
+        while worker.run_once(db):
+            pass
+    status_after_historical = client.get(f"/v1/roi/runs/{run['run_id']}", headers=dev).json()
+    assert status_after_historical["coverage"]["complete_c_lines"] == status_after_historical["coverage"]["expected_c_lines"]
 
     r = client.post(
         f"/v1/roi/runs/{run['run_id']}/archive",

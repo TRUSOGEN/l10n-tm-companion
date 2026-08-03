@@ -333,38 +333,85 @@ class RoiService:
         source_locale = run.source_locale
         project_ids = list(run.project_ids_json)
         run.revision += 1
-        run.c_state = "queued"
+        c_work_pending = False
         for locale in {lp.target_locale for lp in self.policy.locales.values() if lp.source_locale == source_locale}:
-            job = RoiJob(
-                job_id=generate_uuid7_like(),
-                run_id=run_id,
-                item_id=item.item_id,
-                locale=locale,
-                stage="C",
-                text_hash=final_hash,
-                policy_version=run.policy_version,
-                task_type="starling_batch_tm",
-                payload_json={
-                    "stage": "C",
-                    "source_locale": source_locale,
-                    "target_locale": locale,
-                    "project_ids": project_ids,
-                    "item_ids": [item.item_id],
-                    "policy_version": run.policy_version,
-                },
-                status="queued",
-                attempts=0,
-                fencing_token=0,
-            )
-            self.db.add(job)
-            self.db.add(
-                RoiOutboxEvent(
-                    event_id=generate_uuid7_like(),
-                    run_id=run_id,
-                    event_type="roi.run.c_jobs_enqueued",
-                    payload_json={"job_id": job.job_id, "locale": locale, "stage": "C"},
+            existing_job = self.db.execute(
+                select(RoiJob).where(
+                    RoiJob.run_id == run_id,
+                    RoiJob.item_id == item.item_id,
+                    RoiJob.locale == locale,
+                    RoiJob.stage == "C",
+                    RoiJob.text_hash == final_hash,
+                    RoiJob.policy_version == run.policy_version,
+                    RoiJob.task_type == "starling_batch_tm",
                 )
-            )
+            ).scalar_one_or_none()
+            existing_result = self.db.execute(
+                select(RoiScopeResult).where(
+                    RoiScopeResult.run_id == run_id,
+                    RoiScopeResult.item_id == item.item_id,
+                    RoiScopeResult.locale == locale,
+                    RoiScopeResult.stage == "C",
+                    RoiScopeResult.text_hash == final_hash,
+                    RoiScopeResult.policy_version == run.policy_version,
+                )
+            ).scalar_one_or_none()
+            enqueue_event = False
+            if existing_job is None:
+                job = RoiJob(
+                    job_id=generate_uuid7_like(),
+                    run_id=run_id,
+                    item_id=item.item_id,
+                    locale=locale,
+                    stage="C",
+                    text_hash=final_hash,
+                    policy_version=run.policy_version,
+                    task_type="starling_batch_tm",
+                    payload_json={
+                        "stage": "C",
+                        "source_locale": source_locale,
+                        "target_locale": locale,
+                        "project_ids": project_ids,
+                        "item_ids": [item.item_id],
+                        "policy_version": run.policy_version,
+                    },
+                    status="queued",
+                    attempts=0,
+                    fencing_token=0,
+                )
+                self.db.add(job)
+                enqueue_event = True
+                c_work_pending = True
+            elif (
+                existing_job.status == "complete"
+                and existing_result is not None
+                and existing_result.status == "complete"
+            ):
+                job = existing_job
+            elif existing_job.status in {"queued", "running"}:
+                job = existing_job
+                c_work_pending = True
+            else:
+                job = existing_job
+                job.status = "queued"
+                job.attempts = 0
+                job.leased_by = None
+                job.leased_until = None
+                job.last_error_code = ""
+                job.last_error_message = ""
+                enqueue_event = True
+                c_work_pending = True
+            if enqueue_event:
+                self.db.add(
+                    RoiOutboxEvent(
+                        event_id=generate_uuid7_like(),
+                        run_id=run_id,
+                        event_type="roi.run.c_jobs_enqueued",
+                        payload_json={"job_id": job.job_id, "locale": locale, "stage": "C"},
+                    )
+                )
+        if c_work_pending:
+            run.c_state = "queued"
         return run, item, run.revision
 
     # ----- archive -----

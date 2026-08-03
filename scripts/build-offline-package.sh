@@ -148,7 +148,8 @@ mkdir -p "$OUTPUT_DIR"
 /usr/bin/ditto --noqtn "$APP_PATH" "$OUTPUT_DIR/$APP_NAME"
 /usr/bin/ditto --noqtn "$PACKAGE_ROOT/$MANUAL_NAME" "$OUTPUT_DIR/$MANUAL_NAME"
 
-/usr/bin/ditto -c -k --sequesterRsrc --keepParent "$PACKAGE_ROOT" "$OUTPUT_DIR/$ARCHIVE_NAME"
+# ZIP 不需要 Finder resource fork；显式关闭扩展属性，避免 __MACOSX/._* 污染交付物。
+/usr/bin/ditto -c -k --norsrc --noextattr --keepParent "$PACKAGE_ROOT" "$OUTPUT_DIR/$ARCHIVE_NAME"
 
 echo "线下安装包已生成：$OUTPUT_DIR"
 echo "外层文件：${APP_NAME}、${MANUAL_NAME}、${ARCHIVE_NAME}"

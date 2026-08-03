@@ -230,7 +230,7 @@ cat /tmp/l10n-bridge-debug.log     # 看 PATH/which starling-cli/收到的 actio
 
 - **批量上限**：`projectIds` 始终最多 10 个；`sourceContents` 默认按已验证的 10 条分批，RD 批准且 PPE 复验通过后可显式配置到最多 40 条。越界或无效配置会正确失败。
 - **PPE 依赖**：默认批量模式发送 `x-use-ppe: 1` 与 `x-tt-env: ppe_openapi_integ`；上线生产环境前需由 Starling 确认路由与鉴权要求。
-- **ROI Bitable 归档**：目标固定为 [ROI_Test](https://bytedance.larkoffice.com/wiki/J1RJwEf0FijMQQkceUkcZyqCnJc?table=tbls3B039S6J7zdT&view=vewSwbY6Ry)，用户不能用历史设置覆盖；顺序追加 `L10n ROI Runs` / `L10n ROI Scopes` / `L10n ROI Items`，不替代普通 Sheet 写回。Runs 保存整车金额，Scopes 保存 target locale 金额和漏斗，Items 每个 source 只保存一条 CD 审计。插件幂等创建基础视图，并在写入前检查飞书每表 20,000 条记录上限；复杂分组、筛选和仪表盘由 ROI_Test Owner 在飞书界面一次性维护。
+- **ROI Bitable 归档**：目标固定为 [ROI_Test](https://bytedance.larkoffice.com/wiki/J1RJwEf0FijMQQkceUkcZyqCnJc?table=tbls3B039S6J7zdT&view=vewSwbY6Ry)，用户不能用历史设置覆盖；顺序追加 `L10n ROI Runs` / `L10n ROI Scopes` / `L10n ROI Items`，不替代普通 Sheet 写回。Runs 保存整车金额，Scopes 保存 target locale 金额和漏斗，Items 每个 source 只保存一条 CD 审计。writer 按 Run ID、Scope 和 Item ID 查询并续写，远端提交后的响应丢失不会重复追加；重复 Run ID 会正确失败。插件幂等创建基础视图，并在写入前检查飞书每表 20,000 条记录上限；复杂分组、筛选和仪表盘由 ROI_Test Owner 在飞书界面一次性维护。
 - **抓取需真机验证**：飞书 wiki/doc 真实 DOM 结构未实测，`content.js` 选择器基于推断；已加全文段落兜底保证不返回空，但段落质量需真机确认。
 
 ## 安全
