@@ -6,7 +6,7 @@
 
 用户提交一批英文 source 文案时，关注的是这批文案发布到全部需要翻译的目标语言后，经过 AI 辅助和 CD 最终确认，实际送翻版本相对原始版本能节省多少翻译费用。ROI 的计算范围是每个已选 Starling 项目及其被纳入本次 ROI 覆盖范围的目标语言，不能把单一语言的匹配率或价格外推到其他语言。
 
-默认范围为全部已选项目共同支持的 `targetLocales`。用户在 Popup 选择一组共享语言，每个语言生成一个携带全部已选 `projectIds` 的 scope；最终金额覆盖 `selected shared target locales`。项目组合没有共同目标语言时，该组合不能启动 ROI 测算。
+默认范围为全部已选项目共同支持的非英语 `targetLocales`。用户只开启 ROI，不选择 vendor 或语言；每个自动纳入的语言生成一个携带全部已选 `projectIds` 的 scope。项目组合没有共同非英语目标语言时，该组合不能启动 ROI 测算。
 
 ROI mode 默认关闭。关闭时插件只运行一个快速 TM target scope，不加载费率、不构建多语言金额，也不允许确认 C 或写 archive；该运行产生 A/B 审阅结果，但不产生 ROI。用户显式开启 ROI mode 后，本文件定义的全部 scope、费率、C 验证与归档规则才生效。
 
@@ -16,7 +16,7 @@ ROI mode 默认关闭。关闭时插件只运行一个快速 TM target scope，�
 
 `locale scope` 是一个 `{ projectIds, sourceLocale, targetLocale }` 结构。它代表同一批 source 文案在全部已选 Starling 项目、一个目标语言中的独立 TM 和计费上下文。
 
-一次运行至少有一个 locale scope。用户所选项目必须保持相同 source locale；每个共享 target locale 必须同时属于全部项目的 `targetLocales`，并只生成一个包含全部项目 ID 的 scope。用户显式取消的语言不会进入 scope，也不会进入金额或覆盖率分母。两个项目与二十一个共享语言必须显示并查询二十一个 scope。
+一次运行至少有一个 locale scope。用户所选项目必须保持相同 source locale；每个非英语 target locale 必须同时属于全部项目的 `targetLocales`，并只生成一个包含全部项目 ID 的 scope。两个项目与二十一个共同非英语语言必须生成并查询二十一个 scope。
 
 ### 真实 TM 快照
 
@@ -57,12 +57,9 @@ Starling 当前不返回 100% 命中的 ICE、重复或审核计费分类。为�
 
 ## 用户交互
 
-Popup 将 ROI 配置分为两层：
+Popup 的 ROI 配置只有项目选择和一个 ROI 开关。项目选择确定共同 target locale 交集；开启 ROI 后自动排除英语及其变体，再按剩余语言生成 scope，每个 scope 携带全部项目 ID。RWS 与 Pactera 共用同一套 TM snapshot，并分别解析自己的精确费率。
 
-1. 项目选择确定共同 target locale 交集。
-2. Shared ROI target languages 允许用户选择一次共享语言集合，默认全选，再按语言生成 scope；每个 scope 携带全部项目 ID。
-
-单语言 TM 查看仍保留为结果明细能力，不再决定整车 ROI 的计费范围。Review 首屏和 Confirm 只执行一个展示 scope；其余已选语言 scope 在用户确认 ROI 归档后，以最多三个 scope 并发补齐真实 A/B/C TM。运行摘要应展示 vendor、项目数、已选语言 scope 数和完成/总 scope 数；补算时展示当前语言与进度，避免将多语言批处理伪装为瞬时操作。
+单语言 TM 查看仍保留为结果明细能力，不再决定整车 ROI 的计费范围。Review 首屏和 Confirm 只执行一个展示 scope；其余自动语言 scope 在用户确认 ROI 归档后，以最多三个 scope 并发补齐真实 A/C TM，B 只保留在展示 scope。运行摘要应展示项目数、自动语言 scope 数和完成/总 scope 数；补算时展示当前语言与进度，避免将多语言批处理伪装为瞬时操作。
 
 普通 Sheet 使用用户确认的动态布局，且不显示任何 ROI 费率、成本、saving、coverage 或状态。AI 候选只在 Focus 中展示；CD 选择候选或编辑最终 C，并逐条 Confirm。插件完成 protected-token 校验、Final TM 与单行六列写入后才把该条标为 confirmed，正式 ROI 使用该 Final TM。
 
@@ -76,7 +73,7 @@ ROI_Test 的查看权限完全由飞书分享设置控制，发布应用、上�
 
 ```mermaid
 flowchart TD
-  A[选择项目与共享 ROI 语言] --> B[每个共享语言生成一个多项目 scope]
+  A[选择项目并开启 ROI] --> B[每个共同非英语语言生成一个多项目 scope]
   B --> C[Review 只查询展示 scope 的原文 Starling TM]
   C --> D[以展示 scope 的 50–85 门禁决定是否 AI rewrite]
   D --> E[一个 task 生成最多三个候选并逐个查询 Post-TM]
@@ -91,13 +88,13 @@ flowchart TD
   K --> N[Items 按 source 写审核轨迹]
 ```
 
-每个 locale scope 继续遵守 Batch TM 的限制：一次请求至多十条 source 文案、至多十个 project ID。补算最多同时运行三个 scope，每个 scope 内只保留一个 Batch 请求并发；任何接口错误均按对应 scope 正确失败。
+每个 locale scope 继续遵守 Batch TM 的已批准限制：project ID 始终至多十个，source 默认每请求十条；RD 批准且 PPE 复验后可显式提高到最多四十条。补算最多同时运行三个 scope，每个 scope 内只保留一个 Batch 请求并发；任何接口错误均按对应 scope 正确失败。
 
 ## 验收标准
 
-1. 单项目默认生成该项目所有可计费目标语言的 scope，用户可取消任意语言。
-2. 多项目只展示全部项目共同支持且 vendor 有精确费率的目标语言；每个已选共享语言只生成一个携带全部项目 ID 的 scope。
-3. 每个 scope 分别发起真实 TM 查询，并按自己的 target locale 和 vendor 费率计价。
+1. 单项目默认生成该项目全部非英语目标语言的 scope，不提供手动取消入口。
+2. 多项目自动采用全部项目共同支持的非英语目标语言；每个语言只生成一个携带全部项目 ID 的 scope。
+3. 每个 scope 分别发起真实 TM 查询；RWS 与 Pactera 共用查询结果，并按各自 target locale 精确费率计价。
 4. 只有 Final TM 和当前行六列写入均成功的 source 才成为 confirmed C；未确认 C 或任一步失败时 ROI 为 `incomplete`，绝不回退到 B。
 5. 正式 ROI 严格为 A 的 TM 成本减 C 的 TM 成本；B 的 score 仅用于审阅。
 6. Sheet 只保留当前动态 TM/CD 输出区，不写任何 ROI 字段或金额；Popup 也不显示 ROI 金额。

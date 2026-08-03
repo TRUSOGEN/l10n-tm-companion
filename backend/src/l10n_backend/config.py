@@ -37,7 +37,7 @@ class Settings(BaseSettings):
     request_id_header: str = "x-request-id"
     subject_header: str = "x-l10n-subject-id"
     tenant_header: str = "x-l10n-tenant-id"
-    min_plugin_version: str = "1.4.0"
+    min_plugin_version: str = "1.5.0"
 
     # Database
     database_url: str = "postgresql+psycopg://l10n:l10n@localhost:5432/l10n_tm"
@@ -98,7 +98,7 @@ class Settings(BaseSettings):
     starling_base_url: str = ""
     starling_batch_tm_path: str = "/gateway/openapi/corpus/tm/match/batch"
     starling_projects_path: str = "/projects"
-    starling_batch_size: int = 10
+    starling_batch_size: int = Field(default=10, ge=1, le=40)
     starling_max_projects: int = 10
     starling_max_concurrency: int = 3
     starling_qps: float = 5.0

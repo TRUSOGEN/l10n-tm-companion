@@ -221,7 +221,7 @@ AI 改写的是英文 source，不会自动生成目标语言译文。
 
 ## 第九步：正式批量使用
 
-- Starling Batch API 每个请求最多处理 10 条 source，插件会自动拆批，并最多并发处理 5 个批次。
+- Starling Batch API 默认每个请求处理 10 条 source，插件会自动拆批，并最多并发处理 5 个批次；40 条能力等待 RD 批准与 PPE 复验后再由维护者显式启用。
 - 一次读取 100 条时，界面仍会逐条显示进度，这是正常现象；用户不需要手动分成 10 次。
 - CD 只需打开并修改例外项；结果页的 `Confirm & save remaining` 会跳过已保存条目，批量查询其余 Final TM，并按真实 Sheet 行号合并连续 B-G 写入区间。
 - Inspire 的客户端请求上限不等于账号真实额度。当前 Pilot 请按获批额度使用，不要主动做 100 QPS 压测。
@@ -235,11 +235,11 @@ AI 改写的是英文 source，不会自动生成目标语言译文。
 
 1. 当前纯客户端模式要求当前用户对固定的 [ROI_Test](https://bytedance.larkoffice.com/wiki/J1RJwEf0FijMQQkceUkcZyqCnJc?table=tbls3B039S6J7zdT&view=vewSwbY6Ry) 具有编辑权限；Settings 无需配置归档 URL。
 2. 回到 Side Panel，开启 `ROI 模式`。
-3. 选择 Vendor、项目和共享目标语言。
+3. 选择项目并开启 ROI；插件自动覆盖全部项目共同支持的非英语目标语言，并计算 RWS 与 Pactera 两套金额。
 4. 完成展示语言的 Top-3 TM、候选生成与 Post-TM；其余 ROI 语言暂不阻塞 Review。
 5. CD 在 Focus 中选择或编辑需要调整的最终英文 C，再点击 `Confirm & write remaining` 批量确认其余结果；例外项仍可单条 Confirm。
 6. 确认至少一条状态为 confirmed；未确认条目会作为缺口保留。
-7. 检查结果后点击“写入 ROI 归档”，确认窗口会显示固定目标和 `1 Run + N Scopes + M source Items`。
+7. 检查结果后点击“写入 ROI 归档”，确认窗口会显示固定目标；本地模式分别写入 RWS 与 Pactera Run/Scope，并只写一组 source Items。
 8. 确认后等待插件补齐其余语言并写入三张表；取消时不会补算或写入。
 
 正式 ROI 使用 `TM Cost(A) - TM Cost(C)`。AI 候选 B 只用于辅助人工决策，不直接进入正式节省金额。

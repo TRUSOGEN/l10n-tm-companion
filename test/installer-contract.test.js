@@ -77,6 +77,10 @@ assert.ok(
   '线下手册必须说明三层归档、容量边界与新增 scope 后的重新授权',
 );
 assert.ok(packageScript.includes('skills/cd-content-review-version-2'), '线下包必须包含 Content Review skill 与规则 Markdown');
+assert.ok(
+  packageScript.includes("--exclude='.DS_Store'") && packageScript.includes("--exclude='._*'"),
+  '线下包必须过滤 macOS Finder 元数据，避免不可移植文件导致构建失败',
+);
 for (const [relativePath, expectedHash] of Object.entries(expectedRuleHashes)) {
   const assetPath = path.join(contentReviewRoot, relativePath);
   assert.ok(fs.existsSync(assetPath), `规则快照必须存在：${relativePath}`);
@@ -85,6 +89,8 @@ for (const [relativePath, expectedHash] of Object.entries(expectedRuleHashes)) {
 }
 assert.ok(fs.existsSync(path.join(contentReviewRoot, 'SNAPSHOT.md')), '规则快照必须记录来源日期与哈希');
 assert.ok(packageScript.includes('native-host/starling-bridge.py'), '线下包必须包含 Native Messaging bridge');
+assert.ok(packageScript.includes('native-host/feishu_oauth_broker.py'), '线下包必须包含 Feishu Broker Native Host 模块');
+assert.ok(packageScript.includes('native-host/roi_broker_client.py'), '线下包必须包含异步 ROI Broker Native Host 模块');
 assert.ok(packageScript.includes('runtime/bin'), '线下包必须封装私有运行环境');
 assert.ok(installScript.includes('runtime/bin'), '安装时必须优先使用插件私有运行环境');
 assert.ok(
@@ -156,4 +162,4 @@ try {
   fs.rmSync(isolatedRoot, { recursive: true, force: true });
 }
 
-console.log('installer contract tests: 50 passed, 0 failed');
+console.log('installer contract tests: 52 passed, 0 failed');

@@ -91,7 +91,7 @@ flowchart LR
 1. 打开 [Starling 个人中心](https://starling.bytedance.net/personal_center#aksk)，申请或查看个人 AK/SK。
 2. 在 Settings 分别粘贴完整 AK 与 SK，点击 `Save & Verify`；成功后插件会真实读取当前账号可访问的项目，不会使用默认项目伪装成功。
 3. `Starling CLI path` 通常留空；只有自动检测失败时，才在 Terminal 运行 `which starling-cli`，把返回的绝对路径粘贴进去。
-4. `TM query mode` 保持 `Batch TM API in PPE`。每个请求最多 10 条 source，bridge 最多并发 5 个批次并保持输入顺序；`Legacy single-text` 只用于排障。
+4. `TM query mode` 保持 `Batch TM API in PPE`。默认每个请求最多 10 条 source，bridge 最多并发 5 个批次并保持输入顺序；RD 批准且 PPE 复验后可受控提高到 40 条，`Legacy single-text` 只用于排障。
 
 AK/SK 会同时保存在 Chrome `storage.local` 和 Starling 官方本机配置中，默认遮挡但可回填；两处都属于本机持久化，不提供硬件级加密。
 
@@ -266,7 +266,7 @@ ROI 自动覆盖全部共同非英文语言；RWS 与 Pactera 中任一家缺少
 ## 使用边界
 
 - AI 只改写英文 source，不翻译 target language。
-- 每次运行最多选择十个 Starling 项目；TM 文案由桥接按十条一批处理。
+- 每次运行最多选择十个 Starling 项目；TM 文案默认由桥接按十条一批处理，已批准环境可以显式提高到最多四十条。
 - Vendor 费率只使用插件内置的 `local-rates.json` 快照，不会借用其他 Vendor 的价格。
 - `Saving USD` 是 TM 计费规则下的预估，不替代供应商最终结算。
 

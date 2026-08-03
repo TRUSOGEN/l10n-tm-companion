@@ -128,7 +128,7 @@ def client(tmp_path, monkeypatch):
         c.headers.update({
             "x-dev-subject": "subject-1",
             "x-dev-tenant": "tenant-1",
-            "x-plugin-version": "1.4.0",
+            "x-plugin-version": "1.5.0",
         })
         yield c
     deps_module.oauth_service = _original_oauth_service

@@ -32,7 +32,7 @@ AI 候选链路使用半开区间 **`50 ≤ Score A < 85`**：`49.99` 不创建 
    ↓
 ② 查 TM：原文 → background.js（Service Worker）
         → Native Messaging → 本地 Python starling-bridge.py
-        → 每 10 条组成批次，最多 5 个批次并发 → starling-batch-client.js
+        → 默认每 10 条组成批次，最多 5 个批次并发 → starling-batch-client.js
         → Chrome AK/SK 注入单次子进程（或读取官方配置）
         → 官方 Starling Core 签名 → PPE 批量 TM 服务
         → 返回 {TM译文, TM库原文, Orig Match%}
@@ -106,7 +106,7 @@ python3 -m unittest test/test_export_local_rates.py test/starling-credentials-te
 
 应用 Owner 需要在飞书开放平台为用户身份开通并发布 `sheets:spreadsheet.meta:read`、`sheets:spreadsheet:read`、`sheets:spreadsheet:write_only`、`wiki:node:read`、`base:table:read`、`base:table:create`、`base:field:read`、`base:field:create`、`base:record:read`、`base:record:retrieve`、`base:record:create`、`base:record:update`、`base:view:read`、`base:view:write_only`、`contact:user.base:readonly` 与 `contact:user.employee_id:readonly`，并登记 `http://localhost:39641/l10n-tm-companion/oauth/callback`。新增 scope 发布后，旧用户必须在 Side Panel 首页重新授权一次。本机 Owner 测试需先在 Settings 的 `Application owner setup` 通过系统隐藏输入框配置 Keychain；正式多人分发需改用服务端 OAuth broker，普通用户只在首页点击授权。发布应用、上传插件或分享 ROI_Test 都不会自动产生用户，只有安装插件并实际授权的账号才会出现在 ROI Operator。Working spreadsheet 支持当前页面自动选择，也支持用户粘贴任意已授权的 `/sheets/` 或 `/wiki/` 链接；Wiki node 会先解析为真实 `obj_token`。
 
-日常运行配置放在 Side Panel，并按 `1 Projects → 2 Spreadsheet → 3 Run → 4 Review` 展示真实操作顺序；Projects 与 Spreadsheet 同时只展开一个，长内容在最高 380px 的区域内滚动，运行完成或恢复有效历史运行后自动进入 Review。飞书授权有效时首页只保留头像与姓名，运行写入目标和确认数量也只在 Review 展示。插件先分页调用 Starling `/projects`，完整发现当前 AK/SK 有权访问的项目，再由 CD 选择一至十个项目；界面每页展示八个项目，只有一页时也显示 `Page 1/1`，翻页保留跨页选择，十个上限对全部页面合并生效。项目发现与 `/gateway/openapi/corpus/tm/match/batch` 的实际 TM 查询是两个独立阶段。ROI mode 关闭时，程序从全部所选项目的共同 target locales 中确定性选择第一个内部参考 locale，用于满足 Starling Batch TM 协议；该实现参数不在 CD 界面展示，vendor、费率和 coverage languages 也不参与普通运行。开启 ROI mode 后选择 vendor，语言选择器只显示全部已选项目共同支持且当前 vendor 存在精确按字费率的 `targetLocales`；用户只选择一次共享语言集合，每个语言生成一个携带全部已选 `projectIds` 的 scope。Review 首轮只查询第一个展示 scope，单条与批量 Confirm 也只查询该 scope；点击归档并确认后，其余 scope 以最多三个并发补齐真实 A/B/C TM。AI 始终执行 English-to-English rewrite；同一车只创建一组 Inspire task 决策，再在各 ROI scope 查询真实 Score B，避免按语言重复调用 LLM。
+日常运行配置放在 Side Panel，并按 `1 Projects → 2 Spreadsheet → 3 Run → 4 Review` 展示真实操作顺序；Projects 与 Spreadsheet 同时只展开一个，长内容在最高 380px 的区域内滚动，运行完成或恢复有效历史运行后自动进入 Review。飞书授权有效时首页只保留头像与姓名，运行写入目标和确认数量也只在 Review 展示。插件先分页调用 Starling `/projects`，完整发现当前 AK/SK 有权访问的项目，再由 CD 选择一至十个项目；界面每页展示八个项目，翻页保留跨页选择，十个上限对全部页面合并生效。ROI mode 关闭时，程序从全部所选项目的共同 target locales 中确定性选择第一个内部参考 locale，用于满足 Starling Batch TM 协议，vendor、费率和 coverage languages 不参与普通运行。开启 ROI mode 后不显示 vendor 或语言选择器；程序自动覆盖全部项目共同支持的非英语 `targetLocales`，每个语言生成一个携带全部已选 `projectIds` 的 scope。Review 首轮只查询第一个展示 scope，单条与批量 Confirm 也只查询该 scope；点击归档并确认后，其余 scope 以最多三个并发补齐正式金额所需的 A/C TM。RWS 与 Pactera 共用同一套 TM snapshot 并分别套用精确费率；AI 始终执行 English-to-English rewrite，同一车只创建一组 Inspire task 决策。
 
 ROI 费率只来自随插件发布的 `data/local-rates.json`。RWS 与 Pactera 按当前 source-target
 语言对显示 AIPE 和 T-only 单价；Alconost 与 Skrivanek 当前原表只有 hourly rate，
@@ -136,12 +136,12 @@ Side Panel 默认采用当前 Spreadsheet，也可在 `Working spreadsheet` 粘�
 6. 自动触发 Top-3 TM；只有 `50 ≤ Score A < 85` 且 AI 已开启的 source 创建 Inspire task，并最多产生三个候选
 7. 在结果卡片点击 `Review & edit`，查看 Top-3 TM、通过安全门禁的 AI 候选及真实 Post-TM；没有有效 AI 时显示 `None`
 8. 只修改需要人工调整的最终 C；例外项可单条点击 `Confirm & save`，其余项点击 `Confirm & save remaining` 批量完成。Final TM 与对应六列全部写入成功后才显示 `Saved`
-9. 需要整车 ROI 时，在运行前开启 ROI mode、选择 vendor 与 coverage languages；至少确认一条后归档会保留未确认缺口和所有有效小计
+9. 需要整车 ROI 时，在运行前只开启 ROI mode；插件自动覆盖共同支持的非英语语言，并从同一套 TM snapshot 分别派生 RWS 与 Pactera 金额
 10. 点击 `Write ROI archive`；ROI_Test 的 `L10n ROI Runs` 保存本车 A−C ROI 与 pre-AI / after-AI / after-review 漏斗指标
 
 > 💡 wiki/doc 页若「抓取全文」抓不到，可选中文字用「抓取选中文字」（走 `window.getSelection()`，不依赖 DOM 选择器，几乎一定能抓到）。
 
-> ⚠️ Starling 已确认 `sourceContents` 与 `projectIds` 各最多 10 条。插件默认只调用 Batch TM Match，不会自动调用 `/project/search` 查询 Key 或项目归属。
+> ⚠️ 当前 PPE 直接验证的 `sourceContents` 上限是 10 条，`projectIds` 上限是 10 个。1.5 已支持在 RD 批准并完成 PPE 复验后通过 `L10N_STARLING_TM_SOURCE_LIMIT=40` 显式启用 40 条 source；默认仍为 10，插件不会自动调用 `/project/search`。
 
 ## 文件结构
 
@@ -228,7 +228,7 @@ cat /tmp/l10n-bridge-debug.log     # 看 PATH/which starling-cli/收到的 actio
 
 ## 已知限制
 
-- **批量上限**：`projectIds` 与 `sourceContents` 均按已确认的最多 10 条执行；更长文案列表由 bridge 按 10 条分批。
+- **批量上限**：`projectIds` 始终最多 10 个；`sourceContents` 默认按已验证的 10 条分批，RD 批准且 PPE 复验通过后可显式配置到最多 40 条。越界或无效配置会正确失败。
 - **PPE 依赖**：默认批量模式发送 `x-use-ppe: 1` 与 `x-tt-env: ppe_openapi_integ`；上线生产环境前需由 Starling 确认路由与鉴权要求。
 - **ROI Bitable 归档**：目标固定为 [ROI_Test](https://bytedance.larkoffice.com/wiki/J1RJwEf0FijMQQkceUkcZyqCnJc?table=tbls3B039S6J7zdT&view=vewSwbY6Ry)，用户不能用历史设置覆盖；顺序追加 `L10n ROI Runs` / `L10n ROI Scopes` / `L10n ROI Items`，不替代普通 Sheet 写回。Runs 保存整车金额，Scopes 保存 target locale 金额和漏斗，Items 每个 source 只保存一条 CD 审计。插件幂等创建基础视图，并在写入前检查飞书每表 20,000 条记录上限；复杂分组、筛选和仪表盘由 ROI_Test Owner 在飞书界面一次性维护。
 - **抓取需真机验证**：飞书 wiki/doc 真实 DOM 结构未实测，`content.js` 选择器基于推断；已加全文段落兜底保证不返回空，但段落质量需真机确认。

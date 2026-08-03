@@ -62,13 +62,16 @@ for relative_path in \
   data/local-rates.json \
   docs/user-guide.md docs/offline-install-manual.md \
   native-host/install.sh native-host/launch-bridge.sh native-host/starling-bridge.py native-host/feishu_oauth.py \
+  native-host/feishu_oauth_broker.py native-host/roi_broker_client.py \
   native-host/starling-batch-client.js native-host/starling-key-batch-client.js \
   native-host/starling-credentials-client.js; do
   copy_file "$relative_path"
 done
 
 for source_dir in icons lib skills/cd-content-review-version-2; do
-  /usr/bin/ditto --noqtn "$PROJECT_ROOT/$source_dir" "$PAYLOAD_PATH/$source_dir"
+  mkdir -p "$PAYLOAD_PATH/$source_dir"
+  /usr/bin/rsync -a --exclude='.DS_Store' --exclude='._*' \
+    "$PROJECT_ROOT/$source_dir/" "$PAYLOAD_PATH/$source_dir/"
 done
 
 # 私有 Python：最终写入 extension/runtime/bin，不读取、覆盖或卸载用户已有 Python。

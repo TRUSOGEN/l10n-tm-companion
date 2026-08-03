@@ -234,6 +234,96 @@ def main():
         [f'Text {index}' for index in range(11)],
     )
 
+    print('\n=== batch TM: approved source limit capability ===')
+    source_limit_env = 'L10N_STARLING_TM_SOURCE_LIMIT'
+    original_source_limit = os.environ.get(source_limit_env)
+    try:
+        os.environ.pop(source_limit_env, None)
+        total += 1
+        passed += assert_equal(
+            '未配置额度时继续使用 PPE 已验证的 10 条',
+            bridge.get_batch_tm_source_limit(),
+            10,
+        )
+
+        os.environ[source_limit_env] = '40'
+        forty_calls = []
+
+        def forty_request(cli, body, use_ppe, message=None):
+            """记录显式启用 40 条能力后的单批请求。"""
+            forty_calls.append(body)
+            return {
+                'data': [[{
+                    'score': 100,
+                    'source': text,
+                    'target': f'{text}-target',
+                    'sourceLang': 'en',
+                    'targetLang': 'zh',
+                    'updater': 'test',
+                }] for text in body['sourceContents']]
+            }
+
+        bridge.request_batch_tm = forty_request
+        forty = bridge.search_tm_batch({
+            'texts': [f'Forty {index}' for index in range(40)],
+            'project_ids': [385],
+            'source_lang': 'en',
+            'target_lang': 'zh',
+            'cli_path': '/tmp/starling-cli',
+        })
+        total += 1
+        passed += assert_equal('显式批准 40 条后一次请求发送全部文案', len(forty_calls), 1)
+        total += 1
+        passed += assert_equal('40 条请求体保持完整', len(forty_calls[0]['sourceContents']), 40)
+        total += 1
+        passed += assert_equal(
+            '40 条响应保持输入顺序',
+            [item['source_text'] for item in forty['results']],
+            [f'Forty {index}' for index in range(40)],
+        )
+        total += 1
+        passed += assert_raises(
+            '超过已批准 40 条上限正确失败',
+            ValueError,
+            lambda: bridge.search_tm_batch({
+                'texts': [f'Text {index}' for index in range(41)],
+                'project_ids': [385],
+                'source_lang': 'en',
+                'target_lang': 'zh',
+                'batch_size': 41,
+            }),
+        )
+        total += 1
+        passed += assert_raises(
+            '提高 source 上限不会放宽十个 project ID 上限',
+            ValueError,
+            lambda: bridge.build_batch_tm_body(
+                ['One'], list(range(1, 12)), 'en', 'zh'
+            ),
+        )
+        total += 1
+        passed += assert_raises(
+            '请求体构造器不能绕过客户端 40 条支持上限',
+            ValueError,
+            lambda: bridge.build_batch_tm_body(
+                ['One'], [385], 'en', 'zh', source_limit=41
+            ),
+        )
+
+        os.environ[source_limit_env] = '41'
+        total += 1
+        passed += assert_raises(
+            '超过客户端支持范围的额度配置正确失败',
+            ValueError,
+            bridge.get_batch_tm_source_limit,
+        )
+    finally:
+        bridge.request_batch_tm = original_request
+        if original_source_limit is None:
+            os.environ.pop(source_limit_env, None)
+        else:
+            os.environ[source_limit_env] = original_source_limit
+
     print('\n=== batch TM: bounded parallel dispatch ===')
     active_requests = 0
     max_active_requests = 0

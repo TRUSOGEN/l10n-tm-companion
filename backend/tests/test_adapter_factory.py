@@ -25,6 +25,14 @@ def test_dev_defaults_build_insecure_adapters():
     assert isinstance(adapters.secret_provider, EnvVarSecretProvider)
 
 
+def test_starling_batch_size_requires_explicit_supported_limit():
+    """Backend 默认保持 10，允许经审批配置 40，拒绝客户端范围外的值。"""
+    assert Settings().starling_batch_size == 10
+    assert Settings(starling_batch_size=40).starling_batch_size == 40
+    with pytest.raises(ValueError):
+        Settings(starling_batch_size=41)
+
+
 def test_prod_without_real_config_raises():
     s = Settings(env_name="prod")
     with pytest.raises(RuntimeError) as excinfo:

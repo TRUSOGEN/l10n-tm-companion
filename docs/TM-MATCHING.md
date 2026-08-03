@@ -41,7 +41,7 @@ Popup 结果卡片严格按 Sheet 原始行号显示，异步 TM 与 Inspire 完
 popup.js searchTM(tm_mode='batch')
   → background.js Native Messaging
   → starling-bridge.py search_tm_batch()
-  → 每 10 条构造 POST /corpus/tm/match/batch，最多 5 个批次并发
+  → 默认每 10 条构造 POST /corpus/tm/match/batch，最多 5 个批次并发
   → starling-batch-client.js
   → @byted/starling-agent-core 的 ESM StarlingClient 签名并发送请求
   → PPE 返回 data[i] 的候选数组
@@ -53,7 +53,7 @@ popup.js searchTM(tm_mode='batch')
 - **已验证行为**：PPE 实测单次 10 条 `sourceContents` 成功返回 10 组候选；`Done`、`Settings`、`Cancel` 分别返回 `完成`、`隐私设置`、`取消`。
 - **失败语义**：HTTP、签名、返回结构等异常直接抛至 Popup 并停止本轮流程，禁止自动用同批文本的 BM25 结果冒充 Starling TM 命中。
 - **PPE 短暂超时**：当后端返回 `error_code=1204` 且文本包含 `remote or network error` 时，Bridge 会以 0.25 秒、0.5 秒间隔重试，最多共 3 次；其他 400 请求错误仍立即返回，避免掩盖参数或权限问题。
-- **批次上限与调度**：李明东于 2026-07-13 确认 `sourceContents`、`projectIds` 各最多 10 条；Bridge 每批最多发送 10 条文案，并按输入顺序以最多 5 个批次并发查询。结果按原批次顺序合并，任一批失败会使本次查询真实失败。项目数越多，服务端搜索负载和耗时越高。
+- **批次上限与调度**：2026-08-03 PPE 直接验证 `sourceContents` 默认上限为 10，`projectIds` 上限仍为 10；Bridge 默认每批发送 10 条文案，并按输入顺序以最多 5 个批次并发查询。1.5 客户端支持 `L10N_STARLING_TM_SOURCE_LIMIT` 取 1–40，只有 RD 批准并用真实 40 条 payload 验证响应顺序、候选完整性与 P95 后才能设置为 40；无效值或请求超过已配置上限会正确失败。结果按原批次顺序合并，任一批失败会使本次查询真实失败。
 - **兼容模式**：Options 可显式选择 `legacy_cli`，仅用于排障；它沿用原 `GET /corpus/tm/match` 单条查询。
 
 ## Source String Key（2026-07-15 更新）

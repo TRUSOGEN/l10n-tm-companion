@@ -104,8 +104,11 @@ CLI_TIMEOUT = 30  # 秒
 PROJECT_LIST_PAGE_SIZE = 25
 BATCH_TM_METHOD = 'starling-batch'
 BATCH_TM_METHOD_VERSION = 'starling-openapi-batch-ppe-v1'
-# 李明东于 2026-07-13 确认：sourceContents、projectIds 各最多 10 条。
-BATCH_TM_SAFE_SIZE = 10
+# 2026-08-03 PPE 已验证 sourceContents 默认最多 10 条；客户端已为 RD 批准后的
+# 40 条能力预留受控配置。projectIds 的十个上限独立保持不变。
+BATCH_TM_DEFAULT_SIZE = 10
+BATCH_TM_SUPPORTED_MAX_SIZE = 40
+BATCH_TM_SOURCE_LIMIT_ENV = 'L10N_STARLING_TM_SOURCE_LIMIT'
 BATCH_TM_MAX_CONCURRENCY = 5
 BATCH_TRANSIENT_MAX_ATTEMPTS = 3
 BATCH_CLIENT_SCRIPT = os.path.join(
@@ -119,6 +122,30 @@ KEY_SEARCH_TIMEOUT = 90
 CREDENTIALS_CLIENT_SCRIPT = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), 'starling-credentials-client.js'
 )
+
+
+def get_batch_tm_source_limit(environ=None):
+    """返回已获批准的单请求 sourceContents 上限。
+
+    默认值保持 PPE 已直接验证的 10。Starling RD 批准并完成 PPE 复验后，部署方
+    可以通过 ``L10N_STARLING_TM_SOURCE_LIMIT`` 显式提高到不超过客户端支持的
+    40；无效或越界配置必须正确失败，不能静默回退。
+    """
+    env = os.environ if environ is None else environ
+    raw_value = env.get(BATCH_TM_SOURCE_LIMIT_ENV, str(BATCH_TM_DEFAULT_SIZE))
+    try:
+        value = int(raw_value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(
+            f'{BATCH_TM_SOURCE_LIMIT_ENV} must be an integer between '
+            f'1 and {BATCH_TM_SUPPORTED_MAX_SIZE}'
+        ) from exc
+    if value <= 0 or value > BATCH_TM_SUPPORTED_MAX_SIZE:
+        raise ValueError(
+            f'{BATCH_TM_SOURCE_LIMIT_ENV} must be between '
+            f'1 and {BATCH_TM_SUPPORTED_MAX_SIZE}'
+        )
+    return value
 
 # starling-cli / node 候选绝对路径。Chrome 启动 native host 子进程时 PATH 极简
 # （通常只有 /usr/bin:/bin:/usr/sbin:/sbin），which starling-cli 返回 None。
@@ -875,11 +902,11 @@ def _parse_cli_output(stdout):
 
 
 def build_batch_tm_body(texts, project_ids, source_lang, target_lang,
-                        limit=3, least_score=0):
-    """构造已在 PPE 验证过的批量 TM Match 请求体。
+                        limit=3, least_score=0, source_limit=None):
+    """构造符合当前已批准 source 上限的批量 TM Match 请求体。
 
-    Starling 已确认 `projectIds` 与 `sourceContents` 的平台上限均为 10 个；
-    `search_tm_batch()` 负责把较长输入按 10 条分批，本函数负责拒绝非法单批请求。
+    `projectIds` 固定最多 10 个；`sourceContents` 默认使用 PPE 已验证的 10 条，
+    仅在部署方显式配置 RD 已批准额度后提高到最多 40 条。
     """
     if not isinstance(texts, list) or not texts:
         raise ValueError('sourceContents must be a non-empty list')
@@ -889,9 +916,18 @@ def build_batch_tm_body(texts, project_ids, source_lang, target_lang,
         raise ValueError('projectIds must be a non-empty list')
     if len(project_ids) > 10:
         raise ValueError('projectIds supports at most 10 items')
-    if len(texts) > BATCH_TM_SAFE_SIZE:
+    approved_source_limit = (
+        get_batch_tm_source_limit() if source_limit is None else int(source_limit)
+    )
+    if approved_source_limit <= 0 or approved_source_limit > BATCH_TM_SUPPORTED_MAX_SIZE:
         raise ValueError(
-            f'sourceContents supports at most {BATCH_TM_SAFE_SIZE} items per request'
+            'source_limit must be between '
+            f'1 and {BATCH_TM_SUPPORTED_MAX_SIZE}'
+        )
+    if len(texts) > approved_source_limit:
+        raise ValueError(
+            'sourceContents supports at most '
+            f'{approved_source_limit} items per approved request'
         )
 
     normalized_project_ids = []
@@ -1127,10 +1163,10 @@ def request_batch_tm(cli, body, use_ppe, message=None):
 
 
 def search_tm_batch(message):
-    """以每批最多 10 条、最多 5 个并发批次查询 TM，并保留输入顺序。
+    """按已批准 source 上限和最多五个并发批次查询 TM，并保留输入顺序。
 
-    Starling 已确认 `sourceContents` 与 `projectIds` 各最多 10 条。调用方可以
-    降低文案批次大小和并发度，不能绕过上限；项目数由请求体构造函数独立校验。
+    source 上限默认 10，部署方只有在 RD 批准并完成 PPE 验证后才能显式提高；
+    projectIds 始终最多 10 个。调用方可以降低批大小和并发度，不能绕过上限。
     """
     texts = message.get('texts', []) or []
     if not texts:
@@ -1146,12 +1182,14 @@ def search_tm_batch(message):
     least_score = message.get('least_score', 0)
     limit = message.get('limit', 3)
     use_ppe = message.get('use_ppe', False) is True
-    batch_size = int(message.get('batch_size') or BATCH_TM_SAFE_SIZE)
+    approved_source_limit = get_batch_tm_source_limit()
+    batch_size = int(message.get('batch_size') or approved_source_limit)
     if batch_size <= 0:
         raise ValueError('batch_size must be positive')
-    if batch_size > BATCH_TM_SAFE_SIZE:
+    if batch_size > approved_source_limit:
         raise ValueError(
-            f'batch_size must not exceed verified safe limit {BATCH_TM_SAFE_SIZE}'
+            'batch_size must not exceed approved source limit '
+            f'{approved_source_limit}'
         )
     batch_concurrency = int(
         message.get('batch_concurrency', BATCH_TM_MAX_CONCURRENCY)
@@ -1173,7 +1211,13 @@ def search_tm_batch(message):
     def query_batch(batch):
         """查询单个安全批次并返回与批次输入同序的结果。"""
         body = build_batch_tm_body(
-            batch, project_ids, source_lang, target_lang, limit, least_score
+            batch,
+            project_ids,
+            source_lang,
+            target_lang,
+            limit,
+            least_score,
+            source_limit=approved_source_limit,
         )
         payload = request_batch_tm(cli, body, use_ppe, message=message)
         return parse_batch_tm_response(
@@ -1391,7 +1435,7 @@ def feishu_get_access_token(_message):
 
 
 def _broker_plugin_version(message):
-    return str(message.get('plugin_version') or os.environ.get('L10N_PLUGIN_VERSION', '1.4.0'))
+    return str(message.get('plugin_version') or os.environ.get('L10N_PLUGIN_VERSION', '1.5.0'))
 
 
 def native_broker_request(message):

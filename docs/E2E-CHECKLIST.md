@@ -26,13 +26,13 @@
 
 - [ ] 在飞书 docx 文档页打开扩展，popup 仅显示两个按钮：抓取全文 / 抓取选中文字
 - [ ] 点击「抓取全文」→ 抓到文案，步骤指示器进入「查询 TM」
-- [ ] 选择一个项目后，Shared ROI target languages 默认勾选该项目全部可计费 target locales；取消其中一个语言后 scope 数量立刻减少并在重新打开 Side Panel 后保持
-- [ ] 选择两个同为 source `en` 且共同支持 `ar` 的项目时，只选择一次 `ar`，scope 数等于项目数；界面不再出现项目级语言选择器
-- [ ] 选择两个同为 source `en`、但没有共同 target locale 的项目时，项目仍可选，ROI 区显示没有共同可计费语言，启动 ROI 时明确停止
-- [ ] source `en`、target `en` scope 可以运行；缺少精确费率时 TM 继续运行，结果页只显示“已覆盖语言小计”和缺失 scope
+- [ ] 选择一个项目并开启 ROI 后，界面不出现 vendor 或语言选择器，自动 scope 数等于该项目全部非英语 target locale 数
+- [ ] 选择两个同为 source `en` 且共同支持 `ar` 的项目时，只生成一个携带两个 project ID 的 `ar` scope，不生成项目语言笛卡尔积
+- [ ] 选择两个同为 source `en`、但没有共同非英语 target locale 的项目时，项目仍可选，启动 ROI 时明确停止
+- [ ] `en` 及其变体不进入 ROI scope；某 vendor 缺少精确费率时 TM 继续运行，该 vendor 只显示“已覆盖语言小计”和缺失 scope
 - [ ] 关闭 AI 后运行至少两个有完整费率的语言 scope，结果页每个 complete scope 均计入 Before/After，整车 Saving 为 0
 - [ ] 进度条显示「查询 Starling Top-3 TM」→「AI 改写原文」→「查询候选 Post-TM」→「查看结果」，期间没有 Source String Key 查询步骤
-- [ ] 多语言运行时进度条显示当前项目、target locale 与 scope 序号；任一 scope 首轮 TM 失败后，其他 scope 仍继续，结果页将失败 scope 列入 incomplete 清单
+- [ ] 多语言补算时进度条显示 target locale 与 scope 序号；任一 scope TM 失败后，其他 scope 仍继续，结果页将失败 scope 列入 incomplete 清单
 - [ ] 步骤指示器进入「查看结果」，结果卡片只显示 source、TM/Post-TM/Final TM 摘要、用户状态和 `Review & edit`
 - [ ] 结果卡片顺序与 Sheet 原始行号一致；`Review & edit` 展示 Top-3 TM、有效 AI 候选、分数差、最终 C 编辑框与 `Confirm & save`
 - [ ] 49.99 不创建 Inspire task，50 创建，84.99 创建，85 不创建；进入链路的每条 source 只创建一个 task，最多返回三个结构化候选

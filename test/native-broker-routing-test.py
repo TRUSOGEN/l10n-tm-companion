@@ -84,7 +84,7 @@ class NativeBrokerRoutingTests(unittest.TestCase):
 
     def _dispatch(self, subaction: str, **extra):
         return self.bridge.native_broker_request({
-            'payload': {'action': subaction, 'plugin_version': '1.4.0', **extra},
+            'payload': {'action': subaction, 'plugin_version': '1.5.0', **extra},
         })
 
     def test_oauth_and_roi_subactions_route_to_correct_helpers(self):

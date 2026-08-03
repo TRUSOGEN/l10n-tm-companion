@@ -14,12 +14,12 @@
 - 正式 ROI 始终为 `TM Cost(A) - TM Cost(C)`；B 只用于审阅和质量漏斗。
 - 当前展示 scope 的 Final TM 与 Working Sheet 写入仍是 `Confirm & save` 成功的同步门槛。
 - 失败 scope 保持 `incomplete`，已覆盖金额只能标为 subtotal，禁止伪造完整整车 ROI。
-- Starling 每次请求最多十条 source、最多十个 project ID；服务必须按真实平台限制拆批。
+- Starling 每次请求默认最多十条 source、始终最多十个 project ID；RD 批准并完成 PPE 复验后，服务可显式配置到最多四十条 source。
 - 普通 Sheet 继续只写六列，不写 ROI 金额。
 
 ## 当前慢点
 
-当前 `popup.js` 的 `writeCurrentRoiArchive()` 会调用 `completeDeferredRoiScopesForArchive()`，在 Side Panel 内补齐延后语言的 A/B/C TM，再由 `lib/roi-bitable-archive.js` 顺序写入 Runs、Scopes、Items。这个路径依赖 Popup 内存、把全语言补算集中到最后一步，并为正式金额不需要的全语言 B 增加了额外请求。
+当前 `popup.js` 的 `writeCurrentRoiArchive()` 会调用 `completeDeferredRoiScopesForArchive()`，在 Side Panel 内补齐延后语言的 A/C TM，再由 `lib/roi-bitable-archive.js` 写入 RWS/Pactera 的 Runs、Scopes 和一组 Items。这个路径仍依赖 Popup 内存，并把全语言补算集中到归档前。
 
 OAuth 当前由 `native-host/feishu_oauth.py` 从 macOS Keychain 读取 App Secret，再调用 Feishu OAuth v2 token endpoint。普通用户必须先拿到 Secret，无法作为正式分发方案。
 
@@ -96,7 +96,7 @@ Localization/Finance 必须确认约 56 个 locale 的唯一 vendor、重叠优�
 4. Worker 不为全部语言重复查询 B；B 只保留展示 scope，用于 AI uplift 与审阅证据。
 5. 用户点击 Archive ROI 后，API 封存 C、创建持久 archive job 并立即返回；Worker 等封存前任务到达终态，再写 Runs、Scopes、Items。
 
-Worker 对短时间连续确认做两秒 debounce，按 locale 合并最多十条 source；一个 run 只允许选择一至十个已验证 project ID。N 条 source、L 个 locale 的单阶段请求数从 `L × N` 降为约 `L × ceil(N / 10)`；18 条、约 56 locale 的 A/C 理论请求由约 2016 次降为约 224 次。真实 QPS、并发和重试上限必须由 Starling Owner 审批，并由 PPE 负载测试确定。
+Worker 对短时间连续确认做两秒 debounce，按 locale 依据 `L10N_STARLING_BATCH_SIZE` 合并 source；默认值为 10，客户端允许的最高值为 40。一个 run 只允许选择一至十个已验证 project ID。N 条 source、L 个 locale 的单阶段请求数为 `L × ceil(N / batch_size)`；18 条、约 56 locale 在默认 10 条时，A/C 理论请求由约 2016 次降为约 224 次。真实 batch size、QPS、并发和重试上限必须由 Starling Owner 审批，并由 PPE 负载测试确定。
 
 ### 一致性与失败
 

@@ -30,7 +30,7 @@ def _do_oauth_exchange(client: TestClient):
             "redirect_uri": "http://127.0.0.1:39641/l10n-tm-companion/oauth/callback",
             "code_challenge": challenge,
             "code_challenge_method": "S256",
-            "plugin_version": "1.4.0",
+            "plugin_version": "1.5.0",
         },
     ).json()
     ex = client.post(
@@ -88,7 +88,7 @@ def test_idempotency_conflict(client: TestClient):
         "redirect_uri": "http://127.0.0.1:39641/l10n-tm-companion/oauth/callback",
         "code_challenge": challenge,
         "code_challenge_method": "S256",
-        "plugin_version": "1.4.0",
+        "plugin_version": "1.5.0",
     }
     assert client.post("/v1/oauth/sessions", headers=headers, json=body).status_code == 201
     assert client.post("/v1/oauth/sessions", headers=headers, json=body).status_code == 201

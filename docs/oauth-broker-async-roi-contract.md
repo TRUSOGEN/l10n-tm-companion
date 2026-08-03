@@ -42,7 +42,7 @@ OAuth session 创建与 exchange 要求公司身份；exchange 还必须匹配 s
   "redirect_uri":"http://127.0.0.1:39641/l10n-tm-companion/oauth/callback",
   "code_challenge":"base64url-sha256",
   "code_challenge_method":"S256",
-  "plugin_version":"1.4.0"
+  "plugin_version":"1.5.0"
 }
 ```
 
@@ -136,7 +136,7 @@ exchange 前先把 session 从 `pending` 提交为 `exchanging`，再调用 Feis
 }
 ```
 
-run 创建后禁止新增、删除或修改 A item；源数据变化必须创建新 run。每个 Starling job 包含最多十条 source 和完整的一至十个已验证 project ID，实际请求数为 `locale_count × ceil(items/10)`。响应必须逐 source 完整映射，缺行只标记对应 line incomplete。
+run 创建后禁止新增、删除或修改 A item；源数据变化必须创建新 run。每个 Starling job 包含不超过 `L10N_STARLING_BATCH_SIZE` 的 source 和完整的一至十个已验证 project ID；batch size 默认 10，RD 批准并完成 PPE 复验后允许配置到最高 40，实际请求数为 `locale_count × ceil(items/batch_size)`。响应必须逐 source 完整映射，缺行只标记对应 line incomplete。
 
 ### 提交 confirmed C
 
