@@ -63,7 +63,7 @@ Starling 区包含：
 
 Settings 不再承担日常项目和 vendor 选择。Advanced 仅保留 Starling CLI path 与 TM mode；source 来自项目 `sourceLocale`，快速 target 与 ROI target 均在 Side Panel 选择。
 
-Settings 顶部使用固定四步清单说明首次配置：`Starling 个人中心取 AK/SK → Inspire 取个人 wak_ Access Key（可选）→ 从部门负责人获取 Feishu App Secret 并通过 Enter Feishu App Secret 写入本机 macOS Keychain → 回到 Workflow 授权并运行`。有飞书应用管理权限的用户也可从飞书开放平台的 `Credentials & Basic Info` 自行复制 Secret。页面不再展示 Guide 或 Prototype 文档入口；各配置区只保留字段、按钮和一行必要状态，避免把注册说明重复成大段帮助卡。
+Settings 顶部使用固定四步清单说明首次配置：`Starling 个人中心取 AK/SK → Inspire 取个人 wak_ Access Key（可选）→ 从部门负责人获取 Feishu App Secret 并在顶部直接点击 Enter Feishu App Secret 写入本机 macOS Keychain → 回到 Workflow 授权并运行`。App Secret 卡始终显示当前 Keychain 状态，不再藏在折叠区；有飞书应用管理权限的用户也可从飞书开放平台的 `Credentials & Basic Info` 自行复制 Secret。页面不再展示 Guide 或 Prototype 文档入口；各配置区只保留字段、按钮和一行必要状态，避免把注册说明重复成大段帮助卡。
 
 ## Spreadsheet、Sheet 与动态布局
 
@@ -101,7 +101,7 @@ Popup 打开且凭证有效时自动调用 `list_projects`。Native Host 通过�
 
 ## Inspire Pilot 调用控制
 
-Inspire Writer 固定调用已完成真实 E2E 的 `TM_inspire` Custom Agent `6a7036d4ef9ca901ee5c7a65` Version 7；创建路径是 `/openapi/agents/:agentId/tasks`，请求不再发送通用 task 的 `teamId`。插件只发送 OpenAPI 当前允许的 `gemini_3f`、`gemini-3.1-pro`、`gpt-5.4-mini` 与 `gpt-5.4`。历史版本曾保存的 `gemini-3.1-p-priority`、`gpt-5.4-mini-2026-03-17` 与 `gpt-5.4-2026-03-05` 会在 Settings 加载和请求发送前迁移到对应正式 ID；thinking level 仍独立使用 `low`、`medium` 或 `high`。
+Inspire Writer 默认调用托管的 TM Source Optimizer Agent `6a7036d4ef9ca901ee5c7a65`，创建路径是 `/openapi/agents/:agentId/tasks`，请求不再发送通用 task 的 `teamId`。默认版本策略为 `Latest published`，因此请求省略 `version` 并由 OpenAPI 选择最新非废弃发布版本；高级项可切换到 Custom Agent ID，并只在排障或回滚时指定 pinned version。Agent 必须返回 native `chat` copy；权限、发布版本、输出类型或无 `pass` copy 失败会在审阅结果中展示简短原因和对应修改动作。插件只发送 OpenAPI 当前允许的 `gemini_3f`、`gemini-3.1-pro`、`gpt-5.4-mini` 与 `gpt-5.4`。历史版本曾保存的 `gemini-3.1-p-priority`、`gpt-5.4-mini-2026-03-17` 与 `gpt-5.4-2026-03-05` 会在 Settings 加载和请求发送前迁移到对应正式 ID；thinking level 仍独立使用 `low`、`medium` 或 `high`。
 
 Inspire Writer 的 Pilot 默认同时保持最多五十个在途改写任务，以覆盖服务端异步生成等待。当前提速试验把客户端请求 gate 提高到 100 QPS，每个任务的创建、status polling、失败详情与 copies 读取复用该 gate，任何并发任务都不能绕过；Claude 和其他 OpenAI-compatible Provider 继续使用原有并发策略。100 QPS 只是客户端发送上限，不能证明服务端额度已经同步提高；服务端返回 429、400 或 5xx 时必须保留真实错误。运行中的状态区按批次显示 `finished / total`、当前活跃任务数和累计 status poll 数，避免把最后启动的 Row 误显示为串行卡点。单次 HTTP 请求默认最多等待 30 秒，单个 task 从创建到 copies 解析共用 120 秒截止时间；超时、失败与无可用 pass copy 都保留真实错误，禁止用空候选伪装成功。Agent 原样返回 source 是明确的 no-rewrite 结果，客户端记录原因但不把它展示为 AI 候选。每批结束后状态区与本机日志记录完成任务数、实际 HTTP 请求数和 status polling 次数，平台侧每天 5,000 次配额仍是最终日上限。
 
@@ -148,9 +148,9 @@ ROI archive 独立于 Working spreadsheet，固定指向 [ROI_Test](https://byte
 
 RWS 与 Pactera 的本地写入计划会在首次写入前随运行快照保存。任一 vendor 写入失败后，错误信息会列出已完成 vendor；再次点击归档时复用同一组 Run ID，跳过已完成 vendor并仅续写失败项。真实 writer 会查询既有 Run/Scope/Item 并只追加缺失业务键，因此 Run 创建、Scope 批量写入或 Item 批量写入后发生响应丢失也可安全续写；同一 Run ID 已有多条 Run 时停止并报告数据冲突。关闭再打开 Side Panel 也按相同状态恢复，直到启动新运行或显式重置。
 
-Settings 不允许编辑固定 App ID，也不展示 App Secret 输入框；Chrome storage 中的历史 `feishuAppId` / `feishuAppSecret` 会在升级时清除。普通用户在 Side Panel 首页点击 `Authorize`，完成后首页立即显示姓名、user ID 和头像并重跑环境检查。回调页只确认收到 authorization response，只有 v2 token 交换、用户资料读取与本地保存全部成功后才显示已授权。应用 Owner 需为用户身份开通并发布细分 Sheet scope、`wiki:node:read`、Bitable table/field scope、`base:record:read`、`base:record:retrieve`、`base:record:create`、`base:record:update`、`base:view:read`、`base:view:write_only`、`contact:user.base:readonly` 与 `contact:user.employee_id:readonly`，并登记 localhost 回调地址。1.3.0 新增记录读取与视图权限，已有用户必须重新授权一次；1.3.1 起，插件会比较本地 token scope 与当前必需 scope，缺失时首页显示具体权限并切换为 `Reconnect`；1.3.2 修正容量预检的“列出记录”权限为 `base:record:retrieve`；1.3.3 只信任 v2 token 响应实际返回的 scope，并一次性废弃 1.3.2 及更早无法证明 scope 来源的本地 token。用户未授权、应用权限未发布、token broker/Keychain 未配置或文档权限不足时，读写与归档停止并展示真实错误。
+Settings 不允许编辑固定 App ID；App Secret 只通过顶部按钮触发 Native Host 的 macOS 隐藏输入框，既不进入 DOM、Chrome storage、Native Messaging 响应、日志或安装包，Chrome storage 中的历史 `feishuAppId` / `feishuAppSecret` 仍会在升级时清除。获准的本机直连用户应先写入 Keychain，再在 Side Panel 首页点击 `Authorize`；完成后首页立即显示姓名、user ID 和头像并重跑环境检查。回调页只确认收到 authorization response，只有 v2 token 交换、用户资料读取与本地保存全部成功后才显示已授权。应用 Owner 需为用户身份开通并发布细分 Sheet scope、`wiki:node:read`、Bitable table/field scope、`base:record:read`、`base:record:retrieve`、`base:record:create`、`base:record:update`、`base:view:read`、`base:view:write_only`、`contact:user.base:readonly` 与 `contact:user.employee_id:readonly`，并登记 localhost 回调地址。1.3.0 新增记录读取与视图权限，已有用户必须重新授权一次；1.3.1 起，插件会比较本地 token scope 与当前必需 scope，缺失时首页显示具体权限并切换为 `Reconnect`；1.3.2 修正容量预检的“列出记录”权限为 `base:record:retrieve`；1.3.3 只信任 v2 token 响应实际返回的 scope，并一次性废弃 1.3.2 及更早无法证明 scope 来源的本地 token。用户未授权、应用权限未发布、token broker/Keychain 未配置或文档权限不足时，读写与归档停止并展示真实错误。
 
-当前部门内部分发允许获准用户展开 Settings 的 `Feishu App Secret`，点击 `Enter Feishu App Secret` 后由 Native Host 调起 macOS 隐藏输入框，先验证 App Secret，再保存到当前用户 Keychain；Secret 不进入 DOM、Chrome storage、Native Messaging 响应、日志或安装包。部门负责人通过批准的内部渠道把同一应用 Secret 提供给获准用户，每位用户只在自己的 Mac 上输入一次。正式扩大到无需接触 Secret 的多人发布仍需要服务端 OAuth broker 在受信任环境保存 Secret、兑换 authorization code，并向客户端返回受限的用户会话。
+当前部门内部分发允许获准用户在 Settings 顶部直接点击 `Enter Feishu App Secret`，由 Native Host 调起 macOS 隐藏输入框，先验证 App Secret，再保存到当前用户 Keychain；Secret 不进入 DOM、Chrome storage、Native Messaging 响应、日志或安装包。部门负责人通过批准的内部渠道把同一应用 Secret 提供给获准用户，每位用户只在自己的 Mac 上输入一次。正式扩大到无需接触 Secret 的多人发布仍需要服务端 OAuth broker 在受信任环境保存 Secret、兑换 authorization code，并向客户端返回受限的用户会话。
 
 当前 `direct_user` 写入模式遵循飞书当前调用身份的数据权限：若普通用户使用 `user_access_token` 追加 ROI_Test，该用户必须具有 ROI_Test 编辑权限，也就能打开该表。产品目标“任何获准插件用户均可点击写入，但只有 Owner 分享链接的人能查看”需要独立的应用身份代理：客户端把经过验证的 Runs/Scopes/Items payload 和用户身份声明发给代理，代理持有 App Secret、校验调用方并用 `tenant_access_token` 写入；App Secret 不能进入扩展。ROI_Test 文档显示名可以改，固定 Wiki token 与三张内部表名不变即可。
 

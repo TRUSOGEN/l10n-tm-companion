@@ -13,7 +13,7 @@ assert.equal(
   '6a7036d4ef9ca901ee5c7a65',
   'TM_inspire 的真实 published Agent ID 必须由程序固定',
 );
-assert.equal(INSPIRE_TM_AGENT_VERSION, 7, '插件必须锁定已完成真实 E2E 的 Agent Version 7');
+assert.equal(INSPIRE_TM_AGENT_VERSION, 7, '必须保留最后一次已验证默认 Agent 版本的审计记录');
 
 assert.deepEqual(
   INSPIRE_MODEL_OPTIONS.map(({ value }) => value),

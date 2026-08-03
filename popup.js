@@ -148,6 +148,7 @@ async function loadConfig() {
         'enableAI',
         'enableROI', 'uiLanguage',
         'llmThinkingLevel',
+        'inspireAgentMode', 'inspireCustomAgentId', 'inspireAgentVersionPolicy', 'inspireAgentVersion',
         'vendor',
       ],
       (result) => {

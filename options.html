@@ -22,13 +22,23 @@
         </li>
         <li>
           <span class="setup-step-number">3</span>
-          <span><strong>Feishu App Secret:</strong> get it from your team owner → below, expand <strong>Feishu App Secret</strong> → click <strong>Enter Feishu App Secret</strong> → paste it in the macOS dialog.</span>
+          <span><strong>Feishu App Secret:</strong> get it from your team owner or <a href="https://open.feishu.cn/app" target="_blank">open Feishu Developer Console</a> → Credentials &amp; Basic Info → <button type="button" class="setup-inline-action" data-configure-feishu-app>Enter App Secret</button> → paste it in the macOS dialog.</span>
         </li>
         <li>
           <span class="setup-step-number">4</span>
           <span>Return to <strong>Workflow</strong> → click <strong>Authorize</strong> → select projects → run.</span>
         </li>
       </ol>
+    </section>
+
+    <section class="feishu-app-setup" aria-labelledby="feishu-app-setup-title">
+      <div>
+        <h2 id="feishu-app-setup-title">Feishu authorization</h2>
+        <p>App Secret is required on this Mac before you can authorize Feishu.</p>
+      </div>
+      <button type="button" class="btn btn-primary" data-configure-feishu-app>Enter Feishu App Secret</button>
+      <p id="feishu-owner-result" class="test-result"></p>
+      <p class="feishu-app-note">Stored only in this Mac's Keychain. You can replace it here when the app credential changes.</p>
     </section>
 
     <section class="card">
@@ -91,8 +101,34 @@
         </select>
       </label>
       <div id="inspire-fields" class="provider-fields hidden">
-        <a href="https://inspire.bytedance.net" target="_blank">Open Inspire Writer</a>
-        <span> → get a personal <code>wak_…</code> key from the Inspire Pilot owner → paste it below.</span>
+        <p class="provider-intro"><a href="https://inspire.bytedance.net" target="_blank">Open Inspire Writer</a> → get a personal <code>wak_…</code> key from the Inspire Pilot owner → paste it below.</p>
+        <div class="inspire-agent-summary" id="inspire-agent-summary"></div>
+        <details class="inspire-agent-advanced">
+          <summary>Advanced: Agent and version</summary>
+          <label>Agent
+            <select id="inspireAgentMode">
+              <option value="default">Use configured default TM Agent</option>
+              <option value="custom">Use Custom Agent ID</option>
+            </select>
+          </label>
+          <div id="inspire-custom-agent-fields" class="hidden">
+            <label>Custom Agent ID
+              <input type="text" id="inspireCustomAgentId" placeholder="Paste a published Inspire Agent ID">
+            </label>
+          </div>
+          <label>Version
+            <select id="inspireAgentVersionPolicy">
+              <option value="latest">Latest published (recommended)</option>
+              <option value="pinned">Pinned version for rollback</option>
+            </select>
+          </label>
+          <div id="inspire-pinned-version-field" class="hidden">
+            <label>Published version number
+              <input type="number" id="inspireAgentVersion" min="1" step="1" inputmode="numeric" placeholder="For example: 8">
+            </label>
+          </div>
+          <p class="agent-contract-note">The Agent must use native Chat copy output. Team is resolved by Agent ID and is never entered here.</p>
+        </details>
       </div>
       <label>API Key
         <input type="password" id="llmApiKey" placeholder="Enter API Key or Inspire wak_… Access Key">
@@ -131,18 +167,6 @@
       </div>
       <p id="working-sheet-status" class="test-result"></p>
       <p id="feishu-test-result" class="test-result"></p>
-
-      <details id="feishu-owner-setup" class="owner-setup">
-        <summary>3. Feishu App Secret</summary>
-        <p class="owner-secret-help">
-          Get the App Secret from your team owner. App administrators can copy it from
-          <a href="https://open.feishu.cn/app" target="_blank">Feishu Developer Console</a>
-          → Credentials &amp; Basic Info.
-        </p>
-        <button id="configure-feishu-app" type="button" class="btn btn-primary owner-secret-button">Enter Feishu App Secret</button>
-        <p class="owner-secret-note">Paste it in the macOS dialog. It is stored only in this Mac's Keychain.</p>
-        <p id="feishu-owner-result" class="test-result"></p>
-      </details>
 
       <details>
         <summary>Dynamic column layout</summary>

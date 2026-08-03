@@ -107,11 +107,53 @@ assert.equal(result.pollCount, 1);
     inspireRequestGate: async () => {},
   });
   globalThis.fetch = originalFetch;
-  assert.equal(createRequest?.body.version, 7, 'AI pipeline 必须锁定真实验证过的 Agent Version 7');
+  assert.ok(!('version' in createRequest.body), '默认 Agent 必须省略 version，自动使用最新非废弃发布版本');
   assert.ok(!('teamId' in createRequest.body), 'Custom Agent 创建请求不得继续发送 teamId');
   assert.equal(rewritten[0].ai_translation, 'Finish 3 LIVE missions to get 100 points.');
   assert.equal(rewritten[0].ai_candidates.length, 1);
-  assert.equal(rewritten[0].ai_agent_version, 7);
+  assert.equal(rewritten[0].ai_agent_version, 7, '结果必须记录服务端实际执行的版本，便于审计');
+}
+
+{
+  const originalFetch = globalThis.fetch;
+  let createRequest = null;
+  globalThis.fetch = async (url, init = {}) => {
+    if (url.endsWith('/openapi/agents/agent-custom-9/tasks')) {
+      createRequest = { url, body: JSON.parse(init.body) };
+      return response(200, {
+        _id: 'task-custom-pinned',
+        status: 'completed',
+        customAgentId: 'agent-custom-9',
+        agentVersionNumber: 9,
+        agentType: 'chat',
+      });
+    }
+    if (url.endsWith('/openapi/tasks/task-custom-pinned/copies')) {
+      return response(200, {
+        copies: [{ status: 'pass', copy: 'Finish 3 LIVE missions.', summary: 'Passed.' }],
+      });
+    }
+    throw new Error(`Unexpected custom pipeline URL: ${url}`);
+  };
+  const rewritten = await rewriteSourceWithAI([{
+    source_text: 'Complete 3 LIVE missions.',
+    tm_source: 'Finish 3 LIVE missions.',
+    similarity: 78,
+  }], {
+    llmProvider: 'inspire',
+    llmEndpoint: 'https://inspire.bytedance.net/writer/api',
+    llmApiKey: 'wak_test',
+    llmModel: 'gemini_3f',
+    inspireAgentMode: 'custom',
+    inspireCustomAgentId: 'agent-custom-9',
+    inspireAgentVersionPolicy: 'pinned',
+    inspireAgentVersion: 9,
+    inspireRequestGate: async () => {},
+  });
+  globalThis.fetch = originalFetch;
+  assert.ok(createRequest.url.endsWith('/agent-custom-9/tasks'), '高级 Custom Agent ID 必须成为 OpenAPI path 参数');
+  assert.equal(createRequest.body.version, 9, 'Pinned version 必须成为 OpenAPI 请求参数');
+  assert.equal(rewritten[0].ai_agent_version, 9);
 }
 
 {
@@ -191,4 +233,4 @@ function response(status, body) {
   };
 }
 
-console.log('inspire-custom-agent tests: 4 passed, 0 failed');
+console.log('inspire-custom-agent tests: 5 passed, 0 failed');

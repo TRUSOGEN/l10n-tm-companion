@@ -20,6 +20,8 @@ import {
 import {
   INSPIRE_MODEL_OPTIONS,
   normalizeInspireModelId,
+  INSPIRE_DEFAULT_AGENT,
+  resolveInspireAgentConfig,
 } from './lib/inspire-models.js';
 
 const GENERAL_KEYS = [
@@ -31,6 +33,10 @@ const GENERAL_KEYS = [
   'llmModel',
   'llmCustomModel',
   'llmThinkingLevel',
+  'inspireAgentMode',
+  'inspireCustomAgentId',
+  'inspireAgentVersionPolicy',
+  'inspireAgentVersion',
   'enableAI',
 ];
 
@@ -100,6 +106,8 @@ async function load() {
   const defaults = {
     starlingTmMode: 'batch_ppe',
     llmProvider: LLM_DEFAULT_PROVIDER,
+    inspireAgentMode: 'default',
+    inspireAgentVersionPolicy: 'latest',
     ...LLM_PRESETS[LLM_DEFAULT_PROVIDER],
   };
   const provider = data.llmProvider || LLM_DEFAULT_PROVIDER;
@@ -167,14 +175,16 @@ async function renderFeishuUserStatus() {
 /** 显示本机 App Secret 的 Keychain 配置状态，并同步按钮动作名称。 */
 async function renderFeishuApplicationStatus() {
   const result = document.getElementById('feishu-owner-result');
-  const button = document.getElementById('configure-feishu-app');
+  const buttons = document.querySelectorAll('[data-configure-feishu-app]');
   try {
     const status = await getFeishuCredentialStatus();
     result.textContent = status.configured
       ? 'Feishu App Secret is saved in macOS Keychain.'
       : 'Feishu App Secret has not been entered on this Mac.';
     result.className = status.configured ? 'test-result ok' : 'test-result err';
-    button.textContent = status.configured ? 'Replace Feishu App Secret' : 'Enter Feishu App Secret';
+    buttons.forEach((button) => {
+      button.textContent = status.configured ? 'Replace Feishu App Secret' : 'Enter Feishu App Secret';
+    });
   } catch (error) {
     result.textContent = error.message;
     result.className = 'test-result err';
@@ -335,7 +345,23 @@ function onProviderChange() {
 function renderProviderFields(preferredModel = '') {
   const provider = document.getElementById('llmProvider').value;
   document.getElementById('inspire-fields').classList.toggle('hidden', provider !== 'inspire');
+  if (provider === 'inspire') renderInspireAgentFields();
   renderModelOptions(preferredModel);
+}
+
+/** 根据 Agent 选择和版本策略更新高级字段与当前生效摘要。 */
+function renderInspireAgentFields() {
+  const agentMode = document.getElementById('inspireAgentMode').value === 'custom' ? 'custom' : 'default';
+  const versionPolicy = document.getElementById('inspireAgentVersionPolicy').value === 'pinned' ? 'pinned' : 'latest';
+  document.getElementById('inspire-custom-agent-fields').classList.toggle('hidden', agentMode !== 'custom');
+  document.getElementById('inspire-pinned-version-field').classList.toggle('hidden', versionPolicy !== 'pinned');
+  const agentLabel = agentMode === 'custom'
+    ? (document.getElementById('inspireCustomAgentId').value.trim() || 'Custom Agent ID required')
+    : `${INSPIRE_DEFAULT_AGENT.name} · ${INSPIRE_DEFAULT_AGENT.id}`;
+  const versionLabel = versionPolicy === 'pinned'
+    ? `Pinned version ${document.getElementById('inspireAgentVersion').value.trim() || 'required'}`
+    : 'Latest published';
+  document.getElementById('inspire-agent-summary').textContent = `${agentLabel} · ${versionLabel}`;
 }
 
 /** 保存不含 Starling AK/SK 和单次运行配置的常规设置。 */
@@ -350,10 +376,17 @@ async function save() {
   const preset = LLM_PRESETS[data.llmProvider] || LLM_PRESETS[LLM_DEFAULT_PROVIDER];
   if (!data.llmEndpoint) data.llmEndpoint = preset.llmEndpoint || LLM_PRESETS.claude.llmEndpoint;
   if (!data.llmModel) data.llmModel = preset.llmModel || LLM_PRESETS.claude.llmModel;
-  await chrome.storage.local.set(data);
   const result = document.getElementById('save-result');
-  result.textContent = 'Saved';
-  result.className = 'test-result ok';
+  try {
+    if (data.llmProvider === 'inspire') resolveInspireAgentConfig(data);
+    await chrome.storage.local.set(data);
+    result.textContent = 'Saved';
+    result.className = 'test-result ok';
+  } catch (error) {
+    result.textContent = error.message;
+    result.className = 'test-result err';
+    return;
+  }
   setTimeout(() => { result.textContent = ''; }, 2000);
 }
 
@@ -376,10 +409,12 @@ async function testCli() {
 /** 通过 Native Host 系统隐藏输入框保存 App Secret，不让 Secret 经过 Chrome。 */
 async function configureFeishuAppOwner() {
   const result = document.getElementById('feishu-owner-result');
-  const button = document.getElementById('configure-feishu-app');
-  const originalLabel = button.textContent;
-  button.disabled = true;
-  button.textContent = 'Waiting for macOS dialog…';
+  const buttons = [...document.querySelectorAll('[data-configure-feishu-app]')];
+  const originalLabels = buttons.map((button) => button.textContent);
+  buttons.forEach((button) => {
+    button.disabled = true;
+    button.textContent = 'Waiting for macOS dialog…';
+  });
   result.textContent = 'Paste the Feishu App Secret in the macOS dialog.';
   result.className = 'test-result';
   try {
@@ -387,13 +422,13 @@ async function configureFeishuAppOwner() {
     if (!configured.configured) throw new Error('Feishu App Secret was not saved.');
     result.textContent = 'Feishu App Secret is saved in macOS Keychain.';
     result.className = 'test-result ok';
-    button.textContent = 'Replace Feishu App Secret';
+    buttons.forEach((button) => { button.textContent = 'Replace Feishu App Secret'; });
   } catch (error) {
     result.textContent = error.message;
     result.className = 'test-result err';
-    button.textContent = originalLabel;
+    buttons.forEach((button, index) => { button.textContent = originalLabels[index]; });
   } finally {
-    button.disabled = false;
+    buttons.forEach((button) => { button.disabled = false; });
   }
 }
 
@@ -414,8 +449,14 @@ function renderWorkingSheetStatus(data) {
 document.getElementById('btn-save').addEventListener('click', save);
 document.getElementById('save-starling-credentials').addEventListener('click', saveCredentials);
 document.getElementById('test-cli').addEventListener('click', testCli);
-document.getElementById('configure-feishu-app').addEventListener('click', configureFeishuAppOwner);
+document.querySelectorAll('[data-configure-feishu-app]').forEach((button) => {
+  button.addEventListener('click', configureFeishuAppOwner);
+});
 document.getElementById('llmProvider').addEventListener('change', onProviderChange);
+['inspireAgentMode', 'inspireAgentVersionPolicy', 'inspireCustomAgentId', 'inspireAgentVersion'].forEach((id) => {
+  document.getElementById(id).addEventListener('input', renderInspireAgentFields);
+  document.getElementById(id).addEventListener('change', renderInspireAgentFields);
+});
 document.querySelectorAll('[data-reveal-target]').forEach((button) => {
   button.addEventListener('click', () => toggleCredentialVisibility(button));
 });

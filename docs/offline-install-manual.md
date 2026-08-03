@@ -12,12 +12,12 @@ L10n TM Companion 会读取飞书表格中的英文原文，查询 Starling Top-
 - Google Chrome 114 或更高版本。
 - 公司网络或 VPN。
 - 你自己的 Starling AK 和 SK。
-- 使用 AI 改写时，需要 Inspire 的个人 Access Key；`TM_inspire` Agent Version 7 已内置，不需要填写 Agent ID、version 或 teamId。
+- 使用 AI 改写时，需要 Inspire 的个人 Access Key；默认使用托管 TM Agent 的最新已发布版本，高级项才需要填写 Custom Agent ID 或固定版本，teamId 不需要填写。
 - 需要读写飞书表格时，需要共享飞书应用已被添加为目标表格的可编辑协作者。
 
 安装包已经内置 Python、Node.js 和固定版本 Starling CLI。电脑已经安装过这些工具也没有关系：插件只使用自己目录内的私有副本，不覆盖、不升级、不卸载用户已有版本。
 
-个人 AK、SK 与 Inspire Access Key 只粘贴到插件 Settings。普通用户不需要 App Secret，也不要向任何插件安装者分发 App Secret。
+个人 AK、SK 与 Inspire Access Key 只粘贴到插件 Settings。本机直连飞书授权还要求获准用户先在 Settings 顶部写入 App Secret；Secret 只能经团队批准的渠道获取，绝不进入聊天、截图、Chrome storage 或安装包。
 
 ### 常用词说明
 
@@ -118,7 +118,7 @@ Inspire task 已完成但第一次 copies 暂时为空时，插件会只重读�
 
 1. 打开 [Inspire Writer](https://inspire.bytedance.net)，使用公司账号登录。
 2. 阅读 [Inspire Prototype 使用说明](https://bytedance.larkoffice.com/wiki/D8PswE6azi4d4uk4ep7cyxoPnfc)；这是当前 Inspire Writer Pilot 的说明文档。
-3. 向 Inspire Pilot owner 申请个人 OpenAPI Access Key；`TM_inspire` Agent ID 与已验证 Version 7 已在插件中固定配置，普通用户不需要索取或填写 Agent ID、version 或 `teamId`。当前 Pilot 对接人是逯鹏宇。
+3. 向 Inspire Pilot owner 申请个人 OpenAPI Access Key；默认 Agent 自动使用最新已发布版本，日常不需要填写 Agent ID、version 或 `teamId`。需要切换到已发布且兼容的 Agent 时，在 Settings 的 `Advanced: Agent and version` 输入 Custom Agent ID。当前 Pilot 对接人是逯鹏宇。
 4. 不要使用其他人的 Access Key。
 5. 回到 Settings，勾选 `Enable AI rewrite`。
 6. `LLM Provider` 选择 `Inspire Writer`。
@@ -135,9 +135,9 @@ Inspire task 已完成但第一次 copies 暂时为空时，插件会只重读�
 
 ## 第七步：配置飞书表格读写
 
-插件已经固定使用团队共享的飞书应用，普通用户不需要创建应用、填写 App ID 或获取 App Secret。正式分发环境部署 OAuth broker 后，用户只需在 Side Panel 首页点击 `Authorize` 完成个人授权。本机 Owner 验证需先在 Settings 的 `Application owner setup` 通过系统隐藏输入框把 Secret 保存到 Keychain。
+插件已经固定使用团队共享的飞书应用，用户不需要创建应用或填写 App ID。当前本机直连授权在点击 `Authorize` 前需要 App Secret：在 Settings 顶部点击 `Enter Feishu App Secret`，系统会打开 macOS 隐藏输入框，写入当前 Mac 的 Keychain；状态显示已保存后再回到 Side Panel 授权。正式分发环境部署 OAuth broker 后，用户只需在 Side Panel 首页点击 `Authorize`。
 
-当前 v1.3.0 线下包在没有 OAuth broker 时只适用于 Owner/受控 Pilot。App Secret 只存在 Owner 本机 Keychain，不会进入 ZIP；普通用户不能通过线下、聊天或安装包获得 App Secret。把 Secret 告诉安装者会扩散应用级权限，不属于受支持的正式分发方式。
+当前线下包在没有 OAuth broker 时只适用于 Owner/受控 Pilot。App Secret 只存在每位获准用户本机 Keychain，不会进入 ZIP；不得通过截图、聊天或安装包转发 Secret。扩大到无需接触 Secret 的多人分发时必须启用 OAuth broker。
 
 ### 仅供应用管理员：权限准备
 
@@ -280,7 +280,7 @@ ROI_Test 的查看权限由飞书分享设置控制。发布应用、上传插�
 
 ### 显示 No AI rewrite
 
-先确认 `Enable AI rewrite` 已勾选，Provider、API Key 和 Model 已填写并保存。`TM_inspire` Agent Version 7 已内置，无需填写 Agent ID、version 或 teamId。Orig Match 已达到 85% 时，插件也可能不需要调用 AI。
+先确认 `Enable AI rewrite` 已勾选，Provider、API Key 和 Model 已填写并保存。默认 Agent 自动使用最新已发布版本；只有需要切换 Agent 或排障回滚时，才在 `Advanced: Agent and version` 填写 Custom Agent ID 或固定版本，teamId 永远不需要填写。Orig Match 已达到 85% 时，插件也可能不需要调用 AI。
 
 ### 飞书连接成功但无法写入
 

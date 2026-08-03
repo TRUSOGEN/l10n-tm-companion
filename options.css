@@ -57,6 +57,19 @@ h1 { font-size: 20px; margin-bottom: 20px; }
 .owner-setup a:hover { text-decoration: underline; }
 .quick-setup code,
 .provider-fields code { padding: 1px 4px; border-radius: 4px; background: #e9efff; }
+.setup-inline-action {
+  display: inline; margin: 0; padding: 0; border: 0; background: transparent;
+  color: #245bdb; font: inherit; font-weight: 700; cursor: pointer; text-decoration: underline;
+}
+.feishu-app-setup {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 18px; align-items: center;
+  margin-bottom: 16px; padding: 15px 18px; border: 1px solid #b9ead2; border-radius: 10px; background: #f3fbf7;
+}
+.feishu-app-setup h2 { margin: 0 0 4px; font-size: 14px; }
+.feishu-app-setup p { margin: 0; color: #4e5969; font-size: 12px; line-height: 1.5; }
+.feishu-app-setup .test-result,
+.feishu-app-note { grid-column: 1 / -1; }
+.feishu-app-setup .test-result { margin-top: 0; }
 
 .card {
   background: #fff; border: 1px solid #e5e7eb; border-radius: 8px;
@@ -104,18 +117,6 @@ label input, label select {
 }
 .reveal-button svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.8; }
 .security-note { line-height: 1.55; }
-.owner-secret-help {
-  margin: 10px 0;
-  color: #4e5969;
-  font-size: 12px;
-  line-height: 1.55;
-}
-.owner-secret-button {
-  width: 100%;
-  margin: 2px 0 0;
-  font-weight: 700;
-}
-.owner-secret-note { margin: 8px 0 0; color: #646a73; font-size: 11px; }
 
 details { margin-top: 12px; border-top: 1px dashed #e5e7eb; padding-top: 12px; }
 summary { cursor: pointer; font-size: 12px; color: #646a73; }
@@ -127,6 +128,14 @@ summary { cursor: pointer; font-size: 12px; color: #646a73; }
 .toggle span { user-select: none; }
 .hidden { display: none !important; }
 .provider-fields { padding: 10px; margin: 8px 0 12px; border: 1px solid #d6e4ff; border-radius: 8px; background: #f5f8ff; font-size: 12px; }
+.provider-intro { margin: 0 0 10px; line-height: 1.5; }
+.inspire-agent-summary {
+  margin: 0 0 8px; padding: 8px 10px; border: 1px solid #d6e4ff; border-radius: 7px;
+  background: #fff; color: #3c475a; line-height: 1.5;
+}
+.inspire-agent-advanced { margin-top: 8px; padding-top: 8px; }
+.inspire-agent-advanced label { margin: 10px 0 0; }
+.agent-contract-note { margin: 9px 0 0; color: #7b8290; line-height: 1.5; }
 .feishu-user-card {
   display: grid;
   grid-template-columns: 42px minmax(0, 1fr) auto;

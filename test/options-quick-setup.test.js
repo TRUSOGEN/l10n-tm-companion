@@ -32,6 +32,8 @@ assert(
 );
 assert(!html.includes('New Match %') && !html.includes('CD review valid?'), '设置页不得继续展示旧版列名');
 assert(styles.includes('.setup-steps') && styles.includes('.setup-step-number'), '四步清单必须使用紧凑编号样式');
-assert(styles.includes('.owner-secret-button'), 'App Secret 填写按钮必须使用明确的主操作样式');
+assert(html.includes('data-configure-feishu-app'), 'App Secret 必须能在页面顶部直接填写');
+assert(!html.includes('<summary>3. Feishu App Secret</summary>'), 'App Secret 不得继续藏在折叠区');
+assert(styles.includes('.feishu-app-setup'), 'App Secret 必须使用独立的首屏配置卡片');
 
 console.log('options quick setup tests: passed');

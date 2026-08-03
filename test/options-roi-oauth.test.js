@@ -15,7 +15,7 @@ assert(html.includes('id="feishu-user-avatar"'), 'Settings 应展示已授权用
 assert(html.includes('id="feishu-user-name"'), 'Settings 应展示已授权用户名称');
 assert(!html.includes('id="feishuAppId"'), '固定 Feishu App ID 不应要求普通用户输入');
 assert(!html.includes('id="feishuAppSecret"'), 'Settings DOM 不得直接承载 App Secret');
-assert(html.includes('id="configure-feishu-app"'), 'Settings 应提供系统安全配置入口');
+assert(html.includes('data-configure-feishu-app'), 'Settings 应提供系统安全配置入口');
 assert(!source.includes('authorizeFeishuUser'), 'Settings 不应启动普通用户 OAuth');
 assert(source.includes('configureFeishuApplication'), 'Secret setup 应调用 Native Host 安全配置');
 assert(source.includes('getFeishuUserAuthorizationStatus'), 'Settings 应读取已授权用户资料');

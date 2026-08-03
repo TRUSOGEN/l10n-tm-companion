@@ -425,7 +425,7 @@ console.log('\n=== ai-translate.js: rewriteSourceWithAI (TM 优化改写) ===');
     },
   );
   globalThis.fetch = origFetch;
-  assert('Inspire 失败任务保留真实错误', out[0].reasoning.includes('500'));
+  assert('Inspire 失败任务保留可操作错误', out[0].reasoning.includes('Inspire could not complete this rewrite'));
   assert('Inspire 失败任务的请求仍计入 Pilot 用量', batchUsage?.taskAttemptCount === 1 && batchUsage?.taskCount === 0 && batchUsage?.requestCount === 2);
 }
 

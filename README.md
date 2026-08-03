@@ -14,7 +14,7 @@ AI 候选链路使用半开区间 **`50 ≤ Score A < 85`**：`49.99` 不创建 
 
 - 📥 从飞书文档/电子表格抓取原文（全文 / 选中文字）
 - 🔄 调用 Starling 批量 TM Match API 查询 TM 记忆（Orig Match%，默认 PPE）
-- 🤖 每条满足 50–85 门禁的 source 只创建一个已发布 `TM_inspire` Custom Agent Version 7 task；Inspire 原生返回最多三个 `status=pass` copy，客户端去重并包装为内部结构化候选
+- 🤖 每条满足 50–85 门禁的 source 只创建一个已发布 Inspire Custom Agent task；默认使用托管的 TM Source Optimizer 最新非废弃版本，也可在 Settings 高级项指定兼容的 Custom Agent ID 或固定版本，Inspire 原生返回最多三个 `status=pass` copy，客户端去重并包装为内部结构化候选
 - 🛡️ 每个候选依次经过 placeholder/token、URL、数字、全大写、单字符或 CamelCase 品牌 token、语义状态与风险校验；Prompt 保留适用的 Legal 证据，随后用真实 Post-TM 验证 `Score B > Score A`，失败候选保留审计信息但不进入可选列表
 - ✅ “Review & edit / 审阅与修改”是唯一编辑入口：CD 可采用通过门禁的 AI 候选或手动编辑 C；例外项可单条 `Confirm & save`，其余默认结果可一键批量确认。内部 `draft / dirty / confirmed` 状态在界面映射为用户动作，不直接展示技术枚举
 - 🔀 对比生成 Comment（`no_tm` / `same` / `improved` / `different`）
@@ -100,11 +100,11 @@ python3 -m unittest test/test_export_local_rates.py test/starling-credentials-te
 | Save & Verify | 同时写入 Chrome 副本与 Starling 官方配置，并真实验证项目权限 |
 | Starling CLI 路径 | 通常留空自动检测，排障时填绝对路径 |
 | TM 查询模式 | 默认「Batch TM API in PPE」；只有排障时才切回旧的单条 CLI 查询 |
-| LLM Provider / Endpoint / Key / Model | Inspire Writer、Claude 或 OpenAI-compatible；Inspire 入口为 [inspire.bytedance.net](https://inspire.bytedance.net)，填写个人 `wak_…` Access Key；插件固定调用已验证的 `TM_inspire` Agent Version 7，再选择 OpenAPI 支持的模型与 thinking level |
-| Feishu account | App ID 固定；普通用户在 Side Panel 首页点击 `Authorize`；插件读取姓名、英文名、user ID、open ID 与头像用于 ROI Operator |
+| LLM Provider / Endpoint / Key / Model | Inspire Writer、Claude 或 OpenAI-compatible；Inspire 入口为 [inspire.bytedance.net](https://inspire.bytedance.net)，填写个人 `wak_…` Access Key；默认 Agent 自动使用最新已发布版本，高级项可填 Custom Agent ID 或固定版本，再选择 OpenAPI 支持的模型与 thinking level |
+| Feishu account | 本机直连授权先在 Settings 顶部写入获准的 App Secret 到 macOS Keychain，再在 Side Panel 首页点击 `Authorize`；插件读取姓名、英文名、user ID、open ID 与头像用于 ROI Operator |
 | ROI archive Bitable | 固定写入 [ROI_Test](https://bytedance.larkoffice.com/wiki/J1RJwEf0FijMQQkceUkcZyqCnJc?table=tbls3B039S6J7zdT&view=vewSwbY6Ry)，用户无需配置 URL |
 
-应用 Owner 需要在飞书开放平台为用户身份开通并发布 `sheets:spreadsheet.meta:read`、`sheets:spreadsheet:read`、`sheets:spreadsheet:write_only`、`wiki:node:read`、`base:table:read`、`base:table:create`、`base:field:read`、`base:field:create`、`base:record:read`、`base:record:retrieve`、`base:record:create`、`base:record:update`、`base:view:read`、`base:view:write_only`、`contact:user.base:readonly` 与 `contact:user.employee_id:readonly`，并登记 `http://localhost:39641/l10n-tm-companion/oauth/callback`。新增 scope 发布后，旧用户必须在 Side Panel 首页重新授权一次。本机 Owner 测试需先在 Settings 的 `Application owner setup` 通过系统隐藏输入框配置 Keychain；正式多人分发需改用服务端 OAuth broker，普通用户只在首页点击授权。发布应用、上传插件或分享 ROI_Test 都不会自动产生用户，只有安装插件并实际授权的账号才会出现在 ROI Operator。Working spreadsheet 支持当前页面自动选择，也支持用户粘贴任意已授权的 `/sheets/` 或 `/wiki/` 链接；Wiki node 会先解析为真实 `obj_token`。
+应用 Owner 需要在飞书开放平台为用户身份开通并发布 `sheets:spreadsheet.meta:read`、`sheets:spreadsheet:read`、`sheets:spreadsheet:write_only`、`wiki:node:read`、`base:table:read`、`base:table:create`、`base:field:read`、`base:field:create`、`base:record:read`、`base:record:retrieve`、`base:record:create`、`base:record:update`、`base:view:read`、`base:view:write_only`、`contact:user.base:readonly` 与 `contact:user.employee_id:readonly`，并登记 `http://localhost:39641/l10n-tm-companion/oauth/callback`。新增 scope 发布后，旧用户必须在 Side Panel 首页重新授权一次。本机直连模式要求获准用户先在 Settings 顶部通过系统隐藏输入框配置 Keychain；正式多人分发需改用服务端 OAuth broker，普通用户只在首页点击授权。发布应用、上传插件或分享 ROI_Test 都不会自动产生用户，只有安装插件并实际授权的账号才会出现在 ROI Operator。Working spreadsheet 支持当前页面自动选择，也支持用户粘贴任意已授权的 `/sheets/` 或 `/wiki/` 链接；Wiki node 会先解析为真实 `obj_token`。
 
 日常运行配置放在 Side Panel，并按 `1 Projects → 2 Spreadsheet → 3 Run → 4 Review` 展示真实操作顺序；Projects 与 Spreadsheet 同时只展开一个，长内容在最高 380px 的区域内滚动，运行完成或恢复有效历史运行后自动进入 Review。飞书授权有效时首页只保留头像与姓名，运行写入目标和确认数量也只在 Review 展示。插件先分页调用 Starling `/projects`，完整发现当前 AK/SK 有权访问的项目，再由 CD 选择一至十个项目；界面每页展示八个项目，翻页保留跨页选择，十个上限对全部页面合并生效。ROI mode 关闭时，程序从全部所选项目的共同 target locales 中确定性选择第一个内部参考 locale，用于满足 Starling Batch TM 协议，vendor、费率和 coverage languages 不参与普通运行。开启 ROI mode 后不显示 vendor 或语言选择器；程序自动覆盖全部项目共同支持的非英语 `targetLocales`，每个语言生成一个携带全部已选 `projectIds` 的 scope。Review 首轮只查询第一个展示 scope，单条与批量 Confirm 也只查询该 scope；点击归档并确认后，其余 scope 以最多三个并发补齐正式金额所需的 A/C TM。RWS 与 Pactera 共用同一套 TM snapshot 并分别套用精确费率；AI 始终执行 English-to-English rewrite，同一车只创建一组 Inspire task 决策。
 
