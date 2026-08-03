@@ -1,0 +1,36 @@
+{
+  "policy_version": "2026-07-demo",
+  "effective_from": "2026-07-01T00:00:00Z",
+  "rates": {
+    "rws_en_generic": {
+      "aipe_usd_per_word": 0.20,
+      "t_only_usd_per_word": 0.12
+    }
+  },
+  "locales": [
+    {
+      "source_locale": "en",
+      "target_locale": "fr",
+      "vendor": "RWS",
+      "rate_catalog_key": "rws_en_generic",
+      "currency": "USD",
+      "effective_from": "2026-07-01T00:00:00Z"
+    },
+    {
+      "source_locale": "en",
+      "target_locale": "de",
+      "vendor": "RWS",
+      "rate_catalog_key": "rws_en_generic",
+      "currency": "USD",
+      "effective_from": "2026-07-01T00:00:00Z"
+    },
+    {
+      "source_locale": "en",
+      "target_locale": "ja",
+      "vendor": "Pactera",
+      "rate_catalog_key": "rws_en_generic",
+      "currency": "USD",
+      "effective_from": "2026-07-01T00:00:00Z"
+    }
+  ]
+}

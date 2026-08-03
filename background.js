@@ -64,6 +64,20 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       });
       return true; // OAuth 回调期间保持消息通道，直到本机授权完成
 
+    // === 转发到 Native Host：Broker OAuth / 异步 ROI ===
+    case 'native_broker_request':
+      chrome.runtime.sendNativeMessage(NATIVE_HOST, {
+        action: 'native_broker_request',
+        payload: msg.payload,
+      }, (response) => {
+        if (chrome.runtime.lastError) {
+          sendResponse({ error: chrome.runtime.lastError.message });
+        } else {
+          sendResponse(response);
+        }
+      });
+      return true;
+
     default:
       sendResponse({ error: `Unknown action: ${msg.action}` });
       return false;

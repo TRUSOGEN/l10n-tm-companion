@@ -81,6 +81,24 @@ if not _oauth_spec or not _oauth_spec.loader:
 feishu_oauth = importlib.util.module_from_spec(_oauth_spec)
 _oauth_spec.loader.exec_module(feishu_oauth)
 
+BROKER_OAUTH_MODULE_PATH = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), 'feishu_oauth_broker.py'
+)
+_broker_oauth_spec = importlib.util.spec_from_file_location('l10n_feishu_oauth_broker', BROKER_OAUTH_MODULE_PATH)
+if not _broker_oauth_spec or not _broker_oauth_spec.loader:
+    raise RuntimeError('Feishu OAuth broker module is unavailable')
+feishu_oauth_broker = importlib.util.module_from_spec(_broker_oauth_spec)
+_broker_oauth_spec.loader.exec_module(feishu_oauth_broker)
+
+ROI_BROKER_MODULE_PATH = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), 'roi_broker_client.py'
+)
+_roi_broker_spec = importlib.util.spec_from_file_location('l10n_roi_broker_client', ROI_BROKER_MODULE_PATH)
+if not _roi_broker_spec or not _roi_broker_spec.loader:
+    raise RuntimeError('ROI broker client module is unavailable')
+roi_broker_client = importlib.util.module_from_spec(_roi_broker_spec)
+_roi_broker_spec.loader.exec_module(roi_broker_client)
+
 DEFAULT_CLI = 'starling-cli'
 CLI_TIMEOUT = 30  # 秒
 PROJECT_LIST_PAGE_SIZE = 25
@@ -144,6 +162,40 @@ _log('=== bridge start ===')
 _log('PATH=' + os.environ.get('PATH', ''))
 _log('which starling-cli=' + str(shutil.which('starling-cli')))
 _log('python=' + sys.executable)
+
+
+LEGACY_LOCAL_SECRET_DEV_ONLY = os.environ.get("L10N_LOCAL_SECRET_DEV_ONLY", "0") == "1"
+if LEGACY_LOCAL_SECRET_DEV_ONLY:
+    sys.stderr.write(
+        "WARNING: legacy local-secret path enabled (L10N_LOCAL_SECRET_DEV_ONLY=1). "
+        "Production builds MUST NOT set this flag; the Feishu broker is the authoritative path.\n"
+    )
+
+
+LEGACY_SECRET_DISABLED_ERROR = {
+    'ok': False,
+    'error': (
+        'Legacy local-secret action disabled; use the Feishu broker path '
+        'or set L10N_LOCAL_SECRET_DEV_ONLY=1 (dev only) to opt in.'
+    ),
+    'error_code': 'legacy_secret_disabled',
+}
+
+
+def _legacy_secret_dev_only(fn):
+    """Gate a legacy secret-bearing action behind L10N_LOCAL_SECRET_DEV_ONLY.
+
+    When the flag is off (production default), the wrapped action returns a
+    stable error without ever invoking the underlying helper so that no local
+    secret storage / user OAuth / tenant token exchange can be reached.
+    """
+    def wrapper(message):
+        if not LEGACY_LOCAL_SECRET_DEV_ONLY:
+            return dict(LEGACY_SECRET_DISABLED_ERROR)
+        return fn(message)
+    wrapper.__name__ = getattr(fn, '__name__', 'wrapped')
+    wrapper.__doc__ = getattr(fn, '__doc__', '')
+    return wrapper
 
 
 
@@ -1299,6 +1351,7 @@ def feishu_oauth_info(_message):
     }
 
 
+@_legacy_secret_dev_only
 def feishu_user_oauth(message):
     """以内置 App ID 和 Keychain Secret 启动 PKCE OAuth，并返回短期用户令牌。"""
     return feishu_oauth.authorize_user(
@@ -1309,6 +1362,7 @@ def feishu_user_oauth(message):
     )
 
 
+@_legacy_secret_dev_only
 def feishu_configure_app_secret(_message):
     """通过 Native Host 系统隐藏输入框完成 Owner Secret 的验证与保存。"""
     return feishu_oauth.configure_app_secret()
@@ -1319,6 +1373,7 @@ def feishu_secret_status(_message):
     return {'ok': True, 'configured': bool(feishu_oauth.load_app_secret())}
 
 
+@_legacy_secret_dev_only
 def feishu_save_secret(message):
     """先验证 Secret，成功后保存到 Keychain，并返回短期 token。"""
     secret = message.get('app_secret') or ''
@@ -1327,11 +1382,54 @@ def feishu_save_secret(message):
     return {'ok': True, **token}
 
 
+@_legacy_secret_dev_only
 def feishu_get_access_token(_message):
     """从 Keychain 读取 Secret 并换取短期 token；响应不包含 Secret。"""
     secret = feishu_oauth.load_app_secret()
     token = feishu_oauth.get_tenant_access_token(secret)
     return {'ok': True, **token}
+
+
+def _broker_plugin_version(message):
+    return str(message.get('plugin_version') or os.environ.get('L10N_PLUGIN_VERSION', '1.4.0'))
+
+
+def native_broker_request(message):
+    """统一代理 Broker OAuth / ROI 请求，避免在插件侧暴露长期凭证。"""
+    payload = message.get('payload') or {}
+    subaction = str(payload.get('action') or '').strip()
+    plugin_version = _broker_plugin_version(payload)
+    if subaction == 'feishu_broker_oauth_start':
+        return feishu_oauth_broker.authorize_via_broker(
+            plugin_version=plugin_version,
+            return_url=str(payload.get('return_url') or ''),
+        )
+    if subaction == 'feishu_broker_status':
+        return feishu_oauth_broker.broker_authorization_status(plugin_version=plugin_version)
+    if subaction == 'feishu_broker_revoke':
+        return feishu_oauth_broker.revoke_broker_authorization(plugin_version=plugin_version)
+    if subaction == 'feishu_broker_token':
+        return feishu_oauth_broker.get_broker_access_token(
+            grant_id=str(payload.get('grant_id') or ''),
+            known_token_version=int(payload.get('known_token_version') or 0),
+            plugin_version=plugin_version,
+        )
+    if subaction == 'roi_broker_create_run':
+        return roi_broker_client.create_run(payload.get('body') or payload)
+    if subaction == 'roi_broker_submit_final':
+        return roi_broker_client.submit_final(
+            str(payload.get('run_id')),
+            str(payload.get('item_id')),
+            payload.get('body') or payload,
+        )
+    if subaction == 'roi_broker_get_run':
+        return roi_broker_client.get_run_status(str(payload.get('run_id')))
+    if subaction == 'roi_broker_archive':
+        return roi_broker_client.request_archive(
+            str(payload.get('run_id')),
+            payload.get('body') or payload,
+        )
+    return {'ok': False, 'error': f'Unknown broker action: {subaction}'}
 
 
 # ---------------------------------------------------------------------------
@@ -1373,6 +1471,8 @@ def main():
                 send_message(feishu_save_secret(message))
             elif action == 'feishu_get_access_token':
                 send_message(feishu_get_access_token(message))
+            elif action == 'native_broker_request':
+                send_message(native_broker_request(message))
             else:
                 send_message({'error': f'Unknown action: {action}'})
         except Exception as e:  # noqa: BLE001  处理中崩溃也要回响应，否则 Chrome 报通信断

@@ -3,10 +3,15 @@
 from __future__ import annotations
 
 import importlib.util
+import os
 import sys
 import unittest
 from pathlib import Path
 from unittest.mock import patch
+
+
+# This test exercises the legacy local-secret path; opt in via the dev-only flag.
+os.environ["L10N_LOCAL_SECRET_DEV_ONLY"] = "1"
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]

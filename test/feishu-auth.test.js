@@ -28,15 +28,18 @@ globalThis.chrome = {
   storage: {
     local: {
       async get(keys) {
+        const normalize = (k) => (Array.isArray(k) ? k : [k]);
+        const keyList = normalize(keys).filter(Boolean);
         return Object.fromEntries(
-          keys.filter((key) => key in localState).map((key) => [key, localState[key]]),
+          keyList.filter((key) => key in localState).map((key) => [key, localState[key]]),
         );
       },
       async set(values) {
         Object.assign(localState, values);
       },
       async remove(keys) {
-        keys.forEach((key) => delete localState[key]);
+        const keyList = Array.isArray(keys) ? keys : [keys];
+        keyList.forEach((key) => delete localState[key]);
       },
     },
   },

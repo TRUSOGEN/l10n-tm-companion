@@ -1,0 +1,1567 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "L10n TM Companion Broker",
+    "version": "1.4.0"
+  },
+  "paths": {
+    "/healthz": {
+      "get": {
+        "summary": "Healthz",
+        "operationId": "healthz_healthz_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Healthz Healthz Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/oauth/sessions": {
+      "post": {
+        "tags": [
+          "oauth"
+        ],
+        "summary": "Create Session",
+        "operationId": "create_session_v1_oauth_sessions_post",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          },
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Request-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateOAuthSessionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateOAuthSessionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/oauth/sessions/{session_id}/exchange": {
+      "post": {
+        "tags": [
+          "oauth"
+        ],
+        "summary": "Exchange",
+        "operationId": "exchange_v1_oauth_sessions__session_id__exchange_post",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          },
+          {
+            "name": "x-l10n-installation-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-L10N-Installation-Id"
+            }
+          },
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Request-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExchangeOAuthCodeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExchangeOAuthCodeResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/oauth/grants/{grant_id}/token": {
+      "post": {
+        "tags": [
+          "oauth"
+        ],
+        "summary": "Refresh",
+        "operationId": "refresh_v1_oauth_grants__grant_id__token_post",
+        "parameters": [
+          {
+            "name": "grant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Grant Id"
+            }
+          },
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Request-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshTokenRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefreshTokenResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/oauth/device-sessions/current": {
+      "delete": {
+        "tags": [
+          "oauth"
+        ],
+        "summary": "Revoke Device",
+        "operationId": "revoke_device_v1_oauth_device_sessions_current_delete",
+        "parameters": [
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Request-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevokeResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/oauth/grants/{grant_id}": {
+      "delete": {
+        "tags": [
+          "oauth"
+        ],
+        "summary": "Revoke Grant",
+        "operationId": "revoke_grant_v1_oauth_grants__grant_id__delete",
+        "parameters": [
+          {
+            "name": "grant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Grant Id"
+            }
+          },
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Request-Id"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevokeResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/roi/runs": {
+      "post": {
+        "tags": [
+          "roi"
+        ],
+        "summary": "Create Run",
+        "operationId": "create_run_v1_roi_runs_post",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          },
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Request-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateRoiRunRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateRoiRunResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/roi/runs/{run_id}/items/{item_id}/final": {
+      "put": {
+        "tags": [
+          "roi"
+        ],
+        "summary": "Submit Final",
+        "operationId": "submit_final_v1_roi_runs__run_id__items__item_id__final_put",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          },
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Item Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          },
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Request-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitFinalTextRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubmitFinalTextResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/roi/runs/{run_id}": {
+      "get": {
+        "tags": [
+          "roi"
+        ],
+        "summary": "Get Run",
+        "operationId": "get_run_v1_roi_runs__run_id__get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          },
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Request-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoiRunStatus"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/roi/runs/{run_id}/archive": {
+      "post": {
+        "tags": [
+          "roi"
+        ],
+        "summary": "Archive Run",
+        "operationId": "archive_run_v1_roi_runs__run_id__archive_post",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          },
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Request-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ArchiveRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArchiveAcceptedResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ArchiveAcceptedResponse": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          },
+          "archive_state": {
+            "type": "string",
+            "title": "Archive State"
+          },
+          "snapshot_id": {
+            "type": "string",
+            "title": "Snapshot Id"
+          },
+          "status_url": {
+            "type": "string",
+            "title": "Status Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "run_id",
+          "archive_state",
+          "snapshot_id",
+          "status_url"
+        ],
+        "title": "ArchiveAcceptedResponse"
+      },
+      "ArchiveInfo": {
+        "properties": {
+          "record_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Record Id"
+          },
+          "requested_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requested At"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "record_id",
+          "requested_at",
+          "completed_at"
+        ],
+        "title": "ArchiveInfo"
+      },
+      "ArchiveRequest": {
+        "properties": {
+          "expected_revision": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Expected Revision"
+          },
+          "requested_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Requested At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "expected_revision",
+          "requested_at"
+        ],
+        "title": "ArchiveRequest"
+      },
+      "CoverageInfo": {
+        "properties": {
+          "expected_a_lines": {
+            "type": "integer",
+            "title": "Expected A Lines"
+          },
+          "complete_a_lines": {
+            "type": "integer",
+            "title": "Complete A Lines"
+          },
+          "complete_c_lines": {
+            "type": "integer",
+            "title": "Complete C Lines"
+          },
+          "expected_c_lines": {
+            "type": "integer",
+            "title": "Expected C Lines"
+          },
+          "complete_a_c_pairs": {
+            "type": "integer",
+            "title": "Complete A C Pairs"
+          }
+        },
+        "type": "object",
+        "required": [
+          "expected_a_lines",
+          "complete_a_lines",
+          "complete_c_lines",
+          "expected_c_lines",
+          "complete_a_c_pairs"
+        ],
+        "title": "CoverageInfo"
+      },
+      "CreateOAuthSessionRequest": {
+        "properties": {
+          "installation_id": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Installation Id"
+          },
+          "redirect_uri": {
+            "type": "string",
+            "title": "Redirect Uri"
+          },
+          "code_challenge": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 43,
+            "title": "Code Challenge"
+          },
+          "code_challenge_method": {
+            "type": "string",
+            "const": "S256",
+            "title": "Code Challenge Method",
+            "default": "S256"
+          },
+          "plugin_version": {
+            "type": "string",
+            "maxLength": 32,
+            "minLength": 3,
+            "title": "Plugin Version"
+          }
+        },
+        "type": "object",
+        "required": [
+          "installation_id",
+          "redirect_uri",
+          "code_challenge",
+          "plugin_version"
+        ],
+        "title": "CreateOAuthSessionRequest"
+      },
+      "CreateOAuthSessionResponse": {
+        "properties": {
+          "session_id": {
+            "type": "string",
+            "title": "Session Id"
+          },
+          "state": {
+            "type": "string",
+            "title": "State"
+          },
+          "authorize_url": {
+            "type": "string",
+            "title": "Authorize Url"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "session_id",
+          "state",
+          "authorize_url",
+          "expires_at"
+        ],
+        "title": "CreateOAuthSessionResponse"
+      },
+      "CreateRoiRunRequest": {
+        "properties": {
+          "client_run_id": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Client Run Id"
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Started At"
+          },
+          "sheet": {
+            "$ref": "#/components/schemas/SheetRef"
+          },
+          "projects": {
+            "items": {
+              "$ref": "#/components/schemas/ProjectRef"
+            },
+            "type": "array",
+            "title": "Projects"
+          },
+          "display_scope": {
+            "$ref": "#/components/schemas/DisplayScope"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RoiItemInput"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "client_run_id",
+          "started_at",
+          "sheet",
+          "projects",
+          "display_scope",
+          "items"
+        ],
+        "title": "CreateRoiRunRequest"
+      },
+      "CreateRoiRunResponse": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "a_state": {
+            "type": "string",
+            "title": "A State"
+          },
+          "review_state": {
+            "type": "string",
+            "title": "Review State"
+          },
+          "c_state": {
+            "type": "string",
+            "title": "C State"
+          },
+          "archive_state": {
+            "type": "string",
+            "title": "Archive State"
+          },
+          "policy_version": {
+            "type": "string",
+            "title": "Policy Version"
+          },
+          "locale_count": {
+            "type": "integer",
+            "title": "Locale Count"
+          },
+          "accepted_item_count": {
+            "type": "integer",
+            "title": "Accepted Item Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "run_id",
+          "revision",
+          "a_state",
+          "review_state",
+          "c_state",
+          "archive_state",
+          "policy_version",
+          "locale_count",
+          "accepted_item_count"
+        ],
+        "title": "CreateRoiRunResponse"
+      },
+      "DisplayFinalTM": {
+        "properties": {
+          "score": {
+            "type": "number",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Score"
+          },
+          "match_category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Match Category"
+          }
+        },
+        "type": "object",
+        "required": [
+          "score"
+        ],
+        "title": "DisplayFinalTM"
+      },
+      "DisplayScope": {
+        "properties": {
+          "source_locale": {
+            "type": "string",
+            "title": "Source Locale"
+          },
+          "target_locale": {
+            "type": "string",
+            "title": "Target Locale"
+          },
+          "project_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Project Ids"
+          }
+        },
+        "type": "object",
+        "required": [
+          "source_locale",
+          "target_locale",
+          "project_ids"
+        ],
+        "title": "DisplayScope"
+      },
+      "ExchangeOAuthCodeRequest": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "state": {
+            "type": "string",
+            "title": "State"
+          },
+          "code_verifier": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 43,
+            "title": "Code Verifier"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "state",
+          "code_verifier"
+        ],
+        "title": "ExchangeOAuthCodeRequest"
+      },
+      "ExchangeOAuthCodeResponse": {
+        "properties": {
+          "grant_id": {
+            "type": "string",
+            "title": "Grant Id"
+          },
+          "device_session_token": {
+            "type": "string",
+            "title": "Device Session Token"
+          },
+          "device_session_expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Device Session Expires At"
+          },
+          "user_access_token": {
+            "type": "string",
+            "title": "User Access Token"
+          },
+          "access_expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Access Expires At"
+          },
+          "actual_scopes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Actual Scopes"
+          },
+          "user": {
+            "$ref": "#/components/schemas/FeishuUser"
+          }
+        },
+        "type": "object",
+        "required": [
+          "grant_id",
+          "device_session_token",
+          "device_session_expires_at",
+          "user_access_token",
+          "access_expires_at",
+          "actual_scopes",
+          "user"
+        ],
+        "title": "ExchangeOAuthCodeResponse"
+      },
+      "FailureCount": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "count"
+        ],
+        "title": "FailureCount"
+      },
+      "FeishuUser": {
+        "properties": {
+          "open_id": {
+            "type": "string",
+            "title": "Open Id"
+          },
+          "user_id": {
+            "type": "string",
+            "title": "User Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "avatar_url": {
+            "type": "string",
+            "title": "Avatar Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "open_id",
+          "user_id",
+          "name",
+          "avatar_url"
+        ],
+        "title": "FeishuUser"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "ProjectRef": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "title": "Project Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id",
+          "name"
+        ],
+        "title": "ProjectRef"
+      },
+      "RefreshTokenRequest": {
+        "properties": {
+          "known_token_version": {
+            "type": "integer",
+            "maximum": 10000000.0,
+            "minimum": 0.0,
+            "title": "Known Token Version",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "title": "RefreshTokenRequest"
+      },
+      "RefreshTokenResponse": {
+        "properties": {
+          "user_access_token": {
+            "type": "string",
+            "title": "User Access Token"
+          },
+          "access_expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Access Expires At"
+          },
+          "token_version": {
+            "type": "integer",
+            "title": "Token Version"
+          },
+          "actual_scopes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Actual Scopes"
+          },
+          "reauthorization_required": {
+            "type": "boolean",
+            "title": "Reauthorization Required",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_access_token",
+          "access_expires_at",
+          "token_version",
+          "actual_scopes"
+        ],
+        "title": "RefreshTokenResponse"
+      },
+      "RevokeResponse": {
+        "properties": {
+          "device_session_status": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "revoked"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device Session Status"
+          },
+          "grant_status": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "revoked"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grant Status"
+          },
+          "remote_revoke_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remote Revoke Status"
+          }
+        },
+        "type": "object",
+        "title": "RevokeResponse"
+      },
+      "RoiItemInput": {
+        "properties": {
+          "item_id": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Item Id"
+          },
+          "source_key": {
+            "type": "string",
+            "maxLength": 256,
+            "title": "Source Key",
+            "default": ""
+          },
+          "sheet_row": {
+            "type": "integer",
+            "maximum": 1000000.0,
+            "minimum": 1.0,
+            "title": "Sheet Row"
+          },
+          "source_text": {
+            "type": "string",
+            "title": "Source Text"
+          },
+          "source_hash": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 64,
+            "title": "Source Hash"
+          }
+        },
+        "type": "object",
+        "required": [
+          "item_id",
+          "sheet_row",
+          "source_text",
+          "source_hash"
+        ],
+        "title": "RoiItemInput"
+      },
+      "RoiRunStatus": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "a_state": {
+            "type": "string",
+            "title": "A State"
+          },
+          "review_state": {
+            "type": "string",
+            "title": "Review State"
+          },
+          "c_state": {
+            "type": "string",
+            "title": "C State"
+          },
+          "archive_state": {
+            "type": "string",
+            "title": "Archive State"
+          },
+          "policy_version": {
+            "type": "string",
+            "title": "Policy Version"
+          },
+          "locale_count": {
+            "type": "integer",
+            "title": "Locale Count"
+          },
+          "accepted_item_count": {
+            "type": "integer",
+            "title": "Accepted Item Count"
+          },
+          "selected_scope_count": {
+            "type": "integer",
+            "title": "Selected Scope Count"
+          },
+          "complete_scope_count": {
+            "type": "integer",
+            "title": "Complete Scope Count"
+          },
+          "total_saving_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Saving Usd"
+          },
+          "coverage": {
+            "$ref": "#/components/schemas/CoverageInfo"
+          },
+          "failures": {
+            "items": {
+              "$ref": "#/components/schemas/FailureCount"
+            },
+            "type": "array",
+            "title": "Failures"
+          },
+          "archive": {
+            "$ref": "#/components/schemas/ArchiveInfo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "run_id",
+          "revision",
+          "a_state",
+          "review_state",
+          "c_state",
+          "archive_state",
+          "policy_version",
+          "locale_count",
+          "accepted_item_count",
+          "selected_scope_count",
+          "complete_scope_count",
+          "total_saving_usd",
+          "coverage",
+          "failures",
+          "archive"
+        ],
+        "title": "RoiRunStatus"
+      },
+      "SheetRef": {
+        "properties": {
+          "document_token": {
+            "type": "string",
+            "title": "Document Token"
+          },
+          "sheet_id": {
+            "type": "string",
+            "title": "Sheet Id"
+          },
+          "source_range": {
+            "type": "string",
+            "maxLength": 64,
+            "title": "Source Range"
+          }
+        },
+        "type": "object",
+        "required": [
+          "document_token",
+          "sheet_id",
+          "source_range"
+        ],
+        "title": "SheetRef"
+      },
+      "SheetWriteReceipt": {
+        "properties": {
+          "document_token": {
+            "type": "string",
+            "title": "Document Token"
+          },
+          "sheet_id": {
+            "type": "string",
+            "title": "Sheet Id"
+          },
+          "row": {
+            "type": "integer",
+            "title": "Row"
+          },
+          "output_range": {
+            "type": "string",
+            "title": "Output Range"
+          },
+          "output_hash": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 64,
+            "title": "Output Hash"
+          }
+        },
+        "type": "object",
+        "required": [
+          "document_token",
+          "sheet_id",
+          "row",
+          "output_range",
+          "output_hash"
+        ],
+        "title": "SheetWriteReceipt"
+      },
+      "SubmitFinalTextRequest": {
+        "properties": {
+          "expected_revision": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Expected Revision"
+          },
+          "final_text": {
+            "type": "string",
+            "title": "Final Text"
+          },
+          "final_text_hash": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 64,
+            "title": "Final Text Hash"
+          },
+          "confirmed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Confirmed At"
+          },
+          "sheet_write_receipt": {
+            "$ref": "#/components/schemas/SheetWriteReceipt"
+          },
+          "display_final_tm": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DisplayFinalTM"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "expected_revision",
+          "final_text",
+          "final_text_hash",
+          "confirmed_at",
+          "sheet_write_receipt"
+        ],
+        "title": "SubmitFinalTextRequest"
+      },
+      "SubmitFinalTextResponse": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          },
+          "item_id": {
+            "type": "string",
+            "title": "Item Id"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "c_state": {
+            "type": "string",
+            "title": "C State"
+          }
+        },
+        "type": "object",
+        "required": [
+          "run_id",
+          "item_id",
+          "revision",
+          "c_state"
+        ],
+        "title": "SubmitFinalTextResponse"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}

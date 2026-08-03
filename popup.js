@@ -55,8 +55,28 @@ import {
 import { applyI18n, normalizeUiLanguage, t } from './lib/i18n.js';
 import {
   authorizeFeishuUser,
+  authorizeFeishuUserViaBroker,
   getFeishuUserAuthorizationStatus,
 } from './lib/feishu-auth.js';
+import { sha256Text } from './lib/hash-utils.js';
+import {
+  BROKER_WORKFLOW_SNAPSHOT_KEY,
+  buildBrokerRunPayload,
+  buildSheetReceipt,
+  canArchiveBrokerRun,
+  clearBrokerRunSnapshot,
+  countPendingBrokerFinalSubmissions,
+  createBrokerRun,
+  enqueueBrokerFinalSubmission,
+  fetchBrokerRun,
+  isBrokerAsyncRoiEnabled,
+  loadBrokerRunSnapshot,
+  persistBrokerRunSnapshot,
+  pollBrokerRunUntil,
+  replayPendingBrokerFinals,
+  requestBrokerArchive,
+  setBrokerAsyncRoiEnabled,
+} from './lib/broker-async-roi.js';
 import {
   evaluateRewriteCandidate,
   evaluateRewriteCandidates,
@@ -105,6 +125,10 @@ let uiLanguage = 'en';
 let workingSheets = [];
 let activeSheetLayout = null;
 let activeSheetInspectionRows = [];
+let brokerAsyncRoi = false;
+let activeBrokerRun = null;
+let brokerRunCreateError = null;
+let brokerPollTimer = null;
 const ROI_WORKFLOW_SNAPSHOT_KEY = 'roiWorkflowSnapshot';
 const ROI_WORKFLOW_SNAPSHOT_VERSION = 2;
 const ROI_WORKFLOW_SNAPSHOT_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
@@ -261,6 +285,80 @@ document.addEventListener('keydown', (e) => {
 bindWorkflowAccordion();
 initializePopup();
 
+/**
+ * A4: dev-only opt-in flag.
+ *
+ * Production builds MUST leave this off. When true (explicitly set by a
+ * developer in chrome.storage.local under key l10nLegacyLocalSecretDevOnly),
+ * the popup still uses the legacy local-secret OAuth / local Bitable archive
+ * paths even while the broker feature flag is turned on. Otherwise, broker-on
+ * means broker-authoritative: any broker failure surfaces as an error instead
+ * of silently falling through to legacy.
+ */
+const LEGACY_LOCAL_SECRET_DEV_ONLY_STORAGE_KEY = 'l10nLegacyLocalSecretDevOnly';
+async function isLegacyLocalSecretDevOnlyEnabled() {
+  if (typeof chrome === 'undefined' || !chrome.storage?.local?.get) return false;
+  try {
+    const stored = await chrome.storage.local.get(LEGACY_LOCAL_SECRET_DEV_ONLY_STORAGE_KEY);
+    return stored[LEGACY_LOCAL_SECRET_DEV_ONLY_STORAGE_KEY] === true;
+  } catch (error) {
+    return false;
+  }
+}
+
+/** Shared guard: broker is authoritative unless developer explicitly opted in legacy fallback. */
+async function shouldUseLegacyFallback() {
+  if (await isLegacyLocalSecretDevOnlyEnabled()) return true;
+  return !(await isBrokerAsyncRoiEnabled());
+}
+
+// 暴露给 node 测试 sandbox 使用，无需经过 DOM 事件即可覆盖单条/批量确认的 Broker 同步分支。
+if (typeof globalThis !== 'undefined') {
+  globalThis.__popupBrokerTestHooks = {
+    getBrokerState: () => ({ brokerAsyncRoi, activeBrokerRun, brokerRunCreateError }),
+    setBrokerState: ({ brokerAsyncRoi: enabled, activeBrokerRun: run, brokerRunCreateError: createErr }) => {
+      if (typeof enabled === 'boolean') brokerAsyncRoi = enabled;
+      if (run !==  undefined) activeBrokerRun = run;
+      if (createErr !== undefined) brokerRunCreateError = createErr || null;
+    },
+    setActiveWorkflowContext: (ctx) => { activeWorkflowContext = ctx; },
+    syncConfirmedItemsToBroker: (...args) => syncConfirmedItemsToBroker(...args),
+    countPendingBrokerFinalSubmissions: (snapshot) => countPendingBrokerFinalSubmissions(snapshot || activeBrokerRun),
+    canArchiveBrokerRun: (snapshot) => canArchiveBrokerRun(snapshot || activeBrokerRun),
+    replayPendingBrokerFinals: (...args) => replayPendingBrokerFinals(...args),
+    writeCurrentRoiArchive: () => writeCurrentRoiArchive(),
+    isLegacyLocalSecretDevOnlyEnabled: () => isLegacyLocalSecretDevOnlyEnabled(),
+    shouldUseLegacyFallback: () => shouldUseLegacyFallback(),
+    markBrokerCreateRunError: (error) => {
+      brokerRunCreateError = error instanceof Error ? error : (error ? new Error(String(error)) : null);
+      activeBrokerRun = null;
+    },
+    setLegacyDevOnly: async (value) => {
+      if (typeof chrome !== 'undefined' && chrome.storage?.local?.set) {
+        if (value) {
+          await chrome.storage.local.set({ [LEGACY_LOCAL_SECRET_DEV_ONLY_STORAGE_KEY]: true });
+        } else {
+          await chrome.storage.local.remove(LEGACY_LOCAL_SECRET_DEV_ONLY_STORAGE_KEY);
+        }
+      }
+    },
+    // expose the processed/summary state so tests can assert the "ready-to-archive" precondition is satisfied
+    setArchiveReadyState: (items = [], summary = {}) => {
+      processedItems = items;
+      multilingualScopeRuns = items.length ? [{ scope: { key: 'en-zh', sourceLocale: 'en', targetLocale: 'zh' }, items }] : [];
+      const archiveVendors = Array.isArray(ROI_VENDORS) ? ROI_VENDORS : ['RWS', 'Pactera'];
+      vendorRoiResults = Object.fromEntries(archiveVendors.map((vendor) => [vendor, {
+        vendor,
+        summary,
+        scopeRuns: multilingualScopeRuns,
+      }]));
+      multilingualRoiSummary = vendorRoiResults.RWS?.summary || summary;
+      finalValidationAttempted = true;
+      roiEnabled = true;
+    },
+  };
+}
+
 /** 让 Projects 与 Spreadsheet 保持单开，避免两个长配置区同时占满 Side Panel。 */
 function bindWorkflowAccordion() {
   const sections = [
@@ -279,6 +377,11 @@ function bindWorkflowAccordion() {
 
 /** 初始化 Popup 的运行配置与工作表。 */
 async function initializePopup() {
+  brokerAsyncRoi = await isBrokerAsyncRoiEnabled();
+  const brokerSnapshot = await loadBrokerRunSnapshot();
+  if (brokerSnapshot?.run_id) {
+    activeBrokerRun = brokerSnapshot;
+  }
   await Promise.all([
     initializeRunConfiguration(),
     initializeWorkingSheet(),
@@ -286,6 +389,25 @@ async function initializePopup() {
   ]);
   await runHealthCheck();
   await restoreWorkflowSnapshot();
+  if (activeBrokerRun?.run_id) {
+    try {
+      if (countPendingBrokerFinalSubmissions(activeBrokerRun) > 0) {
+        const replay = await replayPendingBrokerFinals({ runId: activeBrokerRun.run_id });
+        const refreshed = await loadBrokerRunSnapshot();
+        if (refreshed?.run_id === activeBrokerRun.run_id) activeBrokerRun = refreshed;
+        if (replay?.remaining === 0) {
+          showStatus('Pending broker final submissions have been replayed.', 'info');
+        } else {
+          showStatus(`${replay?.remaining || 0} broker final submission(s) still pending; will retry on next reopen.`, 'error');
+        }
+      }
+      const latest = await fetchBrokerRun(activeBrokerRun.run_id);
+      await syncBrokerRunStatus(latest);
+    } catch (error) {
+      console.warn('Could not restore async broker run status.', error);
+    }
+    void pollActiveBrokerRun();
+  }
 }
 
 /** 在首页展示当前飞书用户，并为普通使用者提供唯一授权入口。 */
@@ -329,7 +451,11 @@ async function renderPopupFeishuAuthorizationStatus() {
   }
 }
 
-/** 从首页启动用户 OAuth，成功后立即刷新用户卡片与环境检查。 */
+/** 从首页启动用户 OAuth。
+ *  Broker 开启时（且未显式开启 LEGACY_LOCAL_SECRET_DEV_ONLY），必须走 Broker，
+ *  Broker 失败直接显示 Broker 错误，不再静默回退 legacy authorizeFeishuUser。
+ *  Legacy 路径仅在 broker flag 关闭或开发者显式开启 dev-only toggle 时可用。
+ */
 async function connectFeishuUserFromPopup() {
   const card = document.getElementById('feishu-auth-card');
   const statusText = document.getElementById('feishu-auth-status');
@@ -339,7 +465,12 @@ async function connectFeishuUserFromPopup() {
   statusText.textContent = t('feishuAuthorizationWaiting', uiLanguage);
   try {
     const returnUrl = await getActiveReturnUrl();
-    await authorizeFeishuUser({ returnUrl });
+    const useLegacy = await shouldUseLegacyFallback();
+    if (useLegacy) {
+      await authorizeFeishuUser({ returnUrl });
+    } else {
+      await authorizeFeishuUserViaBroker({ returnUrl });
+    }
     await renderPopupFeishuAuthorizationStatus();
     showStatus(t('feishuAuthorizationSucceeded', uiLanguage), 'info');
   } catch (error) {
@@ -359,6 +490,137 @@ async function getActiveReturnUrl() {
   });
   const url = tabs[0]?.url || '';
   return /^https?:\/\//i.test(url) ? url : '';
+}
+
+function canonicalizeText(text) {
+  return String(text || '').replace(/\r\n?/g, '\n').normalize('NFC');
+}
+
+async function canonicalHash(text) {
+  return sha256Text(canonicalizeText(text));
+}
+
+function offsetColumn(column, offset) {
+  const base = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  let index = 0;
+  for (const ch of String(column || '').toUpperCase()) {
+    if (!base.includes(ch)) return column;
+    index = index * 26 + base.indexOf(ch) + 1;
+  }
+  index += offset;
+  let result = '';
+  while (index > 0) {
+    const remainder = (index - 1) % 26;
+    result = base[remainder] + result;
+    index = Math.floor((index - 1) / 26);
+  }
+  return result;
+}
+
+/**
+ * 单条 / 批量确认共用的 Broker 同步入口。
+ *
+ * 约定：调用方必须在 Sheet 写入成功、本地 review 已标记为 confirmed 之后才调用本函数。
+ *   1. 为每个 writable 条目构建 receipt 并入队 pending_final_submissions；
+ *   2. 持久化 snapshot（保证 Sheet 成功、Broker 失败时本地 confirmed 仍成立，outbox 已保存）；
+ *   3. 调用 replayPendingBrokerFinals 顺序提交，成功自动推进 revision，失败保留 pending。
+ *
+ * 返回 { revision, pendingCount }：revision 仅在 activeBrokerRun 存在且 broker 返回
+ * nextRevision 非空时更新，禁止在 broker 关闭或 run 不存在时访问 null.revision。
+ */
+async function syncConfirmedItemsToBroker({ writable, outputStartColumn }) {
+  if (!brokerAsyncRoi || !activeBrokerRun?.run_id || !Array.isArray(writable) || writable.length === 0) {
+    return {
+      revision: activeBrokerRun?.revision || null,
+      pendingCount: countPendingBrokerFinalSubmissions(activeBrokerRun),
+    };
+  }
+  const workflowConfig = activeWorkflowContext?.config || activeWorkflowContext || null;
+  for (const { planned, displayItem } of writable) {
+    const finalText = String(planned?.review?.finalText || displayItem?.final_source_text || '').trim();
+    if (!finalText) continue;
+    const itemId = String(displayItem?.id || displayItem?.item_id || (displayItem?.row != null ? `row-${displayItem.row}` : ''));
+    if (!itemId) continue;
+    const receipt = await buildSheetReceipt({
+      config: workflowConfig,
+      item: displayItem,
+      finalText,
+      outputStartColumn,
+    });
+    const displayFinalTm = displayItem?.final_tm?.status === 'complete' && Number.isFinite(Number(displayItem?.final_tm?.score))
+      ? { score: Number(displayItem.final_tm.score), match_category: displayItem.final_tm.match_category || '' }
+      : null;
+    const afterEnqueue = await enqueueBrokerFinalSubmission({
+      runId: activeBrokerRun.run_id,
+      itemId,
+      finalText,
+      confirmedAt: new Date().toISOString(),
+      sheetWriteReceipt: receipt,
+      displayFinalTm,
+      sheetRow: displayItem?.row,
+    });
+    if (afterEnqueue) activeBrokerRun = afterEnqueue;
+  }
+  const replay = await replayPendingBrokerFinals({ runId: activeBrokerRun.run_id });
+  const refreshed = await loadBrokerRunSnapshot();
+  if (refreshed?.run_id === activeBrokerRun.run_id) activeBrokerRun = refreshed;
+  const nextRevision = Number(activeBrokerRun?.revision);
+  return {
+    revision: Number.isFinite(nextRevision) && nextRevision > 0 ? nextRevision : null,
+    pendingCount: replay?.remaining ?? countPendingBrokerFinalSubmissions(activeBrokerRun),
+    replayError: replay?.error || null,
+  };
+}
+
+async function submitBrokerFinalsAfterSheetWrite({ writable, revision, outputStartColumn }) {
+  const result = await syncConfirmedItemsToBroker({ writable, outputStartColumn });
+  const nextRevision = result.revision;
+  if (activeBrokerRun && Number.isFinite(nextRevision) && nextRevision > 0) {
+    activeBrokerRun = { ...(activeBrokerRun || {}), revision: nextRevision };
+    await persistBrokerRunSnapshot(activeBrokerRun);
+    return nextRevision;
+  }
+  // Broker 关闭 / run 不存在 / 未产生新 revision 时不要无条件写 activeBrokerRun.revision，
+  // 直接返回传入的 revision（如果没有 run，就返回 null，避免 null TypeError）。
+  return activeBrokerRun ? Number(revision || activeBrokerRun.revision || 1) : null;
+}
+
+function stopBrokerPolling() {
+  if (brokerPollTimer) {
+    clearTimeout(brokerPollTimer);
+    brokerPollTimer = null;
+  }
+}
+
+async function syncBrokerRunStatus(status) {
+  if (!status?.run_id) return;
+  activeBrokerRun = {
+    ...(activeBrokerRun || {}),
+    ...status,
+    last_polled_at: new Date().toISOString(),
+  };
+  await persistBrokerRunSnapshot(activeBrokerRun);
+}
+
+async function pollActiveBrokerRun({ intervalMs = 2500 } = {}) {
+  stopBrokerPolling();
+  if (!brokerAsyncRoi || !activeBrokerRun?.run_id) return;
+  const tick = async () => {
+    try {
+      const status = await fetchBrokerRun(activeBrokerRun.run_id);
+      await syncBrokerRunStatus(status);
+      const archiveDone = ['complete', 'incomplete', 'failed'].includes(String(status.archive_state));
+      const aDone = ['complete', 'incomplete', 'failed'].includes(String(status.a_state));
+      const cDone = !status.items || status.items.every((item) => ['confirmed', 'open', 'failed', 'skipped'].includes(item.review_state));
+      if (archiveDone || (aDone && cDone && status.archive_state === 'not_requested')) {
+        return;
+      }
+      brokerPollTimer = setTimeout(() => void tick(), intervalMs);
+    } catch (error) {
+      brokerPollTimer = setTimeout(() => void tick(), Math.max(intervalMs, 5000));
+    }
+  };
+  brokerPollTimer = setTimeout(() => void tick(), intervalMs);
 }
 
 /**
@@ -1435,6 +1697,7 @@ async function processItems(items) {
   activeWorkflowContext = {
     spreadsheetToken: config.spreadsheetToken || '',
     sheetId: config.sheetId || '',
+    sheetLayout: config.sheetLayout || activeSheetLayout || null,
     vendors: roiEnabled ? [...ROI_VENDORS] : [],
     roiEnabled,
     projectIds: [...selectedProjectIds],
@@ -1445,6 +1708,68 @@ async function processItems(items) {
     })),
   };
   processedItems = buildProcessedDisplayItems(scopeRuns);
+
+  if (brokerAsyncRoi && roiEnabled && runConfig.scopes.length > 0) {
+    brokerRunCreateError = null;
+    try {
+      const displayScope = runConfig.scopes.find((scope) => scope.key === activeDisplayScopeKey) || runConfig.scopes[0];
+      const sourceRange = activeWorkflowContext.sheetLayout
+        ? `${activeWorkflowContext.sheetLayout.sourceColumn}${Math.min(...items.map((entry) => Number(entry.row) || 0))}:${activeWorkflowContext.sheetLayout.sourceColumn}${Math.max(...items.map((entry) => Number(entry.row) || 0))}`
+        : '';
+      const brokerItems = await Promise.all(items.map(async (entry) => {
+        const sourceText = entry.source_text || entry.text || '';
+        return {
+          item_id: String(entry.id || `row-${entry.row}`),
+          source_key: String(entry.source_key || entry.id || `row-${entry.row}`),
+          sheet_row: Number(entry.row) || 0,
+          source_text: sourceText,
+          source_hash: entry.source_hash || await sha256Text(canonicalizeText(sourceText)),
+        };
+      }));
+      const brokerPayload = await buildBrokerRunPayload({
+        clientRunId: `popup-${Date.now()}`,
+        startedAt: new Date().toISOString(),
+        sourceLocale: displayScope?.sourceLocale || 'en',
+        targetLocale: displayScope?.targetLocale || runConfig.scopes[0]?.targetLocale || '',
+        projectIds: displayScope?.projectIds || selectedProjectIds,
+        projects: (displayScope?.projectNames || []).map((name, index) => ({
+          project_id: String((displayScope?.projectIds || selectedProjectIds)[index] || selectedProjectIds[0] || ''),
+          name,
+        })),
+        sheet: activeWorkflowContext.spreadsheetToken && activeWorkflowContext.sheetId
+          ? { document_token: activeWorkflowContext.spreadsheetToken, sheet_id: activeWorkflowContext.sheetId, source_range: sourceRange }
+          : null,
+        items: brokerItems,
+      });
+      const createdRun = await createBrokerRun(brokerPayload);
+      brokerRunCreateError = null;
+      activeBrokerRun = {
+        run_id: createdRun.run_id,
+        revision: createdRun.revision || 1,
+        a_state: createdRun.a_state || 'queued',
+        review_state: createdRun.review_state || 'open',
+        c_state: createdRun.c_state || 'idle',
+        archive_state: createdRun.archive_state || 'not_requested',
+      };
+      await syncBrokerRunStatus(activeBrokerRun);
+      void pollActiveBrokerRun();
+      showStatus('Async ROI run created. Worker is processing TM scores in the background.', 'info');
+    } catch (error) {
+      // A4：Broker 开启且 createBrokerRun 失败时，必须显式记录错误并阻止后续本地
+      // archive fallback。Broker 是权威路径，不能在 create 失败后静默清空 activeBrokerRun
+      // 再继续走本地 ROI 归档，否则 archive 时会因为 activeBrokerRun 为 null 而绕过 broker
+      // 分支直接 writeRoiArchive 到本地 Bitable。
+      console.warn('Broker ROI run creation failed; broker-authoritative workflow is unavailable for this run.', error);
+      brokerRunCreateError = error instanceof Error ? error : new Error(String(error || 'createBrokerRun failed'));
+      activeBrokerRun = null;
+      showError(brokerRunCreateError);
+      showStatus(
+        `Broker failed to create the async ROI run: ${brokerRunCreateError.message}. `
+        + 'Archive is blocked; retry the run or set l10nLegacyLocalSecretDevOnly=true (dev only) to fall back.',
+        'error',
+      );
+    }
+  }
 
   hideProgress();
   setStep(4);
@@ -1934,6 +2259,7 @@ async function confirmReviewItem(item) {
   };
 
   let displayScopeItem = null;
+  let brokerPendingAfterSingle = 0;
   try {
     showProgress('Querying Final TM for this source...', 55);
     for (const scopeRun of multilingualScopeRuns) {
@@ -1967,6 +2293,7 @@ async function confirmReviewItem(item) {
       ...displayScopeItem,
       final_source_text: finalText,
     }, config);
+    const outputStartColumn = activeWorkflowContext?.sheetLayout?.outputStartColumn || config.sheetLayout?.outputStartColumn || null;
     const confirmed = completeConfirmation(item.review, {
       finalTm: displayScopeItem.final_tm,
       sheetWriteSucceeded: true,
@@ -1979,12 +2306,38 @@ async function confirmReviewItem(item) {
       scopeItem.review = confirmed;
       scopeItem.review_status = 'confirmed';
     });
+    // 单条确认必须走与批量确认同一个 Broker 同步函数；Sheet 失败已在上方抛出，不会走到这里。
+    try {
+      const syncResult = await syncConfirmedItemsToBroker({
+        writable: [{ planned: { review: confirmed }, displayItem: displayScopeItem }],
+        outputStartColumn,
+      });
+      if (syncResult?.pendingCount > 0) {
+        brokerPendingAfterSingle = syncResult.pendingCount;
+        showStatus('Final TM and Sheet sync completed; broker submission is queued and will retry automatically.', 'info');
+      }
+    } catch (brokerError) {
+      // Sheet 已经成功，本地 confirmed 必须成立；pending outbox 已由 enqueue 持久化。
+      console.warn('Broker final submission failed after successful sheet write; queued for replay.', brokerError);
+      brokerPendingAfterSingle = countPendingBrokerFinalSubmissions(activeBrokerRun);
+      showStatus('Final TM and Sheet sync completed; broker submission queued for retry.', 'info');
+    }
+    void pollActiveBrokerRun();
     refreshVendorRoiResults();
     finalValidationAttempted = true;
     processedItems = buildProcessedDisplayItems(multilingualScopeRuns);
     await persistWorkflowSnapshot();
     hideProgress();
-    showStatus('Final TM and Sheet sync completed for this source.', '');
+    // P2：单条确认后如果仍有 pending broker final，最终状态必须保留 pending 提示，
+    // 不能被通用的 "Final TM and Sheet sync completed for this source." 覆盖掉。
+    if (brokerPendingAfterSingle > 0) {
+      showStatus(
+        `Final TM and Sheet sync completed for this source; ${brokerPendingAfterSingle} broker submission(s) queued for retry / pending broker sync.`,
+        'info',
+      );
+    } else {
+      showStatus('Final TM and Sheet sync completed for this source.', '');
+    }
   } catch (error) {
     hideProgress();
     const failed = failConfirmation(item.review, error);
@@ -2123,6 +2476,7 @@ async function confirmRemainingReviewItems() {
 
     if (writable.length > 0) {
       showProgress(`Writing ${writable.length} confirmed item(s) to Spreadsheet…`, 90);
+      const outputStartColumn = activeWorkflowContext?.sheetLayout?.outputStartColumn || config.sheetLayout?.outputStartColumn || null;
       await writeConfirmedReviewItems(
         writable.map(({ planned, displayItem }) => ({
           ...displayItem,
@@ -2130,13 +2484,32 @@ async function confirmRemainingReviewItems() {
         })),
         config,
       );
+      // Sheet 写入成功后，先把所有条目标记 confirmed，再统一通过 Broker 同步入口 enqueue+replay。
+      // Sheet 失败时已在上方抛出，绝对不会调用到 syncConfirmedItemsToBroker。
       writable.forEach(({ planned, displayItem }) => {
         const confirmed = completeConfirmation(planned.review, {
           finalTm: displayItem.final_tm,
           sheetWriteSucceeded: true,
         });
         syncReviewStateToScopes(planned.item, confirmed);
+        // 将 planned.review 替换为 confirmed，让 syncConfirmedItemsToBroker 读到正确 finalText。
+        planned.review = confirmed;
       });
+      let pendingCount = 0;
+      try {
+        const brokerSync = await syncConfirmedItemsToBroker({ writable, outputStartColumn });
+        pendingCount = brokerSync?.pendingCount || 0;
+      } catch (brokerError) {
+        console.warn('Broker final submission batch sync failed after successful sheet write; queued for replay.', brokerError);
+        pendingCount = countPendingBrokerFinalSubmissions(activeBrokerRun);
+      }
+      void pollActiveBrokerRun();
+      if (pendingCount > 0) {
+        showStatus(
+          `Confirmed and wrote ${writable.length} item(s); ${pendingCount} broker submission(s) queued for retry.`,
+          'error',
+        );
+      }
     }
 
     refreshVendorRoiResults();
@@ -2145,12 +2518,23 @@ async function confirmRemainingReviewItems() {
     await persistWorkflowSnapshot();
     const confirmedCount = writable.length;
     const failedCount = plan.failed.length + plan.ready.length - writable.length;
-    showStatus(
-      failedCount > 0
-        ? `Confirmed and wrote ${confirmedCount} item(s); ${failedCount} item(s) need attention.`
-        : `Confirmed and wrote ${confirmedCount} remaining item(s).`,
-      failedCount > 0 ? 'error' : '',
-    );
+    // P2：批量确认后若仍有 pending broker submissions，最终状态必须明确提示 pending，
+    // 不能只剩 "Confirmed and wrote N item(s)." 这一通用成功提示。
+    if (pendingCount > 0) {
+      showStatus(
+        failedCount > 0
+          ? `Confirmed and wrote ${confirmedCount} item(s); ${pendingCount} broker submission(s) queued for retry / pending broker sync; ${failedCount} item(s) need attention.`
+          : `Confirmed and wrote ${confirmedCount} item(s); ${pendingCount} broker submission(s) queued for retry / pending broker sync.`,
+        failedCount > 0 ? 'error' : 'info',
+      );
+    } else {
+      showStatus(
+        failedCount > 0
+          ? `Confirmed and wrote ${confirmedCount} item(s); ${failedCount} item(s) need attention.`
+          : `Confirmed and wrote ${confirmedCount} remaining item(s).`,
+        failedCount > 0 ? 'error' : '',
+      );
+    }
   } catch (error) {
     plan.ready.forEach(({ item, review }) => {
       const currentScopeItem = multilingualScopeRuns[0]?.items.find(
@@ -2311,7 +2695,48 @@ async function writeCurrentRoiArchive() {
     if (!feishuUser.connected) {
       showStatus('Waiting for Feishu authorization...', '');
       const returnUrl = await getActiveReturnUrl();
-      feishuUser = await authorizeFeishuUser({ returnUrl });
+      const useLegacy = await shouldUseLegacyFallback();
+      if (useLegacy) {
+        feishuUser = await authorizeFeishuUser({ returnUrl });
+      } else {
+        feishuUser = await authorizeFeishuUserViaBroker({ returnUrl });
+      }
+    }
+    if (brokerAsyncRoi && !(await isLegacyLocalSecretDevOnlyEnabled())) {
+      // A4：Broker 是权威路径。如果之前 createBrokerRun 失败（brokerRunCreateError 已记录），
+      // 即使 activeBrokerRun 为 null 也必须显式阻止 archive，不能因为 activeBrokerRun?.run_id
+      // 为假而掉进下面的 legacy writeRoiArchive 分支。
+      if (brokerRunCreateError) {
+        const reason = brokerRunCreateError?.message || String(brokerRunCreateError || 'unknown broker create error');
+        showRoiArchiveResult(false, `Broker async ROI run is unavailable (create failed: ${reason}). Archive blocked; retry the run or set l10nLegacyLocalSecretDevOnly=true (dev only) to fall back.`);
+        return;
+      }
+      if (!activeBrokerRun?.run_id) {
+        showRoiArchiveResult(false, 'Broker async ROI run is not active yet. Wait for the run to be created before archiving, or turn the broker flag off.');
+        return;
+      }
+      const archiveGuard = canArchiveBrokerRun(activeBrokerRun);
+      if (archiveGuard.blocked) {
+        showStatus(
+          `Cannot archive: ${archiveGuard.count} pending broker final submission(s) must finish before archive. Re-open the Side Panel to replay them.`,
+          'error',
+        );
+        return;
+      }
+      const statusBefore = await fetchBrokerRun(activeBrokerRun.run_id);
+      await syncBrokerRunStatus(statusBefore);
+      // A4: Broker 是权威路径，失败直接显示 Broker 错误，禁止静默回退到 legacy local archive 写 Bitable。
+      const archive = await requestBrokerArchive({
+        runId: activeBrokerRun.run_id,
+        revision: statusBefore.revision || activeBrokerRun.revision || 1,
+        requestedAt: new Date().toISOString(),
+      });
+      showStatus(
+        `ROI archive accepted by the async worker${archive?.archive_state ? ` (state: ${archive.archive_state})` : ''}. You can close the Side Panel; re-open to resume status.`,
+        'info',
+      );
+      void pollActiveBrokerRun();
+      return;
     }
     await completeDeferredRoiScopesForArchive(config);
     const baseRunId = createRoiArchiveRunId();
@@ -2350,6 +2775,7 @@ async function writeCurrentRoiArchive() {
       status: archiveResults.map((result) => `${result.vendor} ${result.status}`).join(', '),
     });
   } catch (error) {
+    console.warn('ROI archive / Feishu authorization failed.', error);
     showRoiArchiveResult(false, error instanceof Error ? error.message : String(error));
   } finally {
     hideProgress();
@@ -2364,7 +2790,9 @@ async function writeCurrentRoiArchive() {
 
 // ===== UI 辅助 =====
 async function resetState() {
+  stopBrokerPolling();
   await clearWorkflowSnapshot();
+  await clearBrokerRunSnapshot();
   extractedItems = [];
   processedItems = [];
   reviewFilter = 'all';
@@ -2374,6 +2802,8 @@ async function resetState() {
   activeDisplayScopeKey = '';
   finalValidationAttempted = false;
   activeWorkflowContext = null;
+  brokerRunCreateError = null;
+  activeBrokerRun = null;
   document.getElementById('results').innerHTML = '';
   document.getElementById('review-filter').classList.add('hidden');
   renderMultilingualRoiSummary(null);

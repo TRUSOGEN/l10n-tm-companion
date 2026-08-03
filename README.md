@@ -1,8 +1,8 @@
 # L10n TM Companion
 
-当前线下交付版本为 **1.3.4**：审阅入口改为明确的 `Review & edit / 审阅与修改`，内部状态映射为用户可执行文案，Settings 同步真实六列 schema；项目发现要求 `/projects` 返回可验证的 `total` 后才接受完整列表。Review 首屏仍只等待一个展示语言 scope，TM、AI、Sheet 写入和正式 A-C ROI 语义保持不变。
+当前线下交付版本为 **1.5.0**：ROI mode 自动覆盖全部共同支持的非英语目标语言，RWS 与 Pactera 共用一套 TM snapshot，延后语言只补算正式 A−C ROI 所需的 A/C；审阅、Sheet 六列写入和 `50 ≤ Score A < 85` 门禁保持不变。
 
-服务端 OAuth Broker 与异步 ROI Worker 的实施规格见 [`docs/oauth-broker-async-roi.md`](docs/oauth-broker-async-roi.md)。该方案用于内部 Agent 开发与部署，尚未在 1.3.4 启用。
+服务端 OAuth Broker 与异步 ROI Worker 的关闭态实现和实施规格已经进入源码，见 [`docs/oauth-broker-async-roi.md`](docs/oauth-broker-async-roi.md)。公司网关、身份、Secret Manager/KMS、Feishu、Starling 与 ROI_Test 门禁完成前不得启用生产 feature flag。
 
 Chrome MV3 Side Panel 扩展：从输入源读取英文原文 A → 查询 Starling Top-3 TM → 仅对 `50 ≤ Score A < 85` 的 source 创建一个 Inspire task → 最多生成三个结构化候选并逐个查询真实 Post-TM → 在“Review & edit / 审阅与修改”中编辑最终 C → 单条确认或批量确认其余默认结果 → 查询 Final TM 并同步当前 Sheet 行 → 按需将正式 A−C ROI 归档到 ROI_Test。个人 Access Key 模式的 Inspire Writer 和其余流程均在用户本机执行；生产分发 Inspire 时需要租户签名代理。
 
