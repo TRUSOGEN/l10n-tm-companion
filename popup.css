@@ -326,6 +326,15 @@ body {
 .result-card.selected { border-color: var(--primary); box-shadow: 0 0 0 1px var(--primary); }
 
 .card-summary { display: grid; gap: 10px; }
+.ai-agent-attribution {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
 .source-text { font-weight: 500; flex: 1; word-break: break-word; font-size: 14px; line-height: 1.4; }
 .badge { font-size: 13px; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
 .tm-badge { background: #fff7e0; color: #b76b00; font-size: 14px; }

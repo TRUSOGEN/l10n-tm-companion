@@ -103,20 +103,23 @@
       <div id="inspire-fields" class="provider-fields hidden">
         <p class="provider-intro"><a href="https://inspire.bytedance.net" target="_blank">Open Inspire Writer</a> → get a personal <code>wak_…</code> key from the Inspire Pilot owner → paste it below.</p>
         <div class="inspire-agent-summary" id="inspire-agent-summary">
-          <strong id="inspire-agent-name">TM Source Optimizer</strong>
+          <strong id="inspire-agent-name">TM_AI_Revision</strong>
           <span id="inspire-agent-meta">Configured default Agent · Latest published</span>
         </div>
         <details class="inspire-agent-advanced">
           <summary>Advanced: Agent and version</summary>
           <label>Agent
             <select id="inspireAgentMode">
-              <option value="default">TM Source Optimizer (default)</option>
+              <option value="default">TM_AI_Revision (default)</option>
               <option value="custom">Use Custom Agent ID</option>
             </select>
           </label>
           <div id="inspire-custom-agent-fields" class="hidden">
             <label>Custom Agent ID
               <input type="text" id="inspireCustomAgentId" placeholder="Paste a published Inspire Agent ID">
+            </label>
+            <label>Custom Agent name (optional)
+              <input type="text" id="inspireCustomAgentName" placeholder="For example: TT Copy Optimizer">
             </label>
           </div>
           <label>Version

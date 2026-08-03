@@ -172,7 +172,7 @@ console.log('\n=== ai-translate.js: rewriteSourceWithAI (TM 优化改写) ===');
 {
   const origFetch = globalThis.fetch;
   globalThis.fetch = async (url) => {
-    if (url.endsWith('/openapi/agents/6a7036d4ef9ca901ee5c7a65/tasks')) {
+    if (url.endsWith('/openapi/agents/6a7046ed7eb6d102364e292e/tasks')) {
       return { ok: true, status: 200, json: async () => ({ _id: 'plain-task', status: 'completed' }), text: async () => '' };
     }
     return {
@@ -210,7 +210,7 @@ console.log('\n=== ai-translate.js: rewriteSourceWithAI (TM 优化改写) ===');
   const origFetch = globalThis.fetch;
   let batchUsage = null;
   globalThis.fetch = async (url) => {
-    if (url.endsWith('/openapi/agents/6a7036d4ef9ca901ee5c7a65/tasks')) {
+    if (url.endsWith('/openapi/agents/6a7046ed7eb6d102364e292e/tasks')) {
       return { ok: true, status: 200, json: async () => ({ _id: 'task-1', status: 'completed', agentVersionNumber: 7, agentType: 'chat' }), text: async () => '' };
     }
     return {
@@ -258,7 +258,7 @@ console.log('\n=== ai-translate.js: rewriteSourceWithAI (TM 优化改写) ===');
 {
   const origFetch = globalThis.fetch;
   globalThis.fetch = async (url) => {
-    if (url.endsWith('/openapi/agents/6a7036d4ef9ca901ee5c7a65/tasks')) {
+    if (url.endsWith('/openapi/agents/6a7046ed7eb6d102364e292e/tasks')) {
       return { ok: true, status: 200, json: async () => ({ _id: 'skip-task', status: 'completed' }), text: async () => '' };
     }
     return {
@@ -289,7 +289,7 @@ console.log('\n=== ai-translate.js: rewriteSourceWithAI (TM 优化改写) ===');
   let activeCreates = 0;
   let maxActiveCreates = 0;
   globalThis.fetch = async (url) => {
-    if (url.endsWith('/openapi/agents/6a7036d4ef9ca901ee5c7a65/tasks')) {
+    if (url.endsWith('/openapi/agents/6a7046ed7eb6d102364e292e/tasks')) {
       taskIndex += 1;
       const currentTask = taskIndex;
       activeCreates += 1;
@@ -326,7 +326,7 @@ console.log('\n=== ai-translate.js: rewriteSourceWithAI (TM 优化改写) ===');
   let activeCreates = 0;
   let maxActiveCreates = 0;
   globalThis.fetch = async (url) => {
-    if (url.endsWith('/openapi/agents/6a7036d4ef9ca901ee5c7a65/tasks')) {
+    if (url.endsWith('/openapi/agents/6a7046ed7eb6d102364e292e/tasks')) {
       taskIndex += 1;
       const currentTask = taskIndex;
       activeCreates += 1;
@@ -375,7 +375,7 @@ console.log('\n=== ai-translate.js: rewriteSourceWithAI (TM 优化改写) ===');
   const progressEvents = [];
   let taskIndex = 0;
   globalThis.fetch = async (url) => {
-    if (url.endsWith('/openapi/agents/6a7036d4ef9ca901ee5c7a65/tasks')) {
+    if (url.endsWith('/openapi/agents/6a7046ed7eb6d102364e292e/tasks')) {
       taskIndex += 1;
       return { ok: true, status: 200, json: async () => ({ _id: `progress-task-${taskIndex}`, status: 'pending' }), text: async () => '' };
     }
@@ -410,7 +410,7 @@ console.log('\n=== ai-translate.js: rewriteSourceWithAI (TM 优化改写) ===');
   const origFetch = globalThis.fetch;
   let batchUsage = null;
   globalThis.fetch = async (url) => {
-    if (url.endsWith('/openapi/agents/6a7036d4ef9ca901ee5c7a65/tasks')) {
+    if (url.endsWith('/openapi/agents/6a7046ed7eb6d102364e292e/tasks')) {
       return { ok: true, status: 200, json: async () => ({ _id: 'failed-pilot-task', status: 'completed' }), text: async () => '' };
     }
     return { ok: false, status: 500, json: async () => ({}), text: async () => 'copies unavailable' };

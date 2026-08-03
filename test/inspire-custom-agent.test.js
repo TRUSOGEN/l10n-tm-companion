@@ -69,13 +69,13 @@ assert.equal(result.pollCount, 1);
   const originalFetch = globalThis.fetch;
   let createRequest = null;
   globalThis.fetch = async (url, init = {}) => {
-    if (url.endsWith('/openapi/agents/6a7036d4ef9ca901ee5c7a65/tasks')) {
+    if (url.endsWith('/openapi/agents/6a7046ed7eb6d102364e292e/tasks')) {
       createRequest = { url, body: JSON.parse(init.body) };
       return response(200, {
         _id: 'task-pipeline',
         status: 'completed',
-        customAgentId: '6a7036d4ef9ca901ee5c7a65',
-        agentVersionNumber: 7,
+        customAgentId: '6a7046ed7eb6d102364e292e',
+        agentVersionNumber: 5,
         agentType: 'chat',
       });
     }
@@ -111,7 +111,9 @@ assert.equal(result.pollCount, 1);
   assert.ok(!('teamId' in createRequest.body), 'Custom Agent 创建请求不得继续发送 teamId');
   assert.equal(rewritten[0].ai_translation, 'Finish 3 LIVE missions to get 100 points.');
   assert.equal(rewritten[0].ai_candidates.length, 1);
-  assert.equal(rewritten[0].ai_agent_version, 7, '结果必须记录服务端实际执行的版本，便于审计');
+  assert.equal(rewritten[0].ai_agent_id, '6a7046ed7eb6d102364e292e');
+  assert.equal(rewritten[0].ai_agent_name, 'TM_AI_Revision');
+  assert.equal(rewritten[0].ai_agent_version, 5, '结果必须记录服务端实际执行的版本，便于审计');
 }
 
 {
@@ -146,6 +148,7 @@ assert.equal(result.pollCount, 1);
     llmModel: 'gemini_3f',
     inspireAgentMode: 'custom',
     inspireCustomAgentId: 'agent-custom-9',
+    inspireCustomAgentName: 'TT Copy Optimizer',
     inspireAgentVersionPolicy: 'pinned',
     inspireAgentVersion: 9,
     inspireRequestGate: async () => {},
@@ -154,6 +157,7 @@ assert.equal(result.pollCount, 1);
   assert.ok(createRequest.url.endsWith('/agent-custom-9/tasks'), '高级 Custom Agent ID 必须成为 OpenAPI path 参数');
   assert.equal(createRequest.body.version, 9, 'Pinned version 必须成为 OpenAPI 请求参数');
   assert.equal(rewritten[0].ai_agent_version, 9);
+  assert.equal(rewritten[0].ai_agent_name, 'TT Copy Optimizer');
 }
 
 {
@@ -190,7 +194,7 @@ assert.equal(result.pollCount, 1);
 {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async (url) => {
-    if (url.endsWith('/openapi/agents/6a7036d4ef9ca901ee5c7a65/tasks')) {
+    if (url.endsWith('/openapi/agents/6a7046ed7eb6d102364e292e/tasks')) {
       return response(200, {
         _id: 'task-placeholder',
         status: 'completed',

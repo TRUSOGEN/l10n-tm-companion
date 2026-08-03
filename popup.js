@@ -148,7 +148,7 @@ async function loadConfig() {
         'enableAI',
         'enableROI', 'uiLanguage',
         'llmThinkingLevel',
-        'inspireAgentMode', 'inspireCustomAgentId', 'inspireAgentVersionPolicy', 'inspireAgentVersion',
+        'inspireAgentMode', 'inspireCustomAgentId', 'inspireCustomAgentName', 'inspireAgentVersionPolicy', 'inspireAgentVersion',
         'vendor',
       ],
       (result) => {
@@ -1656,6 +1656,11 @@ async function processItems(items) {
         ai_candidates: sharedRewriteDecisions[index]?.ai_candidates,
         rewrite_eligible: sharedRewriteDecisions[index]?.rewrite_eligible === true,
         ai_task_id: sharedRewriteDecisions[index]?.ai_task_id,
+        ai_agent_id: sharedRewriteDecisions[index]?.ai_agent_id,
+        ai_agent_name: sharedRewriteDecisions[index]?.ai_agent_name,
+        ai_agent_mode: sharedRewriteDecisions[index]?.ai_agent_mode,
+        ai_agent_version_policy: sharedRewriteDecisions[index]?.ai_agent_version_policy,
+        ai_agent_version: sharedRewriteDecisions[index]?.ai_agent_version,
         ai_duration_ms: sharedRewriteDecisions[index]?.ai_duration_ms,
         ai_http_request_count: sharedRewriteDecisions[index]?.ai_http_request_count,
         ai_poll_count: sharedRewriteDecisions[index]?.ai_poll_count,
@@ -1910,6 +1915,7 @@ function renderCard(item) {
     <div class="card-actions">
       <button class="btn-sm btn-focus">${t('focus', uiLanguage)}</button>
     </div>
+    ${renderAiAgentAttribution(item)}
   `;
 
   const openFocus = () => openFocusView(item.id);
@@ -1917,6 +1923,21 @@ function renderCard(item) {
   card.querySelector('[data-focus]').addEventListener('click', openFocus);
 
   return card;
+}
+
+/** 渲染实际完成 AI 改写的 Agent 审计信息，供用户定位版本和来源策略。 */
+function renderAiAgentAttribution(item) {
+  if (!item.ai_task_id || !item.ai_agent_name) return '';
+  const version = Number(item.ai_agent_version);
+  const versionLabel = Number.isSafeInteger(version) && version > 0
+    ? `v${version}`
+    : 'Version unavailable';
+  const strategy = item.ai_agent_version_policy === 'pinned'
+    ? 'Pinned version'
+    : 'Latest published';
+  const agentId = String(item.ai_agent_id || '').trim();
+  const title = agentId ? ` title="Agent ID: ${escapeHtml(agentId)}"` : '';
+  return `<div class="ai-agent-attribution"${title}>AI source optimization · ${escapeHtml(item.ai_agent_name)} · ${versionLabel} · ${strategy}</div>`;
 }
 
 /** 渲染 Inspire 返回的全部候选，默认采用项仍由 `ai_translation` 指定。 */
@@ -2137,6 +2158,7 @@ function renderFocus() {
       </div>
       <textarea rows="6" class="manual-input focus-manual" placeholder="${escapeHtml(t('manualPlaceholder', uiLanguage))}">${escapeHtml(item.review.finalText)}</textarea>
       <div class="focus-meta">Final TM ${item.final_tm?.status === 'complete' ? `${Math.round(item.final_tm.score)}% ${scoreDelta(item.final_tm.score, item.similarity)}` : '—'}</div>
+      ${renderAiAgentAttribution(item)}
       ${item.review.error ? `<div class="focus-meta error">${escapeHtml(item.review.error)}</div>` : ''}
     </div>
     <div class="focus-actions">

@@ -76,9 +76,10 @@ assert.deepEqual(
 );
 
 assert(html.includes('id="inspireAgentMode"'), 'Settings 必须允许默认 Agent 与 Custom Agent ID 之间切换');
-assert(html.includes('TM Source Optimizer (default)'), '默认 Agent 选择器必须直接显示实际 Agent 名称');
+assert(html.includes('TM_AI_Revision (default)'), '默认 Agent 选择器必须直接显示实际 Agent 名称');
 assert(html.includes('id="inspire-agent-name"'), '当前 Agent 摘要必须把名称作为独立层级展示');
 assert(html.includes('id="inspireCustomAgentId"'), 'Settings 必须提供高级 Custom Agent ID 输入');
+assert(html.includes('id="inspireCustomAgentName"'), 'Settings 必须允许为 Custom Agent 填写结果卡可读名称');
 assert(html.includes('id="inspireAgentVersionPolicy"'), 'Settings 必须提供 Latest / pinned 版本策略');
 assert(html.includes('data-configure-feishu-app'), '设置页顶部必须提供直接写入 Feishu App Secret 的动作');
 assert(!html.includes('<summary>3. Feishu App Secret</summary>'), 'Feishu App Secret 不得继续藏在折叠区');

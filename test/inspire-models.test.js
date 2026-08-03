@@ -4,16 +4,32 @@ import assert from 'node:assert/strict';
 import {
   INSPIRE_MODEL_OPTIONS,
   INSPIRE_TM_AGENT_ID,
-  INSPIRE_TM_AGENT_VERSION,
+  INSPIRE_DEFAULT_AGENT,
+  INSPIRE_DEFAULT_AGENT_LAST_OBSERVED_VERSION,
+  getInspireAgentDisplayName,
   normalizeInspireModelId,
 } from '../lib/inspire-models.js';
 
 assert.equal(
   INSPIRE_TM_AGENT_ID,
-  '6a7036d4ef9ca901ee5c7a65',
-  'TM_inspire 的真实 published Agent ID 必须由程序固定',
+  '6a7046ed7eb6d102364e292e',
+  '默认 Agent 必须指向用户确认的 TM_AI_Revision',
 );
-assert.equal(INSPIRE_TM_AGENT_VERSION, 7, '必须保留最后一次已验证默认 Agent 版本的审计记录');
+assert.equal(INSPIRE_DEFAULT_AGENT.name, 'TM_AI_Revision');
+assert.equal(INSPIRE_DEFAULT_AGENT_LAST_OBSERVED_VERSION, 5, '应记录当前页面可见发布版本，且不作为请求锁定参数');
+assert.equal(
+  getInspireAgentDisplayName({}, { agentId: INSPIRE_DEFAULT_AGENT.id, agentMode: 'default' }),
+  'TM_AI_Revision',
+);
+assert.equal(
+  getInspireAgentDisplayName({ inspireCustomAgentName: 'TT Copy Optimizer' }, { agentId: 'custom-1', agentMode: 'custom' }),
+  'TT Copy Optimizer',
+);
+assert.equal(
+  getInspireAgentDisplayName({}, { agentId: 'custom-1', agentMode: 'custom' }),
+  'Custom Agent · custom-1',
+  '自定义名称为空时必须保留 Agent ID 作为审计回退',
+);
 
 assert.deepEqual(
   INSPIRE_MODEL_OPTIONS.map(({ value }) => value),
@@ -27,4 +43,4 @@ assert.equal(normalizeInspireModelId('gpt-5.4-2026-03-05'), 'gpt-5.4');
 assert.equal(normalizeInspireModelId('gpt-5.4'), 'gpt-5.4', '正式模型 ID 不应改变');
 assert.equal(normalizeInspireModelId('future-model'), 'future-model', '未知 ID 应交给服务端正确失败');
 
-console.log('inspire model contract tests: 8 passed, 0 failed');
+console.log('inspire model contract tests: passed');

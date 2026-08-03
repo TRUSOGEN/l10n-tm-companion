@@ -21,6 +21,7 @@ import {
   INSPIRE_MODEL_OPTIONS,
   normalizeInspireModelId,
   INSPIRE_DEFAULT_AGENT,
+  getInspireAgentDisplayName,
   resolveInspireAgentConfig,
 } from './lib/inspire-models.js';
 
@@ -35,6 +36,7 @@ const GENERAL_KEYS = [
   'llmThinkingLevel',
   'inspireAgentMode',
   'inspireCustomAgentId',
+  'inspireCustomAgentName',
   'inspireAgentVersionPolicy',
   'inspireAgentVersion',
   'enableAI',
@@ -356,7 +358,11 @@ function renderInspireAgentFields() {
   document.getElementById('inspire-custom-agent-fields').classList.toggle('hidden', agentMode !== 'custom');
   document.getElementById('inspire-pinned-version-field').classList.toggle('hidden', versionPolicy !== 'pinned');
   const customAgentId = document.getElementById('inspireCustomAgentId').value.trim();
-  const agentName = agentMode === 'custom' ? 'Custom Agent' : INSPIRE_DEFAULT_AGENT.name;
+  const customAgentName = document.getElementById('inspireCustomAgentName').value.trim();
+  const agent = agentMode === 'custom'
+    ? { agentId: customAgentId, agentMode }
+    : { agentId: INSPIRE_DEFAULT_AGENT.id, agentMode };
+  const agentName = getInspireAgentDisplayName({ inspireCustomAgentName: customAgentName }, agent);
   const agentMeta = agentMode === 'custom'
     ? (customAgentId || 'Custom Agent ID required')
     : `Configured default Agent · ${INSPIRE_DEFAULT_AGENT.id}`;
@@ -456,7 +462,7 @@ document.querySelectorAll('[data-configure-feishu-app]').forEach((button) => {
   button.addEventListener('click', configureFeishuAppOwner);
 });
 document.getElementById('llmProvider').addEventListener('change', onProviderChange);
-['inspireAgentMode', 'inspireAgentVersionPolicy', 'inspireCustomAgentId', 'inspireAgentVersion'].forEach((id) => {
+['inspireAgentMode', 'inspireAgentVersionPolicy', 'inspireCustomAgentId', 'inspireCustomAgentName', 'inspireAgentVersion'].forEach((id) => {
   document.getElementById(id).addEventListener('input', renderInspireAgentFields);
   document.getElementById(id).addEventListener('change', renderInspireAgentFields);
 });

@@ -14,7 +14,7 @@ AI 候选链路使用半开区间 **`50 ≤ Score A < 85`**：`49.99` 不创建 
 
 - 📥 从飞书文档/电子表格抓取原文（全文 / 选中文字）
 - 🔄 调用 Starling 批量 TM Match API 查询 TM 记忆（Orig Match%，默认 PPE）
-- 🤖 每条满足 50–85 门禁的 source 只创建一个已发布 Inspire Custom Agent task；默认使用托管的 TM Source Optimizer 最新非废弃版本，也可在 Settings 高级项指定兼容的 Custom Agent ID 或固定版本，Inspire 原生返回最多三个 `status=pass` copy，客户端去重并包装为内部结构化候选
+- 🤖 每条满足 50–85 门禁的 source 只创建一个已发布 Inspire Custom Agent task；默认使用托管的 TM_AI_Revision 最新非废弃版本，也可在 Settings 高级项指定兼容的 Custom Agent ID、可读名称或固定版本，Inspire 原生返回最多三个 `status=pass` copy，客户端去重并包装为内部结构化候选
 - 🛡️ 每个候选依次经过 placeholder/token、URL、数字、全大写、单字符或 CamelCase 品牌 token、语义状态与风险校验；Prompt 保留适用的 Legal 证据，随后用真实 Post-TM 验证 `Score B > Score A`，失败候选保留审计信息但不进入可选列表
 - ✅ “Review & edit / 审阅与修改”是唯一编辑入口：CD 可采用通过门禁的 AI 候选或手动编辑 C；例外项可单条 `Confirm & save`，其余默认结果可一键批量确认。内部 `draft / dirty / confirmed` 状态在界面映射为用户动作，不直接展示技术枚举
 - 🔀 对比生成 Comment（`no_tm` / `same` / `improved` / `different`）
