@@ -7,7 +7,7 @@
 
 - [ ] Chrome 已加载未压缩扩展（chrome://extensions → L10n TM Companion，ID = `bgbodpcofifiloekhfjiffmchcaiiicm`）
 - [ ] `native-host/install.sh --no-open` 已运行，Native Messaging Host 已注册到该扩展 ID
-- [ ] 安装包内置 Starling CLI v1.1.24；Settings 中完整填写 AK/SK 并通过 `Save & Verify`
+- [ ] 安装包内置 Starling CLI v1.1.41；Settings 中完整填写 AK/SK 并通过 `Save & Verify`
 - [ ] 飞书应用「L10n TM Companion」已发布，开通用户身份的 `sheets:spreadsheet.meta:read`、`sheets:spreadsheet:read`、`sheets:spreadsheet:write_only`、Wiki 节点读取、ROI 归档所需的 Bitable 权限、`contact:user.base:readonly` 与获取 user ID 的权限
 - [ ] 飞书应用安全设置已登记 `http://localhost:39641/l10n-tm-companion/oauth/callback` 为重定向 URL，Native Host 已能返回同一地址
 - [ ] 应用已加为测试电子表格的协作者（可编辑）

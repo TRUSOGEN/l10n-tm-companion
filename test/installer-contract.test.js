@@ -51,6 +51,7 @@ assert.ok(appScript.includes('l10n-progress'), 'Installer.app 必须启动原生
 assert.ok(appScript.includes('L10N_TM_INSTALLER_NO_UI'), 'Installer.app 必须支持隔离无 GUI 端到端测试');
 assert.ok(installScript.includes('--progress-file'), '统一安装脚本必须向进度窗口报告阶段');
 assert.ok(packageScript.includes('installer-ui/installer-progress.m'), '构建器必须编译进度窗口源码');
+assert.ok(packageScript.includes('STARLING_VERSION="1.1.41"'), '安装包必须固定使用已验证的 Starling CLI 1.1.41');
 assert.ok(packageScript.includes('-arch arm64') && packageScript.includes('-arch x86_64'), '进度窗口必须同时支持 Apple Silicon 与 Intel Mac');
 assert.ok(progressSource.includes('--self-test'), '进度窗口必须提供无 GUI 自检入口');
 assert.ok(offlineManual.includes('桌面'), '非技术手册必须说明从桌面手动选择加载目录');
@@ -125,7 +126,7 @@ fs.mkdirSync(fakeBin);
 const realPython = childProcess.execFileSync('/usr/bin/which', ['python3'], { encoding: 'utf8' }).trim();
 fs.symlinkSync(realPython, path.join(fakeBin, 'python3'));
 fs.writeFileSync(path.join(fakeBin, 'node'), '#!/bin/sh\necho v-test\n', { mode: 0o755 });
-fs.writeFileSync(path.join(fakeBin, 'starling-cli'), '#!/bin/sh\necho 1.1.24\n', { mode: 0o755 });
+fs.writeFileSync(path.join(fakeBin, 'starling-cli'), '#!/bin/sh\necho 1.1.41\n', { mode: 0o755 });
 const controlledEnv = {
   ...process.env,
   HOME: isolatedHome,

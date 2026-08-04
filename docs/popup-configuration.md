@@ -93,7 +93,7 @@ Review 结果顶部提供 `All / Improved` 双选筛选并显示各自数量，�
 
 Popup 打开且凭证有效时自动调用 `list_projects`。Native Host 通过当前 AK/SK 请求 Starling `/projects`，显式使用每页 25 条的 `limit` 与递增 `offset`，直到累计数量达到响应中的 `total`；任何中间页、响应结构或完整性校验失败都使本次项目发现整体失败，禁止把第一页或其他部分结果显示为完整权限列表。Native Host 的 25 条是接口拉取页大小，Popup 的八条是展示页大小，两者相互独立；Popup 只有在完整发现成功后才对结果做本地翻页。成功结果写入 Chrome 仅供审计；每次打开和显式刷新都以接口结果完全替换运行时列表。接口失败时清空运行时项目与选择，禁止把缓存项目当作本次已验证权限。
 
-项目发现与 TM 查询是两个独立接口阶段：`/projects` 只返回当前 AK/SK 有权访问的项目元数据，用户选择一至十个项目后，实际 TM 查询仍调用 `/gateway/openapi/corpus/tm/match/batch`。`projectIds` 始终最多十个，`sourceContents` 默认最多十条；RD 批准且 PPE 复验通过后可以显式配置到最多四十条。
+项目发现与 TM 查询是两个独立接口阶段：`/projects` 只返回当前 AK/SK 有权访问的项目元数据，用户选择一至十个项目后，实际 TM 查询仍调用 `/gateway/openapi/corpus/tm/match/batch`。`projectIds` 始终最多十个，Starling 已批准 `sourceContents` 默认最多四十条；维护者可以显式降低到 1–40 条。
 
 选择第一个项目后，当前 source 自动采用其 `sourceLocale`。继续多选时，只允许选择相同 source locale 的项目；每次项目变化都会重新计算共同非英语 target locale。项目最多十个，达到上限后其他卡片禁用；没有共同非英语语言时普通项目选择仍可保留，但 ROI 运行会给出明确错误并停止。
 

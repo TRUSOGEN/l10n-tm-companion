@@ -38,9 +38,9 @@ def test_public_l10n_env_variable_is_loaded(monkeypatch):
     assert Settings().env_name == "prod"
 
 
-def test_starling_batch_size_requires_explicit_supported_limit():
-    """Backend 默认保持 10，允许经审批配置 40，拒绝客户端范围外的值。"""
-    assert Settings().starling_batch_size == 10
+def test_starling_batch_size_uses_approved_default_limit():
+    """Backend 默认使用已批准的 40，仍拒绝客户端范围外的值。"""
+    assert Settings().starling_batch_size == 40
     assert Settings(starling_batch_size=40).starling_batch_size == 40
     with pytest.raises(ValueError):
         Settings(starling_batch_size=41)

@@ -104,9 +104,8 @@ CLI_TIMEOUT = 30  # 秒
 PROJECT_LIST_PAGE_SIZE = 25
 BATCH_TM_METHOD = 'starling-batch'
 BATCH_TM_METHOD_VERSION = 'starling-openapi-batch-ppe-v1'
-# 2026-08-03 PPE 已验证 sourceContents 默认最多 10 条；客户端已为 RD 批准后的
-# 40 条能力预留受控配置。projectIds 的十个上限独立保持不变。
-BATCH_TM_DEFAULT_SIZE = 10
+# Starling 已批准单请求最多 40 条 sourceContents；projectIds 的十个上限独立保持不变。
+BATCH_TM_DEFAULT_SIZE = 40
 BATCH_TM_SUPPORTED_MAX_SIZE = 40
 BATCH_TM_SOURCE_LIMIT_ENV = 'L10N_STARLING_TM_SOURCE_LIMIT'
 BATCH_TM_MAX_CONCURRENCY = 5
@@ -127,9 +126,9 @@ CREDENTIALS_CLIENT_SCRIPT = os.path.join(
 def get_batch_tm_source_limit(environ=None):
     """返回已获批准的单请求 sourceContents 上限。
 
-    默认值保持 PPE 已直接验证的 10。Starling RD 批准并完成 PPE 复验后，部署方
-    可以通过 ``L10N_STARLING_TM_SOURCE_LIMIT`` 显式提高到不超过客户端支持的
-    40；无效或越界配置必须正确失败，不能静默回退。
+    默认值使用 Starling 已批准的 40。部署方可通过
+    ``L10N_STARLING_TM_SOURCE_LIMIT`` 临时降低至 1–40；无效或越界配置必须
+    正确失败，不能静默回退。
     """
     env = os.environ if environ is None else environ
     raw_value = env.get(BATCH_TM_SOURCE_LIMIT_ENV, str(BATCH_TM_DEFAULT_SIZE))
@@ -897,7 +896,7 @@ def _parse_cli_output(stdout):
         'tm_target_lang': best.get('targetLang') or '',
         # LOOP_SPEC §4.3 method/version 元数据（可解释性）
         'method': 'starling',
-        'method_version': 'starling-cli-1.1.16',
+        'method_version': 'starling-cli-1.1.41',
         'candidate_count': len(matches),
     }
 
@@ -906,8 +905,8 @@ def build_batch_tm_body(texts, project_ids, source_lang, target_lang,
                         limit=3, least_score=0, source_limit=None):
     """构造符合当前已批准 source 上限的批量 TM Match 请求体。
 
-    `projectIds` 固定最多 10 个；`sourceContents` 默认使用 PPE 已验证的 10 条，
-    仅在部署方显式配置 RD 已批准额度后提高到最多 40 条。
+    `projectIds` 固定最多 10 个；`sourceContents` 默认使用 Starling 已批准的
+    40 条，部署方可显式降低单请求上限。
     """
     if not isinstance(texts, list) or not texts:
         raise ValueError('sourceContents must be a non-empty list')
@@ -1166,8 +1165,8 @@ def request_batch_tm(cli, body, use_ppe, message=None):
 def search_tm_batch(message):
     """按已批准 source 上限和最多五个并发批次查询 TM，并保留输入顺序。
 
-    source 上限默认 10，部署方只有在 RD 批准并完成 PPE 验证后才能显式提高；
-    projectIds 始终最多 10 个。调用方可以降低批大小和并发度，不能绕过上限。
+    source 上限默认 40，projectIds 始终最多 10 个。调用方可以降低批大小和
+    并发度，不能绕过上限。
     """
     texts = message.get('texts', []) or []
     if not texts:
@@ -1245,7 +1244,7 @@ def _err(text, source_lang, target_lang, origin):
         'tm_target_lang': target_lang,
         # 失败时也带 method，便于区分是 starling 失败还是本地兜底
         'method': 'starling',
-        'method_version': 'starling-cli-1.1.16',
+        'method_version': 'starling-cli-1.1.41',
         'candidate_count': 0,
     }
 

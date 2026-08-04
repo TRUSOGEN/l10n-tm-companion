@@ -136,7 +136,7 @@ exchange 前先把 session 从 `pending` 提交为 `exchanging`，再调用 Feis
 }
 ```
 
-run 创建后禁止新增、删除或修改 A item；源数据变化必须创建新 run。每个 Starling job 包含不超过 `L10N_STARLING_BATCH_SIZE` 的 source 和完整的一至十个已验证 project ID；batch size 默认 10，RD 批准并完成 PPE 复验后允许配置到最高 40，实际请求数为 `locale_count × ceil(items/batch_size)`。响应必须逐 source 完整映射，缺行只标记对应 line incomplete。
+run 创建后禁止新增、删除或修改 A item；源数据变化必须创建新 run。每个 Starling job 包含不超过 `L10N_STARLING_BATCH_SIZE` 的 source 和完整的一至十个已验证 project ID；batch size 默认 40，允许配置为 1–40，实际请求数为 `locale_count × ceil(items/batch_size)`。响应必须逐 source 完整映射，缺行只标记对应 line incomplete。
 
 ### 提交 confirmed C
 

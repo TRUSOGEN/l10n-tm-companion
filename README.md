@@ -32,7 +32,7 @@ AI 候选链路使用半开区间 **`50 ≤ Score A < 85`**：`49.99` 不创建 
    ↓
 ② 查 TM：原文 → background.js（Service Worker）
         → Native Messaging → 本地 Python starling-bridge.py
-        → 默认每 10 条组成批次，最多 5 个批次并发 → starling-batch-client.js
+        → 默认每 40 条组成批次，最多 5 个批次并发 → starling-batch-client.js
         → Chrome AK/SK 注入单次子进程（或读取官方配置）
         → 官方 Starling Core 签名 → PPE 批量 TM 服务
         → 返回 {TM译文, TM库原文, Orig Match%}
@@ -62,7 +62,7 @@ AI 候选链路使用半开区间 **`50 ≤ Score A < 85`**：`49.99` 不创建 
 
 安装器负责以下项目：
 
-1. 检查或安装 `starling-cli` 1.1.24；AK/SK 仍由用户在 Settings 配置
+1. 检查或安装 `starling-cli` 1.1.41；AK/SK 仍由用户在 Settings 配置
 2. 自检 `native-host/starling-bridge.py`
 3. 根据 manifest 公钥计算固定扩展 ID，并原子注册 Native Messaging Host
 
@@ -141,7 +141,7 @@ Side Panel 默认采用当前 Spreadsheet，也可在 `Working spreadsheet` 粘�
 
 > 💡 wiki/doc 页若「抓取全文」抓不到，可选中文字用「抓取选中文字」（走 `window.getSelection()`，不依赖 DOM 选择器，几乎一定能抓到）。
 
-> ⚠️ 当前 PPE 直接验证的 `sourceContents` 上限是 10 条，`projectIds` 上限是 10 个。1.5 已支持在 RD 批准并完成 PPE 复验后通过 `L10N_STARLING_TM_SOURCE_LIMIT=40` 显式启用 40 条 source；默认仍为 10，插件不会自动调用 `/project/search`。
+> ⚠️ Starling 已批准 `sourceContents` 单请求上限为 40 条，插件默认按 40 条拆批；`projectIds` 上限仍为 10 个。`L10N_STARLING_TM_SOURCE_LIMIT` 只用于临时降低单请求上限，插件不会自动调用 `/project/search`。
 
 ## 文件结构
 
@@ -228,7 +228,7 @@ cat /tmp/l10n-bridge-debug.log     # 看 PATH/which starling-cli/收到的 actio
 
 ## 已知限制
 
-- **批量上限**：`projectIds` 始终最多 10 个；`sourceContents` 默认按已验证的 10 条分批，RD 批准且 PPE 复验通过后可显式配置到最多 40 条。越界或无效配置会正确失败。
+- **批量上限**：`projectIds` 始终最多 10 个；`sourceContents` 默认按获批的 40 条分批。`L10N_STARLING_TM_SOURCE_LIMIT` 可临时降低至 1–40，越界或无效配置会正确失败。
 - **PPE 依赖**：默认批量模式发送 `x-use-ppe: 1` 与 `x-tt-env: ppe_openapi_integ`；上线生产环境前需由 Starling 确认路由与鉴权要求。
 - **ROI Bitable 归档**：目标固定为 [ROI_Test](https://bytedance.larkoffice.com/wiki/J1RJwEf0FijMQQkceUkcZyqCnJc?table=tbls3B039S6J7zdT&view=vewSwbY6Ry)，用户不能用历史设置覆盖；顺序追加 `L10n ROI Runs` / `L10n ROI Scopes` / `L10n ROI Items`，不替代普通 Sheet 写回。Runs 保存整车金额，Scopes 保存 target locale 金额和漏斗，Items 每个 source 只保存一条 CD 审计。writer 按 Run ID、Scope 和 Item ID 查询并续写，远端提交后的响应丢失不会重复追加；重复 Run ID 会正确失败。插件幂等创建基础视图，并在写入前检查飞书每表 20,000 条记录上限；复杂分组、筛选和仪表盘由 ROI_Test Owner 在飞书界面一次性维护。
 - **抓取需真机验证**：飞书 wiki/doc 真实 DOM 结构未实测，`content.js` 选择器基于推断；已加全文段落兜底保证不返回空，但段落质量需真机确认。

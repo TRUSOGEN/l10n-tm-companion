@@ -17,7 +17,7 @@ SOURCE_APP="$PROJECT_ROOT/L10n TM Companion Installer.app"
 SOURCE_MANUAL="$PROJECT_ROOT/docs/offline-install-manual.md"
 PROGRESS_SOURCE="$PROJECT_ROOT/installer-ui/installer-progress.m"
 NODE_VERSION="24.16.0"
-STARLING_VERSION="1.1.24"
+STARLING_VERSION="1.1.41"
 PYTHON_FRAMEWORK="/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework"
 
 if [ -e "$OUTPUT_DIR" ]; then

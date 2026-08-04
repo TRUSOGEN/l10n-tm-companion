@@ -14,7 +14,7 @@
 - 正式 ROI 始终为 `TM Cost(A) - TM Cost(C)`；B 只用于审阅和质量漏斗。
 - 当前展示 scope 的 Final TM 与 Working Sheet 写入仍是 `Confirm & save` 成功的同步门槛。
 - 失败 scope 保持 `incomplete`，已覆盖金额只能标为 subtotal，禁止伪造完整整车 ROI。
-- Starling 每次请求默认最多十条 source、始终最多十个 project ID；RD 批准并完成 PPE 复验后，服务可显式配置到最多四十条 source。
+- Starling 每次请求默认最多四十条 source、始终最多十个 project ID；服务可显式降低 batch size，但不得超过四十条。
 - 普通 Sheet 继续只写六列，不写 ROI 金额。
 
 ## 当前慢点
@@ -98,7 +98,7 @@ Localization/Finance 必须确认约 56 个 locale 的唯一 vendor、重叠优�
 4. Worker 不为全部语言重复查询 B；B 只保留展示 scope，用于 AI uplift 与审阅证据。
 5. 用户点击 Archive ROI 后，API 封存 C、创建持久 archive job 并立即返回；Worker 等封存前任务到达终态，再写 Runs、Scopes、Items。
 
-Worker 对短时间连续确认做两秒 debounce，按 locale 依据 `L10N_STARLING_BATCH_SIZE` 合并 source；默认值为 10，客户端允许的最高值为 40。一个 run 只允许选择一至十个已验证 project ID。N 条 source、L 个 locale 的单阶段请求数为 `L × ceil(N / batch_size)`；18 条、约 56 locale 在默认 10 条时，A/C 理论请求由约 2016 次降为约 224 次。真实 batch size、QPS、并发和重试上限必须由 Starling Owner 审批，并由 PPE 负载测试确定。
+Worker 对短时间连续确认做两秒 debounce，按 locale 依据 `L10N_STARLING_BATCH_SIZE` 合并 source；默认值为 40，客户端允许的最高值为 40。一个 run 只允许选择一至十个已验证 project ID。N 条 source、L 个 locale 的单阶段请求数为 `L × ceil(N / batch_size)`；18 条、约 56 locale 的单阶段理论请求为 56 次，A/C 合计为 112 次。真实 QPS、并发和 P95 仍需由 PPE 负载测试确定。
 
 ### 一致性与失败
 

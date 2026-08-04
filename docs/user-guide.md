@@ -43,7 +43,7 @@ flowchart LR
 | macOS + Chrome 114+ | 扩展与 Native Messaging 运行环境 | [下载 Chrome](https://www.google.com/chrome/)；地址栏打开 `chrome://version` 查看版本 |
 | Python 3 | 运行本机 bridge | universal 私有副本已封装；用户无需安装 |
 | Node.js LTS | 运行 Starling 官方客户端 | universal 私有副本已封装；用户无需安装 |
-| Starling CLI 1.1.24 | TM 查询与官方签名 | 固定版本与双架构 keytar 已封装；安装器不运行 npm |
+| Starling CLI 1.1.41 | TM 查询与官方签名 | 固定版本与双架构 keytar 已封装；安装器不运行 npm |
 
 ### 推荐安装步骤
 
@@ -91,7 +91,7 @@ flowchart LR
 1. 打开 [Starling 个人中心](https://starling.bytedance.net/personal_center#aksk)，申请或查看个人 AK/SK。
 2. 在 Settings 分别粘贴完整 AK 与 SK，点击 `Save & Verify`；成功后插件会真实读取当前账号可访问的项目，不会使用默认项目伪装成功。
 3. `Starling CLI path` 通常留空；只有自动检测失败时，才在 Terminal 运行 `which starling-cli`，把返回的绝对路径粘贴进去。
-4. `TM query mode` 保持 `Batch TM API in PPE`。默认每个请求最多 10 条 source，bridge 最多并发 5 个批次并保持输入顺序；RD 批准且 PPE 复验后可受控提高到 40 条，`Legacy single-text` 只用于排障。
+4. `TM query mode` 保持 `Batch TM API in PPE`。默认每个请求最多 40 条 source，bridge 最多并发 5 个批次并保持输入顺序；维护者可受控降低至 1–40 条，`Legacy single-text` 只用于排障。
 
 AK/SK 会同时保存在 Chrome `storage.local` 和 Starling 官方本机配置中，默认遮挡但可回填；两处都属于本机持久化，不提供硬件级加密。
 

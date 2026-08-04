@@ -27,7 +27,7 @@ Popup 结果卡片严格按 Sheet 原始行号显示，异步 TM 与 Inspire 完
 
 本地预估采用已确认的收费表：`0–75`（含 75）为本地词数 × AIPE rate；`(75,85]`、`(85,95]`、`(95,99]` 分别为本地词数 × 60%、40%、20% × T-only rate；100% 依照返回分类或 `exact_unclassified_conservative` 处理。逐条公式输入保留完整精度。
 
-当前 `starling-agent-cli v1.1.24` 的公开 API Registry 尚未提供 Elasticsearch 的实际字数、加权字数或 100% 命中分类。插件因此使用 `Intl.Segmenter('en')` 对 source 文本本地计词；100% 缺少分类、最终 C TM 快照失败、C 未确认或费率缺失时，ROI Status 必须为 `incomplete:<reason>`，ROI_Test 只显示已覆盖语言小计。
+当前 `starling-agent-cli v1.1.41` 的公开 API Registry 尚未提供 Elasticsearch 的实际字数、加权字数或 100% 命中分类。插件因此使用 `Intl.Segmenter('en')` 对 source 文本本地计词；100% 缺少分类、最终 C TM 快照失败、C 未确认或费率缺失时，ROI Status 必须为 `incomplete:<reason>`，ROI_Test 只显示已覆盖语言小计。
 
 旧 Sheet 的第六列表头为 `CD review valid?` 时，插件只在该列全部数据为空时将它迁移为 `Final TM %`；存在任意人工值时停止并提示备份或清理，禁止覆盖历史确认状态。第四列旧名 `New Match %` 同步改为 `Post-TM %`。
 
@@ -41,7 +41,7 @@ Popup 结果卡片严格按 Sheet 原始行号显示，异步 TM 与 Inspire 完
 popup.js searchTM(tm_mode='batch')
   → background.js Native Messaging
   → starling-bridge.py search_tm_batch()
-  → 默认每 10 条构造 POST /corpus/tm/match/batch，最多 5 个批次并发
+  → 默认每 40 条构造 POST /corpus/tm/match/batch，最多 5 个批次并发
   → starling-batch-client.js
   → @byted/starling-agent-core 的 ESM StarlingClient 签名并发送请求
   → PPE 返回 data[i] 的候选数组
@@ -53,7 +53,7 @@ popup.js searchTM(tm_mode='batch')
 - **已验证行为**：PPE 实测单次 10 条 `sourceContents` 成功返回 10 组候选；`Done`、`Settings`、`Cancel` 分别返回 `完成`、`隐私设置`、`取消`。
 - **失败语义**：HTTP、签名、返回结构等异常直接抛至 Popup 并停止本轮流程，禁止自动用同批文本的 BM25 结果冒充 Starling TM 命中。
 - **PPE 短暂超时**：当后端返回 `error_code=1204` 且文本包含 `remote or network error` 时，Bridge 会以 0.25 秒、0.5 秒间隔重试，最多共 3 次；其他 400 请求错误仍立即返回，避免掩盖参数或权限问题。
-- **批次上限与调度**：2026-08-03 PPE 直接验证 `sourceContents` 默认上限为 10，`projectIds` 上限仍为 10；Bridge 默认每批发送 10 条文案，并按输入顺序以最多 5 个批次并发查询。1.5 客户端支持 `L10N_STARLING_TM_SOURCE_LIMIT` 取 1–40，只有 RD 批准并用真实 40 条 payload 验证响应顺序、候选完整性与 P95 后才能设置为 40；无效值或请求超过已配置上限会正确失败。结果按原批次顺序合并，任一批失败会使本次查询真实失败。
+- **批次上限与调度**：Starling 已批准 `sourceContents` 默认上限为 40，`projectIds` 上限仍为 10；Bridge 默认每批发送 40 条文案，并按输入顺序以最多 5 个批次并发查询。`L10N_STARLING_TM_SOURCE_LIMIT` 可用于临时降低到 1–40；无效值或请求超过已配置上限会正确失败。结果按原批次顺序合并，任一批失败会使本次查询真实失败。真实 40 条 payload 的响应顺序、候选完整性与 P95 仍需在 PPE 复验。
 - **兼容模式**：Options 可显式选择 `legacy_cli`，仅用于排障；它沿用原 `GET /corpus/tm/match` 单条查询。
 
 ## Source String Key（2026-07-15 更新）
@@ -88,7 +88,7 @@ starling-cli api GET /corpus/tm/match \
 ## 2. 方法与版本
 
 - **method**: `starling`
-- **version**: `starling-cli v1.1.24`（bridge 调用的 CLI 版本）
+- **version**: `starling-cli v1.1.41`（bridge 调用的 CLI 版本）
 - **project**: 385（TikTok_Client），源语言 `en` → 目标 `zh`
 - **返回结构**（每条文案）：
   ```json
@@ -128,6 +128,6 @@ starling-cli api GET /corpus/tm/match \
 
 每条 TM 结果当前不含 `method` 字段。T18 计划在 bridge 返回结构里加：
 ```json
-{ "method": "starling", "method_version": "starling-cli-1.1.24", "candidate_count": <N> }
+{ "method": "starling", "method_version": "starling-cli-1.1.41", "candidate_count": <N> }
 ```
 供日志与可解释性使用。

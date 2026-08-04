@@ -102,7 +102,7 @@ class Settings(BaseSettings):
     starling_base_url: str = ""
     starling_batch_tm_path: str = "/gateway/openapi/corpus/tm/match/batch"
     starling_projects_path: str = "/projects"
-    starling_batch_size: int = Field(default=10, ge=1, le=40)
+    starling_batch_size: int = Field(default=40, ge=1, le=40)
     starling_max_projects: int = 10
     starling_max_concurrency: int = 3
     starling_qps: float = 5.0

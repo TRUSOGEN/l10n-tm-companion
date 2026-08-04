@@ -90,7 +90,7 @@ flowchart TD
   K --> N[Items 按 source 写审核轨迹]
 ```
 
-每个 locale scope 继续遵守 Batch TM 的已批准限制：project ID 始终至多十个，source 默认每请求十条；RD 批准且 PPE 复验后可显式提高到最多四十条。补算最多同时运行三个 scope，每个 scope 内只保留一个 Batch 请求并发；任何接口错误均按对应 scope 正确失败。
+每个 locale scope 继续遵守 Batch TM 的已批准限制：project ID 始终至多十个，source 默认每请求四十条；维护者可显式降低到 1–40 条。补算最多同时运行三个 scope，每个 scope 内只保留一个 Batch 请求并发；任何接口错误均按对应 scope 正确失败。
 
 ## 验收标准
 

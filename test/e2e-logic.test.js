@@ -666,7 +666,7 @@ console.log('\n=== TM method/version 元数据（T18） ===');
       tm_candidate_count: tm.candidate_count ?? 0,
     };
   }
-  const starlingTm = { tm_match: '完成', tm_source: 'Done', similarity: 100, origin: 'starling', method: 'starling', method_version: 'starling-cli-1.1.16', candidate_count: 5 };
+  const starlingTm = { tm_match: '完成', tm_source: 'Done', similarity: 100, origin: 'starling', method: 'starling', method_version: 'starling-cli-1.1.41', candidate_count: 5 };
   const m = mapTmWithMethod({ source_text: 'Done', row: 2 }, starlingTm);
   assert('Starling 结果带 method=starling', m.tm_method === 'starling');
   assert('candidate_count 透传', m.tm_candidate_count === 5);

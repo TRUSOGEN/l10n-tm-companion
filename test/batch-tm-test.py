@@ -143,10 +143,10 @@ def main():
     )
     total += 1
     passed += assert_raises(
-        '超过十条文案明确失败',
+        '超过四十条文案明确失败',
         ValueError,
         lambda: bridge.build_batch_tm_body(
-            [f'Text {index}' for index in range(11)], [385], 'en', 'zh', 3, 0
+            [f'Text {index}' for index in range(41)], [385], 'en', 'zh', 3, 0
         ),
     )
     total += 1
@@ -205,7 +205,7 @@ def main():
     bridge.request_batch_tm = fake_request
     try:
         chunked = bridge.search_tm_batch({
-            'texts': [f'Text {index}' for index in range(11)],
+            'texts': [f'Text {index}' for index in range(41)],
             'project_ids': [385, 278],
             'source_lang': 'en',
             'target_lang': 'zh',
@@ -219,9 +219,9 @@ def main():
 
     total += 1
     passed += assert_equal(
-        '十一条输入按 10+1 分批',
+        '四十一条输入按 40+1 分批',
         sorted(len(call[1]['sourceContents']) for call in request_calls),
-        [1, 10],
+        [1, 40],
     )
     total += 1
     passed += assert_equal('每批保留全部项目 ID', request_calls[0][1]['projectIds'], [385, 278])
@@ -231,7 +231,7 @@ def main():
     passed += assert_equal(
         '合并结果保持输入顺序',
         [item['source_text'] for item in chunked['results']],
-        [f'Text {index}' for index in range(11)],
+        [f'Text {index}' for index in range(41)],
     )
 
     print('\n=== batch TM: approved source limit capability ===')
@@ -241,16 +241,16 @@ def main():
         os.environ.pop(source_limit_env, None)
         total += 1
         passed += assert_equal(
-            '未配置额度时继续使用 PPE 已验证的 10 条',
+            '未配置覆盖时默认使用已批准的 40 条',
             bridge.get_batch_tm_source_limit(),
-            10,
+            40,
         )
 
-        os.environ[source_limit_env] = '40'
+        os.environ[source_limit_env] = '10'
         forty_calls = []
 
         def forty_request(cli, body, use_ppe, message=None):
-            """记录显式启用 40 条能力后的单批请求。"""
+            """记录默认 40 条能力下的单批请求。"""
             forty_calls.append(body)
             return {
                 'data': [[{
@@ -264,6 +264,7 @@ def main():
             }
 
         bridge.request_batch_tm = forty_request
+        os.environ.pop(source_limit_env, None)
         forty = bridge.search_tm_batch({
             'texts': [f'Forty {index}' for index in range(40)],
             'project_ids': [385],
@@ -272,7 +273,7 @@ def main():
             'cli_path': '/tmp/starling-cli',
         })
         total += 1
-        passed += assert_equal('显式批准 40 条后一次请求发送全部文案', len(forty_calls), 1)
+        passed += assert_equal('默认批准 40 条后一次请求发送全部文案', len(forty_calls), 1)
         total += 1
         passed += assert_equal('40 条请求体保持完整', len(forty_calls[0]['sourceContents']), 40)
         total += 1
@@ -280,6 +281,13 @@ def main():
             '40 条响应保持输入顺序',
             [item['source_text'] for item in forty['results']],
             [f'Forty {index}' for index in range(40)],
+        )
+        os.environ[source_limit_env] = '10'
+        total += 1
+        passed += assert_equal(
+            '维护者仍可临时降低单请求 source 上限',
+            bridge.get_batch_tm_source_limit(),
+            10,
         )
         total += 1
         passed += assert_raises(
@@ -356,6 +364,7 @@ def main():
             'project_ids': [385],
             'source_lang': 'en',
             'target_lang': 'zh',
+            'batch_size': 10,
             'batch_concurrency': 5,
             'cli_path': '/tmp/starling-cli',
         })
@@ -364,6 +373,7 @@ def main():
             'project_ids': [385],
             'source_lang': 'en',
             'target_lang': 'zh',
+            'batch_size': 10,
             'batch_concurrency': 1,
             'cli_path': '/tmp/starling-cli',
         })
@@ -390,11 +400,11 @@ def main():
         '超过安全批大小上限明确失败',
         ValueError,
         lambda: bridge.search_tm_batch({
-            'texts': [f'Text {index}' for index in range(11)],
+            'texts': [f'Text {index}' for index in range(41)],
             'project_ids': [385],
             'source_lang': 'en',
             'target_lang': 'zh',
-            'batch_size': 11,
+            'batch_size': 41,
         }),
     )
 
