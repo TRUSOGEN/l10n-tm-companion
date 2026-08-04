@@ -90,7 +90,20 @@ flowchart TD
   K --> N[Items 按 source 写审核轨迹]
 ```
 
-每个 locale scope 继续遵守 Batch TM 的已批准限制：project ID 始终至多十个，source 默认每请求四十条；维护者可显式降低到 1–40 条。补算最多同时运行三个 scope，每个 scope 内只保留一个 Batch 请求并发；任何接口错误均按对应 scope 正确失败。
+每个 locale scope 继续遵守 Batch TM 的已批准限制：project ID 始终至多十个，source 默认每请求四十条；维护者可显式降低到 1–40 条。补算阶段的 A 与 C 之间没有数据依赖（C 的输入只来自展示 scope 的人工确认文案），因此按 scope 流水线同时发出 A 与 C；全局在飞 TM 请求由 `createRequestLimiter()` 这一共享闸门限制为 `requestConcurrency`（默认 3，与流水线化之前「三个 scope 并发 × 每 scope 一个 Batch 请求」的压力完全一致）。Starling QPS 配额未经对方 RD 确认前不得调大该值。任何接口错误均按对应 scope 正确失败。
+
+### 测量 Starling batch TM 的安全并发上限
+
+`scripts/measure-batch-concurrency.mjs` 用于在 PPE 上实测 batch TM 能承受的并发档位。它复用既有 native host 路径（`starling-bridge.py` → `starling-batch-client.js` → 官方签名客户端），不重复实现签名；凭据只从环境变量读取，不打印也不落盘。
+
+> 这是对内部共享服务加压：**运行前必须先与 Starling RD 确认配额**。默认梯度上限保守，错误率超过阈值会自动停止升档。
+
+```bash
+STARLING_ACCESS_KEY=<AK> STARLING_SECRET_KEY=<SK> \
+  node scripts/measure-batch-concurrency.mjs --project-ids <PROJECT_ID> --target-locale ja-JP
+```
+
+可选参数：`--levels 1,3,5,8,12,16`（并发梯度）、`--sources 40`（每请求 source 条数）、`--rounds 2`（每档轮数）、`--source-locale en`、`--error-threshold 0.1`。每档输出成功率、P50/P95/最大耗时、限流计数（`1204`、HTTP 429）与错误码分布。测得结论需与 Starling RD 复核后，才能调整 `popup.js` 中的 `requestConcurrency`。
 
 ## 验收标准
 

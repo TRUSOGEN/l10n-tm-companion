@@ -2643,7 +2643,7 @@ async function completeDeferredRoiScopesForArchive(config) {
     usePpe: config.starlingTmMode !== 'legacy_cli',
     accessKey: config.starlingAccessKey,
     secretKey: config.starlingSecretKey,
-    // 三个 scope 并发时每个 scope 只保留一个 Batch 请求，形成全局最多三个请求。
+    // 每个 scope 只保留一个 Batch 请求，配合下面的 requestConcurrency 形成全局最多三个请求。
     batchConcurrency: 1,
   };
   const finalByKey = new Map(
@@ -2654,7 +2654,10 @@ async function completeDeferredRoiScopesForArchive(config) {
     allScopes,
     existingScopeRuns: multilingualScopeRuns,
     sourceItems: extractedItems,
-    concurrency: 3,
+    // A 与 C 现在按 scope 流水线并发发出，全局在飞 TM 请求由共享 limiter 限制在 3 个：
+    // 与流水线化之前「三个 scope 并发 × 每 scope 一个 Batch 请求」的压力完全一致。
+    // Starling QPS 配额尚未得到对方 RD 确认，未确认前不允许调大这个值。
+    requestConcurrency: 3,
     onProgress: (phase, scope, index, total) => showProgress(
       phase === 'initial'
         ? `Calculating ROI TM · ${scope.targetLocale} · ${index + 1}/${total} deferred scope(s)…`
