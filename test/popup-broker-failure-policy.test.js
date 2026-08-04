@@ -570,8 +570,8 @@ async function run() {
       Boolean(writeCalls[1]?.runId) && writeCalls[1]?.runId === writeCalls[2]?.runId,
       `${writeCalls[1]?.runId} vs ${writeCalls[2]?.runId}`);
     const persistedPlan = sharedStorage.roiWorkflowSnapshot?.workflowContext?.roiArchivePlan;
-    assert('Case 3b: both vendor completion states persist for reopen/resume',
-      persistedPlan?.vendors?.every((entry) => entry.status === 'complete') === true,
+    assert('Case 3b: persisted archive plan strips heavyweight payloads to avoid Chrome storage quota',
+      persistedPlan?.vendors?.every((entry) => !entry.payload) === true,
       JSON.stringify(persistedPlan));
   }
 

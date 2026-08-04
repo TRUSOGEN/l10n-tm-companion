@@ -632,18 +632,42 @@ async function pollActiveBrokerRun({ intervalMs = 2500 } = {}) {
  * Popup 关闭会销毁内存，快照使 CD 写回 Sheet 后可以重新打开 Popup 继续确认 C 或
  * 归档 ROI。快照不包含 Starling、飞书或 LLM 凭证，七天后失效；启动新运行时会删除。
  */
+function sanitizeArchivePlanForSnapshot(plan) {
+  if (!plan || plan.version !== 1 || !Array.isArray(plan.vendors)) return plan;
+  return {
+    version: plan.version,
+    baseRunId: plan.baseRunId,
+    startedAt: plan.startedAt,
+    vendors: plan.vendors.map((entry) => ({
+      vendor: entry.vendor,
+      runId: entry.runId,
+      status: entry.status,
+      result: entry.result || null,
+      lastError: entry.lastError || '',
+    })),
+  };
+}
+
+function workflowContextForSnapshot(context) {
+  if (!context?.roiArchivePlan) return context;
+  return {
+    ...context,
+    roiArchivePlan: sanitizeArchivePlanForSnapshot(context.roiArchivePlan),
+  };
+}
+
 async function persistWorkflowSnapshot() {
   if (multilingualScopeRuns.length === 0) {
     await clearWorkflowSnapshot();
     return;
   }
   const config = await loadConfig();
-  const workflowContext = activeWorkflowContext || {
+  const workflowContext = workflowContextForSnapshot(activeWorkflowContext || {
     spreadsheetToken: config.spreadsheetToken || '',
     sheetId: config.sheetId || '',
     vendor: runVendor,
     projectIds: [...selectedProjectIds],
-  };
+  });
   await chrome.storage.local.set({
     [ROI_WORKFLOW_SNAPSHOT_KEY]: {
       version: ROI_WORKFLOW_SNAPSHOT_VERSION,
@@ -2789,10 +2813,14 @@ async function writeCurrentRoiArchive() {
     }
     const validPlan = archivePlan?.version === 1
       && Array.isArray(archivePlan.vendors)
-      && archiveVendors.every((vendor) => archivePlan.vendors.some((entry) => entry.vendor === vendor));
+      && archiveVendors.every((vendor) => archivePlan.vendors.some((entry) => (
+        entry.vendor === vendor && entry.payload
+      )));
     if (!validPlan) {
-      const baseRunId = createRoiArchiveRunId();
-      const startedAt = new Date().toISOString();
+      const existingPlan = archivePlan?.version === 1 ? archivePlan : null;
+      const baseRunId = existingPlan?.baseRunId || createRoiArchiveRunId();
+      const startedAt = existingPlan?.startedAt || new Date().toISOString();
+      const existingByVendor = new Map((existingPlan?.vendors || []).map((entry) => [entry.vendor, entry]));
       archivePlan = {
         version: 1,
         baseRunId,
@@ -2800,13 +2828,14 @@ async function writeCurrentRoiArchive() {
         vendors: archiveVendors.map((vendor, index) => {
           const vendorResult = vendorRoiResults[vendor];
           if (!vendorResult) throw new Error(`ROI result missing for ${vendor}`);
-          const runId = `${baseRunId}-${vendor.toLowerCase()}`;
+          const existingEntry = existingByVendor.get(vendor);
+          const runId = existingEntry?.runId || `${baseRunId}-${vendor.toLowerCase()}`;
           return {
             vendor,
             runId,
-            status: 'pending',
-            result: null,
-            lastError: '',
+            status: existingEntry?.status || 'pending',
+            result: existingEntry?.result || null,
+            lastError: existingEntry?.lastError || '',
             payload: buildRoiArchivePayload({
               runId,
               startedAt,
