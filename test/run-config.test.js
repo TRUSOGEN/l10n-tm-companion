@@ -7,6 +7,7 @@ import {
   buildLocaleScopes,
   normalizeProject,
   targetLocaleIntersection,
+  targetLocaleCoverage,
   toggleProjectSelection,
   validateAutomaticRoiRunConfig,
   validateRunConfig,
@@ -42,7 +43,14 @@ const projectKoOnly = normalizeProject({
 assert.equal(projectA.id, 513, '应保留真实项目 ID');
 assert.equal(projectA.sourceLocale, 'en', '应保留真实 sourceLocale');
 assert.deepEqual(projectA.targetLocales, ['ja-JP', 'zh-Hans']);
-assert.deepEqual(targetLocaleIntersection([projectA, projectB]), ['zh-Hans']);
+assert.deepEqual(targetLocaleCoverage([projectA, projectB]).map(({ targetLocale, projects }) => [
+  targetLocale,
+  projects.map((project) => project.id),
+]), [
+  ['ja-JP', [513]],
+  ['ko-KR', [385]],
+  ['zh-Hans', [513, 385]],
+], '语言覆盖表应按并集返回每个 target locale 对应项目');
 
 const fastScope = buildFastTmScope({
   projects: [projectA, projectB],
@@ -234,15 +242,32 @@ assert.equal(validateRunConfig({
 const automaticRoi = validateAutomaticRoiRunConfig({
   projects: [normalizeProject({
     id: 2001,
-    name: 'Automatic ROI',
+    name: 'Automatic ROI Europe',
     sourceLocale: 'en',
-    targetLocales: ['en', 'en-GB', 'ja-JP', 'zh-Hans'],
+    targetLocales: ['en', 'en-GB', 'fr', 'ja-JP', 'zh-Hans'],
+  }), normalizeProject({
+    id: 2002,
+    name: 'Automatic ROI Asia',
+    sourceLocale: 'en',
+    targetLocales: ['en', 'ko-KR', 'zh-Hans'],
   })],
-  projectIds: [2001],
+  projectIds: [2001, 2002],
 });
 assert.equal(automaticRoi.status, 'ready', 'ROI 单开关配置应无需 vendor 或语言选择');
 assert.deepEqual(automaticRoi.vendors, ['RWS', 'Pactera']);
-assert.deepEqual(automaticRoi.scopes.map((scope) => scope.targetLocale), ['ja-JP', 'zh-Hans']);
+assert.deepEqual(automaticRoi.scopes.map((scope) => scope.targetLocale), ['fr', 'ja-JP', 'ko-KR', 'zh-Hans']);
+assert.deepEqual(automaticRoi.scopes.map((scope) => scope.projectIds), [
+  [2001],
+  [2001],
+  [2002],
+  [2001, 2002],
+], '自动 ROI 应覆盖目标语言并集，并按语言只携带支持该语言的项目');
+assert.deepEqual(automaticRoi.scopes.map((scope) => scope.requestedProjectIds), [
+  [2001, 2002],
+  [2001, 2002],
+  [2001, 2002],
+  [2001, 2002],
+], 'scope 应保留用户请求的完整项目集用于审计');
 assert.equal(isEnglishLocale('en-GB'), true);
 assert.equal(isEnglishLocale('ja-JP'), false);
 assert.equal(buildAutomaticRoiScopes({

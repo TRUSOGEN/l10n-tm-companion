@@ -378,7 +378,9 @@ function deferredInput(overrides) {
     },
   }));
   assert.equal(runs.length, 14, '13 个延后 scope 必须全部补算');
-  assert.equal(peak, 3, '默认全局在飞 TM 请求上限必须仍是 3');
+  assert.equal(peak, 12, '默认全局在飞 TM 请求上限应使用 2026-08-04 PPE 实测稳定值 12');
+  inFlight = 0;
+  peak = 0;
   const limited = await runnerModule.completeDeferredLocaleScopes(deferredInput({
     scopeCount: 6,
     requestConcurrency: 2,
@@ -392,7 +394,7 @@ function deferredInput(overrides) {
     },
   }));
   assert.equal(limited.length, 6);
-  assert.ok(peak <= 3, 'requestConcurrency 显式变小后不得超过默认上限');
+  assert.ok(peak <= 2, 'requestConcurrency 显式变小后必须使用显式上限');
 }
 
 // 顺序契约：完成顺序与 allScopes 顺序无关。
