@@ -85,7 +85,7 @@ Popup 工作台按真实操作顺序固定为四步：`1 Projects → 2 Spreadsh
 
 `1. Projects` 与 `2. Spreadsheet` 使用单开 accordion，展开一个会自动关闭另一个，折叠 summary 始终保持完整可见。两个展开区都限制为 Side Panel 可视高度的 46%、最高 380px，并在内容超出时提供独立纵向滚动；项目 summary 展示 source locale、所选项目数以及 ROI 模式下的自动语言 scope 数。运行写入目标、恢复提示和确认数量只出现在 Review，不在 Workflow 重复占位。
 
-Review 结果顶部提供 `All / Improved` 双选筛选并显示各自数量，默认展示全部。`Improved` 只保留真实 Post-TM 查询完整且 `Post-TM > 原 TM` 的条目；持平、下降、未查询和查询失败均不计为提升。筛选只改变当前列表和 Focus 前后导航范围，不改变批量确认、Sheet 写回、ROI 归档或原始运行快照。
+Review 结果顶部提供 `All / AI rewritten` 双选筛选并显示各自数量，默认展示全部。`AI rewritten` 保留通过结构、语义、规则校验且真实 Post-TM 查询完整的条目，持平和下降候选同样显示，供 CD 判断；`Post-TM > 原 TM` 只决定是否自动作为初始 Final copy。筛选只改变当前列表和 Focus 前后导航范围，不改变批量确认、Sheet 写回、ROI 归档或原始运行快照。
 
 审阅卡不直接展示内部 `draft / confirming / confirmed / dirty / error` 枚举。英文界面映射为 `Ready to review / Saving… / Saved / Edited · confirm again / Save failed`，中文界面映射为 `待审阅 / 正在保存… / 已保存 / 已修改，需重新确认 / 保存失败`。单条主按钮使用 `Confirm & save / 确认并保存`，已保存文案再次编辑后使用 `Confirm changes & save / 确认修改并保存`，批量入口使用 `Confirm & save remaining / 确认并保存其余项目`。
 

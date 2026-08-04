@@ -98,6 +98,7 @@ import {
   explainFocusAiAbsence,
   failConfirmation,
   filterReviewItems,
+  getReviewableAiCandidates,
   isAiCandidateSelected,
   prepareBulkConfirmations,
 } from './lib/review-workflow.js';
@@ -1859,7 +1860,7 @@ function renderResults(items) {
   })();
 }
 
-/** 同步 All / Improved 数量和可访问的选中状态。 */
+/** 同步 All / AI rewritten 数量和可访问的选中状态。 */
 function renderReviewFilter(items = []) {
   const container = document.getElementById('review-filter');
   const allItems = Array.isArray(items) ? items : [];
@@ -2080,7 +2081,7 @@ function renderFocus() {
   }
   const sim = item.similarity ? Math.round(item.similarity) : 0;
   const tmState = buildFocusTmState(item);
-  const validAiCandidates = dedupeAiCandidates(item.ai_quality?.validCandidates || []);
+  const reviewableAiCandidates = dedupeAiCandidates(getReviewableAiCandidates(item));
   const tmRows = tmState.candidates.length
     ? tmState.candidates.map((candidate, index) => `
       <li><strong>${escapeHtml(candidate.source || '')} · ${Math.round(Number(candidate.score) || 0)}%</strong></li>`).join('')
@@ -2092,8 +2093,8 @@ function renderFocus() {
   const bestPostScore = item.post_rewrite_tm?.status === 'complete'
     ? `${Math.round(item.post_rewrite_tm.score)}% ${scoreDelta(item.post_rewrite_tm.score, item.similarity)}`
     : '—';
-  const aiRows = validAiCandidates.length
-    ? `<div class="ai-candidate-stack">${validAiCandidates.map((candidate, index) => {
+  const aiRows = reviewableAiCandidates.length
+    ? `<div class="ai-candidate-stack">${reviewableAiCandidates.map((candidate, index) => {
       const selected = isAiCandidateSelected(item.review, candidate);
       const postScore = Math.round(Number(candidate.post_rewrite_tm?.score) || 0);
       const candidateDelta = scoreDelta(candidate.post_rewrite_tm?.score, item.similarity);
@@ -2114,7 +2115,7 @@ function renderFocus() {
     }).join('')}</div>`
     : `<div class="focus-text">None</div>
        <div class="focus-meta error">${escapeHtml(aiAbsence)}</div>`;
-  const aiDisclosureOpen = validAiCandidates.length <= 1 ? ' open' : '';
+  const aiDisclosureOpen = reviewableAiCandidates.length <= 1 ? ' open' : '';
 
   document.getElementById('focus-pos').textContent = `${focusIndex + 1} / ${visibleItems.length}`;
   body.innerHTML = `
@@ -2144,7 +2145,7 @@ function renderFocus() {
     <details class="focus-disclosure focus-ai-disclosure"${aiDisclosureOpen}>
       <summary>
         <span>${t('aiRewrite', uiLanguage)}</span>
-        <span class="disclosure-summary-meta">${validAiCandidates.length} candidate(s) · Best Post ${bestPostScore}</span>
+        <span class="disclosure-summary-meta">${reviewableAiCandidates.length} candidate(s) · Best Post ${bestPostScore}</span>
       </summary>
       <div class="focus-disclosure-body">
         ${aiRows}
@@ -2172,7 +2173,7 @@ function renderFocus() {
 
   body.querySelectorAll('[data-ai-candidate]').forEach((btn) => {
     btn.addEventListener('click', () => {
-      const candidate = validAiCandidates[Number(btn.dataset.aiCandidate)];
+      const candidate = reviewableAiCandidates[Number(btn.dataset.aiCandidate)];
       item.review = editFinalText(item.review, candidate.ai_translation);
       item.review_status = item.review.status;
       void persistWorkflowSnapshot();

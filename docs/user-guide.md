@@ -178,11 +178,11 @@ Working spreadsheet 不绑定固定文档。自动模式采用当前打开的任
 2. 插件查询 A 的 Starling Top-3 TM，第一名得分是 Score A。
 3. `49.99` 跳过 AI，`50` 与 `84.99` 进入 AI，`85` 跳过 AI；每条进入 AI 的 source 只创建一个 Inspire task，最多保留三个结构化候选。
 4. Inspire Writer 的 `status=pass` copy 先由客户端去重并包装为内部结构化候选，再校验 placeholder/token、URL、数字、品牌 token、Prompt 中的 Legal 与 meaning-preservation 契约，最后查询真实 Post-TM；`status=fail`、空 copy 与原样 source 不进入候选列表。
-5. 只有全部安全校验通过且 `Post-TM > Score A` 的候选进入“Review & edit / 审阅与修改”可选列表；没有有效候选时显示 `None`，并在下方显示 AI 关闭、配置缺失、API 失败、结构错误或安全门禁原因。
+5. 通过全部安全校验且 Post-TM 查询完整的候选进入“Review & edit / 审阅与修改”可选列表；`Post-TM > Score A` 的候选自动作为初始 Final copy，持平或下降候选保留原文为默认值并继续提供人工选择。没有安全候选时显示 `None`，并在下方显示 AI 关闭、配置缺失、API 失败、结构错误或安全门禁原因。
 
 Score A 低于 50 或达到 85 时，插件不会发起 Inspire task，但 CD 仍可在“Review & edit / 审阅与修改”中手工填写最终 C。
 
-结果卡片严格按 Sheet 原文行号排列，使用 `TM → Post → Final` 分阶段颜色、相对 Score A 的箭头和用户状态标签，只保留 `Review & edit / 审阅与修改`。Review 顶部的 `All / Improved` 筛选显示各自数量；`Improved` 只展示真实 Post-TM 查询完整且 `Post-TM > 原 TM` 的条目，筛选不会改变确认、写回与归档范围。审阅视图默认折叠 Top-3 TM 与多 AI 候选，完整显示 Source，并提供可自动伸缩的最终 C 编辑框；内部 `dirty` 状态显示为 `Edited · confirm again / 已修改，需重新确认`。升级时必须运行新版安装器并完全退出 Chrome 后重开；只刷新扩展无法更新 Native Host。旧 Host 仅返回首条 TM 时，审阅视图会保留该条真实命中并明确提示升级，不会把正分显示成 `No TM match`。
+结果卡片严格按 Sheet 原文行号排列，使用 `TM → Post → Final` 分阶段颜色、相对 Score A 的箭头和用户状态标签，只保留 `Review & edit / 审阅与修改`。Review 顶部的 `All / AI rewritten` 筛选显示各自数量；`AI rewritten` 展示通过安全门禁且真实 Post-TM 完整的条目，下降或持平候选同样可审阅，筛选不会改变确认、写回与归档范围。审阅视图默认折叠 Top-3 TM 与多 AI 候选，完整显示 Source，并提供可自动伸缩的最终 C 编辑框；内部 `dirty` 状态显示为 `Edited · confirm again / 已修改，需重新确认`。升级时必须运行新版安装器并完全退出 Chrome 后重开；只刷新扩展无法更新 Native Host。旧 Host 仅返回首条 TM 时，审阅视图会保留该条真实命中并明确提示升级，不会把正分显示成 `No TM match`。
 
 Inspire 的改写 prompt 使用安装包内版本化保存的 TM Alignment Prompt、Content Review skill、Content Review Principles，以及按场景选择的唯一一份 Game 或 Revenue Legal Guidelines。相关证据经过确定性检索并受字符预算约束，Writer native copy 协议固定在 prompt 首尾；规则文件缺失时 AI 改写会停止并显示真实错误，不会退回无规则 prompt。`/copies` 只接受 `status=pass` 的非空 copy；短文案没有安全改写空间时 Agent 原样返回 source，客户端将其解释为 skip 而不是 AI 候选。
 

@@ -10,6 +10,8 @@ import {
   explainFocusAiAbsence,
   failConfirmation,
   filterReviewItems,
+  getReviewableAiCandidates,
+  hasReviewableAiRewrite,
   hasPostTmImprovement,
   isAiCandidateSelected,
   prepareBulkConfirmations,
@@ -197,6 +199,17 @@ const reviewItems = [
     post_rewrite_tm: { status: 'complete', score: 100 },
   },
   {
+    id: 'rewritten_lower',
+    similarity: 71,
+    post_rewrite_tm: { status: 'complete', score: 30 },
+    ai_quality: {
+      reviewableCandidates: [{
+        ai_translation: 'Claim 5 Coins now',
+        post_rewrite_tm: { status: 'complete', score: 30 },
+      }],
+    },
+  },
+  {
     id: 'equal',
     similarity: 46,
     post_rewrite_tm: { status: 'complete', score: 46 },
@@ -212,13 +225,29 @@ const reviewItems = [
   },
 ];
 assert.equal(hasPostTmImprovement(reviewItems[0]), true, 'Post-TM 高于原 TM 才算有提升');
-assert.equal(hasPostTmImprovement(reviewItems[1]), false, 'Post-TM 持平不算有提升');
-assert.equal(hasPostTmImprovement(reviewItems[2]), false, 'Post-TM 查询不完整不算有提升');
-assert.equal(hasPostTmImprovement(reviewItems[3]), false, '没有 Post-TM 快照不算有提升');
+assert.equal(hasPostTmImprovement(reviewItems[1]), false, '分数下降不算可自动采用');
+assert.equal(hasPostTmImprovement(reviewItems[2]), false, 'Post-TM 持平不算有提升');
+assert.equal(hasPostTmImprovement(reviewItems[3]), false, 'Post-TM 查询不完整不算有提升');
+assert.equal(hasPostTmImprovement(reviewItems[4]), false, '没有 Post-TM 快照不算有提升');
+assert.equal(hasReviewableAiRewrite(reviewItems[1]), true, '安全 AI 改写即使分数下降也必须可审阅');
+assert.equal(hasReviewableAiRewrite(reviewItems[2]), false, '没有安全 AI 候选不能进入 AI 改写筛选');
+assert.deepEqual(
+  getReviewableAiCandidates({
+    ai_quality: {
+      candidates: [{
+        ai_translation: 'Claim 5 Coins now',
+        gate_status: 'rejected',
+        rejection_reason: 'tm_score_not_improved',
+      }],
+    },
+  }).map((candidate) => candidate.ai_translation),
+  ['Claim 5 Coins now'],
+  '旧运行快照中的安全下降候选也必须恢复到新审阅视图',
+);
 assert.deepEqual(
   filterReviewItems(reviewItems, 'improved').map((item) => item.id),
-  ['improved'],
-  'Improved 筛选只保留真实分数提升的条目',
+  ['rewritten_lower'],
+  'AI 改写筛选必须保留安全的下降候选',
 );
 assert.deepEqual(
   filterReviewItems(reviewItems, 'all').map((item) => item.id),

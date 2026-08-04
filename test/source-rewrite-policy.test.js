@@ -81,6 +81,21 @@ assert.equal(evaluated.representativePostTm.score, 88, '存在有效候选时代
 assert.equal(evaluated.candidates[1].rejection_reason, 'meaning_changed');
 assert.equal(evaluated.candidates[2].rejection_reason, 'protected_tokens_changed');
 
+const lowerButReviewable = evaluateRewriteCandidates({
+  source_text: 'Claim your 5 Coins now',
+  similarity: 71,
+  ai_candidates: [{
+    ai_translation: 'Claim 5 Coins now',
+    semantic_status: 'same_meaning',
+    risks: [],
+    structure_valid: true,
+  }],
+}, [{ status: 'complete', score: 30 }]);
+assert.equal(lowerButReviewable.validCandidates.length, 0, '分数下降的候选不能自动采用');
+assert.equal(lowerButReviewable.reviewableCandidates.length, 1, '安全且有完整分数的下降候选仍必须可审阅');
+assert.equal(lowerButReviewable.displayText, '', '默认最终文案仍保留原文');
+assert.equal(lowerButReviewable.candidates[0].rejection_reason, 'tm_score_not_improved');
+
 const noValid = evaluateRewriteCandidates({
   ...item,
   ai_candidates: item.ai_candidates.slice(1),

@@ -13,7 +13,7 @@ Batch 首轮显式发送 `limit=3`，每个 source 返回按原始顺序保留�
 - `not_required`：不满足 50–85 门禁、结构无效或没有候选，因此不发送第二次请求。
 - `incomplete`：Native Messaging、HTTP、响应数量或 score 结构异常；保留首轮结果和错误原因，不产生伪造的 0 分。
 
-候选只有在结构、protected token、URL、数字、`semantic_status=same_meaning`、空风险列表以及 `Post-TM > Orig TM` 全部通过时才进入 Focus 可选列表。Prompt 保留按场景选择的 Legal 证据。普通 Sheet 只在单条确认成功后保存当前六列，不写任何 ROI 金额。
+候选通过结构、protected token、URL、数字、`semantic_status=same_meaning`、空风险列表和完整 Post-TM 后进入 Focus 可选列表。`Post-TM > Orig TM` 仅决定候选是否自动作为初始 Final copy；持平或下降的安全候选保留真实分数、可由 CD 主动选择。Prompt 保留按场景选择的 Legal 证据。普通 Sheet 只在单条确认成功后保存当前六列，不写任何 ROI 金额。
 
 Focus 以 `tm_candidates` 作为 Top-3 的权威数据。若检测到旧版 Native Host 只返回首条 `tm_source`、`tm_match` 与 `similarity`，界面保留这条真实命中并显示 `Native Host update required`，不得在已有正分时误报 `No TM match`。AI 没有有效候选时继续显示 `None`，并同步显示生成关闭、配置缺失、API 失败、结构错误或安全门禁原因；`None` 本身不代表未调用 Inspire。
 
@@ -23,7 +23,7 @@ Inspire Provider 固定调用 `TM_inspire` Custom Agent Version 7。真实 `/cop
 
 普通 Sheet 的来源列、数据起始行和输出起始列按 Sheet 独立配置。输出区依次保存 Best TM Match、Score A、最终 C、所选 AI 候选的 Post-TM、Final TM 阈值状态和 Final TM。CD 在 Focus 编辑 C 并点击 Confirm 后，插件依次完成本地校验、Final TM、当前行六列写入，再将状态标为 confirmed。正式 ROI 是 `TM cost(A) - TM cost(C)`；B 只用于审阅。
 
-Popup 结果卡片严格按 Sheet 原始行号显示，异步 TM 与 Inspire 完成顺序不得改变审阅顺序。普通卡片只提供 Focus 入口；Focus 展示 Top-3 TM、有效 AI 候选、分数差、最终 C、Final TM 与状态。
+Popup 结果卡片严格按 Sheet 原始行号显示，异步 TM 与 Inspire 完成顺序不得改变审阅顺序。普通卡片只提供 Focus 入口；Focus 展示 Top-3 TM、安全且 Post-TM 完整的 AI 候选、分数差、最终 C、Final TM 与状态。
 
 本地预估采用已确认的收费表：`0–75`（含 75）为本地词数 × AIPE rate；`(75,85]`、`(85,95]`、`(95,99]` 分别为本地词数 × 60%、40%、20% × T-only rate；100% 依照返回分类或 `exact_unclassified_conservative` 处理。逐条公式输入保留完整精度。
 

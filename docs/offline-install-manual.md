@@ -106,7 +106,7 @@ Starling 是 TM 查询的必需配置。
 
 AI 改写是可选功能。关闭 AI 时，Starling TM 查询仍能正常运行。
 
-当前 AI 改写使用安装包内的 Content Review skill、Content Review Principles 和适用的 Game 或 Revenue Legal Guidelines；Style Guide 与 Glossary 不再加载或注入 Prompt。结果仍需 CD 审核；必需规则文件缺失、结构变量改变或真实 TM 分数未提升时，插件默认保持原文 A。
+当前 AI 改写使用安装包内的 Content Review skill、Content Review Principles 和适用的 Game 或 Revenue Legal Guidelines；Style Guide 与 Glossary 不再加载或注入 Prompt。结果仍需 CD 审核；必需规则文件缺失、结构变量改变时插件默认保持原文 A，安全但真实 TM 分数未提升的改写仍显示给 CD 人工判断。
 
 Inspire task 已完成但第一次 copies 暂时为空时，插件会只重读同一 task，不会重复创建和扣用新的生成任务。若三次读取仍无可用 pass copy，错误会附带安全的响应形状与 prompt 长度诊断；请把完整错误发给维护者。
 

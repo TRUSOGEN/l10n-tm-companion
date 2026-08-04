@@ -24,9 +24,10 @@ assert(source.includes('reviewStatusTag(reviewStatus)'), 'draft/dirty/confirmed 
 assert(source.includes("t(`reviewStatus${statusKey}`, uiLanguage)"), '审阅状态必须映射为用户动作，禁止直接显示内部枚举');
 assert(!source.includes("const label = normalized.charAt(0).toUpperCase() + normalized.slice(1)"), '界面不得直接显示 Dirty 等内部状态名');
 assert(html.includes('id="review-filter-all"')
-  && html.includes('id="review-filter-improved"'), 'Review 顶部必须提供 All / Improved 双选筛选');
+  && html.includes('id="review-filter-improved"'), 'Review 顶部必须提供 All / AI rewritten 双选筛选');
 assert(source.includes("filterReviewItems(items, reviewFilter)"), '结果渲染必须使用统一的 Review 筛选函数');
-assert(source.includes("getElementById('review-filter-improved').addEventListener"), 'Improved 筛选必须绑定真实交互');
+assert(source.includes("getElementById('review-filter-improved').addEventListener"), 'AI rewritten 筛选必须绑定真实交互');
+assert(source.includes('getReviewableAiCandidates(item)'), 'Focus 必须展示安全且 Post-TM 完整的 AI 改写，不按分数是否提升隐藏候选');
 assert(styles.includes('.review-filter-option[aria-pressed="true"]'), '当前筛选必须具有清晰的选中状态');
 
 assert(styles.includes('@media (max-width: 420px)'), '授权卡必须定义窄屏响应式布局');
