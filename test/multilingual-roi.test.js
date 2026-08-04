@@ -278,5 +278,86 @@ test('正式双 vendor ROI 只汇总已确认 A-C，未确认条目保留 incomp
   }
 });
 
+console.log('\n=== multilingual-roi: vendor 语言覆盖路由 ===');
+const disjointCatalog = {
+  schema_version: 1,
+  vendors: {
+    RWS: [
+      { source_locale: 'en', target_locale: 'de-DE', aipe_usd_per_1000_words: 74, t_only_usd_per_1000_words: 92 },
+      { source_locale: 'en', target_locale: 'fr', aipe_usd_per_1000_words: 74, t_only_usd_per_1000_words: 92 },
+    ],
+    Pactera: [
+      { source_locale: 'en', target_locale: 'ja-JP', aipe_usd_per_1000_words: 56, t_only_usd_per_1000_words: 80 },
+    ],
+  },
+};
+
+function confirmedItem() {
+  return {
+    source_text: 'One two three',
+    final_source_text: 'One two three revised',
+    similarity: 70,
+    final_tm: { status: 'complete', score: 90 },
+    review_status: 'confirmed',
+  };
+}
+
+test('vendor 不服务的语言 scope 不进入该 vendor 结果，也不再伪装成 incomplete', () => {
+  const scopeRuns = [
+    { scope: { key: 'p:en:de-DE', sourceLocale: 'en', targetLocale: 'de-DE' }, items: [confirmedItem()] },
+    { scope: { key: 'p:en:fr', sourceLocale: 'en', targetLocale: 'fr' }, items: [confirmedItem()] },
+    { scope: { key: 'p:en:ja-JP', sourceLocale: 'en', targetLocale: 'ja-JP' }, items: [confirmedItem()] },
+  ];
+  const results = deriveVendorRoiResults(scopeRuns, disjointCatalog, ['RWS', 'Pactera']);
+
+  assert.deepEqual(results.RWS.scopeRuns.map((run) => run.scope.key), ['p:en:de-DE', 'p:en:fr']);
+  assert.equal(results.RWS.summary.status, 'complete');
+  assert.equal(results.RWS.summary.selectedScopeCount, 2);
+  assert.equal(results.RWS.summary.completeScopeCount, 2);
+  assert.deepEqual(results.RWS.summary.incompleteScopes, []);
+  assert.deepEqual(results.RWS.unservedScopes, [{ key: 'p:en:ja-JP', targetLocale: 'ja-JP' }]);
+  assert.equal(results.RWS.requestedScopeCount, 3);
+
+  assert.deepEqual(results.Pactera.scopeRuns.map((run) => run.scope.key), ['p:en:ja-JP']);
+  assert.equal(results.Pactera.summary.status, 'complete');
+  assert.deepEqual(results.Pactera.summary.incompleteScopes, []);
+  assert.deepEqual(
+    results.Pactera.unservedScopes.map((scope) => scope.targetLocale),
+    ['de-DE', 'fr'],
+  );
+});
+
+test('全部语言都不被某 vendor 服务时该 vendor 没有可归档 scope', () => {
+  const results = deriveVendorRoiResults([
+    { scope: { key: 'p:en:de-DE', sourceLocale: 'en', targetLocale: 'de-DE' }, items: [confirmedItem()] },
+    { scope: { key: 'p:en:fr', sourceLocale: 'en', targetLocale: 'fr' }, items: [confirmedItem()] },
+  ], disjointCatalog, ['RWS', 'Pactera']);
+
+  assert.equal(results.RWS.scopeRuns.length, 2);
+  assert.equal(results.Pactera.scopeRuns.length, 0);
+  assert.equal(results.Pactera.unservedScopes.length, 2);
+  assert.equal(results.Pactera.summary.selectedScopeCount, 0);
+});
+
+test('服务该语言但缺按字费率时仍保留 incomplete，不得静默丢弃 scope', () => {
+  const hourlyOnlyCatalog = {
+    schema_version: 1,
+    vendors: {
+      RWS: [{ source_locale: 'en', target_locale: 'de-DE', hourly_rate_usd: 40 }],
+    },
+  };
+  const results = deriveVendorRoiResults([
+    { scope: { key: 'p:en:de-DE', sourceLocale: 'en', targetLocale: 'de-DE' }, items: [confirmedItem()] },
+  ], hourlyOnlyCatalog, ['RWS']);
+
+  assert.equal(results.RWS.scopeRuns.length, 1);
+  assert.deepEqual(results.RWS.unservedScopes, []);
+  assert.equal(results.RWS.summary.status, 'incomplete');
+  assert.deepEqual(results.RWS.summary.incompleteScopes, [{
+    key: 'p:en:de-DE',
+    reasons: ['rate_missing_word_rate'],
+  }]);
+});
+
 console.log(`\nmultilingual-roi 测试: ${passed} 通过 / ${failed} 失败`);
 if (failed > 0) process.exit(1);

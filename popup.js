@@ -1587,7 +1587,20 @@ function refreshVendorRoiResults() {
     return;
   }
   vendorRoiResults = deriveVendorRoiResults(multilingualScopeRuns, rateCatalog, ROI_VENDORS);
-  multilingualRoiSummary = vendorRoiResults.RWS?.summary || null;
+  // RWS 覆盖不到的语言（例如全亚洲语言运行）时退回第一个真正有可计费 scope 的 vendor，
+  // 避免 Summary 因为 vendor 语言覆盖互斥而变成空视图。
+  multilingualRoiSummary = archivableRoiVendors()
+    .map((vendor) => vendorRoiResults[vendor]?.summary)
+    .find(Boolean) || null;
+}
+
+/** 返回本次运行中真正拥有可计费语言 scope 的 vendor，顺序固定为 ROI_VENDORS。 */
+function archivableRoiVendors() {
+  const vendors = ROI_VENDORS.filter(
+    (vendor) => (vendorRoiResults[vendor]?.scopeRuns?.length || 0) > 0,
+  );
+  // RWS 继续优先，保持既有 Summary/UI 与 Items 归属的兼容行为。
+  return vendors;
 }
 
 // ===== 处理流程：每个共享语言的多项目 scope 执行 A TM → AI 候选 B → B TM =====
@@ -2765,9 +2778,17 @@ async function writeCurrentRoiArchive() {
     }
     await completeDeferredRoiScopesForArchive(config);
     let archivePlan = activeWorkflowContext?.roiArchivePlan;
+    // 只归档真正拥有可计费语言的 vendor。费率目录中 vendor 语言覆盖互斥，若强行为
+    // 不服务这些语言的 vendor 建 Run，只会产生一条必然 incomplete 的噪声记录。
+    const archiveVendors = archivableRoiVendors();
+    if (!archiveVendors.length) {
+      throw new Error(
+        'No vendor has exact word rates for any selected ROI locale; nothing can be archived.',
+      );
+    }
     const validPlan = archivePlan?.version === 1
       && Array.isArray(archivePlan.vendors)
-      && ROI_VENDORS.every((vendor) => archivePlan.vendors.some((entry) => entry.vendor === vendor));
+      && archiveVendors.every((vendor) => archivePlan.vendors.some((entry) => entry.vendor === vendor));
     if (!validPlan) {
       const baseRunId = createRoiArchiveRunId();
       const startedAt = new Date().toISOString();
@@ -2775,7 +2796,7 @@ async function writeCurrentRoiArchive() {
         version: 1,
         baseRunId,
         startedAt,
-        vendors: ROI_VENDORS.map((vendor, index) => {
+        vendors: archiveVendors.map((vendor, index) => {
           const vendorResult = vendorRoiResults[vendor];
           if (!vendorResult) throw new Error(`ROI result missing for ${vendor}`);
           const runId = `${baseRunId}-${vendor.toLowerCase()}`;
@@ -2797,6 +2818,8 @@ async function writeCurrentRoiArchive() {
               includeReviewItems: index === 0,
               operator: feishuUser.profile,
               displayScopeKey: activeDisplayScopeKey,
+              requestedScopeCount: vendorResult.requestedScopeCount,
+              unservedScopes: vendorResult.unservedScopes,
             }),
           };
         }),

@@ -35,9 +35,16 @@ assert('Popup 加载费率快照', popupJs.includes("chrome.runtime.getURL('data
 assert('Popup 按每个 scope 解析精确费率', popupJs.includes('scopeConfig.scopes.map') && popupJs.includes('resolveWordRate(rateCatalog'));
 assert('Popup 对每个 vendor 保留独立费率完整性', popupJs.includes('deriveVendorRoiResults('));
 assert(
-  'Popup 归档两套 vendor Run',
-  popupJs.includes('vendors: ROI_VENDORS.map')
+  'Popup 按可计费 vendor 归档 Run',
+  popupJs.includes('const archiveVendors = archivableRoiVendors();')
+    && popupJs.includes('vendors: archiveVendors.map')
     && popupJs.includes('for (const plan of archivePlan.vendors)'),
+);
+assert(
+  'Popup 只为拥有可计费语言 scope 的 vendor 建 Run',
+  popupJs.includes('function archivableRoiVendors()')
+    && popupJs.includes("ROI_VENDORS.filter(")
+    && popupJs.includes('scopeRuns?.length || 0) > 0'),
 );
 
 console.log(`\noptions vendor 迁移测试: ${passed} 通过 / ${failed} 失败`);

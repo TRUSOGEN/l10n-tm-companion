@@ -253,7 +253,9 @@ TM Cost 由每个 target locale scope 的 RWS 或 Pactera 精确费率、本地�
 
 这是覆盖状态，不是系统崩溃。打开 `L10n ROI Scopes`，查看 `Failure reasons`：常见原因包括 `final_source_text_missing`、`final_tm_missing`、`final_tm_query_failed` 和 `rate_missing_language_pair`。
 
-ROI 自动覆盖全部共同非英文语言；RWS 与 Pactera 中任一家缺少精确费率时，该 vendor 的对应 scope 会显示 `rate_missing_language_pair` 并保留其他完整 scope 小计。它通常反映费率目录缺口、历史 Run 或费率配置更新，不影响 TM 查询本身。
+ROI 自动覆盖全部共同非英文语言。RWS 与 Pactera 的费率目录语言覆盖是互斥的（RWS 为欧语系，Pactera 为亚洲与中东语言），因此每种语言只会进入真正为它报价的那家 vendor 的 Run：欧语系归 `-rws` Run，亚洲与中东语言归 `-pactera` Run，某家 vendor 没有任何可计费语言时不再生成该 Run。当某语言被路由到其他 vendor 时，本 Run 的 `Pricing notes` 会写入一行 `Vendor locale routing: …`，说明本 Run 只覆盖部分语言、不是整车全语言金额。
+
+只有当某 vendor **确实服务该语言但缺少按字费率**（例如只有 hourly rate、费率行重复或费率配置未更新）时，对应 scope 才会显示 `rate_missing_language_pair` 或 `rate_missing_word_rate` 并保留其他完整 scope 小计。这类情况反映真实费率目录缺口，需要补费率表，不影响 TM 查询本身。
 
 ### `ROI archive schema mismatch`
 

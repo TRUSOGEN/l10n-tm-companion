@@ -231,6 +231,66 @@ test('归档 Run、Scope 与 source-grain Item，整车 A-C 节省写入 Run', (
   assert.equal(payload.run.fields['CD reviewed segments'], 1);
 });
 
+test('部分语言由其他 vendor 报价时 Run 记录语言归属说明', () => {
+  const payload = buildRoiArchivePayload({
+    runId: 'roi-locale-routing',
+    startedAt: '2026-08-04T00:00:00.000Z',
+    vendor: 'RWS',
+    sourceSegmentCount: 1,
+    projects: ['513'],
+    summary: {
+      status: 'complete', selectedScopeCount: 1, completeScopeCount: 1, coveredSegmentCount: 1,
+      subtotalFullTranslation: 0.62, subtotalBefore: 0.42, subtotalAfter: 0.04,
+      subtotalSaving: 0.38, incompleteScopes: [],
+    },
+    scopeRuns: [{
+      scope: { key: '513:en:fr', projectId: 513, sourceLocale: 'en', targetLocale: 'fr' },
+      items: [finalItem()],
+    }],
+    reviewItems: [{
+      similarity: 70,
+      review_status: 'confirmed',
+      final_tm: { status: 'complete', score: 91 },
+    }],
+    requestedScopeCount: 3,
+    unservedScopes: [
+      { key: '513:en:ja-JP', targetLocale: 'ja-JP' },
+      { key: '513:en:zh-Hans', targetLocale: 'zh-Hans' },
+    ],
+  });
+  const notes = payload.run.fields['Pricing notes'];
+  assert.match(notes, /Vendor locale routing: RWS priced 1 of 3 requested locale\(s\)/);
+  assert.match(notes, /2 locale\(s\) not served by this vendor and routed elsewhere: ja-JP, zh-Hans/);
+  assert.equal(payload.run.fields['Incomplete scopes'], '');
+});
+
+test('全部语言均由本 vendor 报价时不写语言归属噪声', () => {
+  const payload = buildRoiArchivePayload({
+    runId: 'roi-locale-routing-full',
+    startedAt: '2026-08-04T00:00:00.000Z',
+    vendor: 'RWS',
+    sourceSegmentCount: 1,
+    projects: ['513'],
+    summary: {
+      status: 'complete', selectedScopeCount: 1, completeScopeCount: 1, coveredSegmentCount: 1,
+      subtotalFullTranslation: 0.62, subtotalBefore: 0.42, subtotalAfter: 0.04,
+      subtotalSaving: 0.38, incompleteScopes: [],
+    },
+    scopeRuns: [{
+      scope: { key: '513:en:fr', projectId: 513, sourceLocale: 'en', targetLocale: 'fr' },
+      items: [finalItem()],
+    }],
+    reviewItems: [{
+      similarity: 70,
+      review_status: 'confirmed',
+      final_tm: { status: 'complete', score: 91 },
+    }],
+    requestedScopeCount: 1,
+    unservedScopes: [],
+  });
+  assert.equal(/Vendor locale routing/.test(payload.run.fields['Pricing notes']), false);
+});
+
 test('零条确认时禁止生成 ROI 归档 payload', () => {
   assert.throws(() => buildRoiArchivePayload({
     runId: 'roi-zero-confirmed',
