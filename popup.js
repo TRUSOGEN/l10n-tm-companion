@@ -115,6 +115,7 @@ import {
 } from './lib/review-workflow.js';
 import { createReviewPresentationElement } from './lib/review-presentation-view.js';
 import { buildReviewContextModel, renderReviewContext } from './lib/review-context-view.js';
+import { aggregateReviewDecisions, classifyReviewDecision } from './lib/review-decision-summary.js';
 import { appendResultCardsInBatches, captureActiveResultCardId } from './lib/result-batch-renderer.js';
 
 let extractedItems = [];
@@ -133,6 +134,7 @@ let activeRunConfig = null;
 let multilingualRoiSummary = null;
 let reviewContextCoverage = null;
 let reviewContextDestination = null;
+let reviewContextDecisions = [];
 let multilingualScopeRuns = [];
 let archiveProgressState = null;
 let archiveOperationCounts = { A: 0, C: 0 };
@@ -1926,6 +1928,11 @@ function renderResults(items) {
   });
 
   const visibleItems = filterReviewItems(items, reviewFilter);
+  refreshReviewContext(visibleItems.map((item) => ({
+    ...item,
+    presentation: reviewPresentationForItem(item),
+    aiAbsence: explainFocusAiAbsence(item),
+  })));
   if (visibleItems.length === 0) {
     container.innerHTML = `<div class="empty-hint">${escapeHtml(t('noImprovedResults', uiLanguage))}</div>`;
   } else {
@@ -1976,10 +1983,12 @@ function renderReviewFilter(items = []) {
  *
  * counts 与解释全部来自 `formatVendorCoverage`，Popup 不显示金额。
  */
-function refreshReviewContext() {
+function refreshReviewContext(items) {
+  if (Array.isArray(items)) reviewContextDecisions = aggregateReviewDecisions(items);
   renderReviewContext(document, buildReviewContextModel({
     coverage: reviewContextCoverage,
     destination: reviewContextDestination,
+    decisions: reviewContextDecisions,
   }));
 }
 
@@ -2026,7 +2035,7 @@ function reviewPresentationForItem(item = {}) {
   const reviewable = getReviewableAiCandidates(item);
   const bScore = item.post_rewrite_tm?.status === 'complete' ? numericOrNull(item.post_rewrite_tm.score) : null;
   const cScore = item.final_tm?.status === 'complete' ? numericOrNull(item.final_tm.score) : null;
-  return buildReviewPresentation({
+  const presentation = buildReviewPresentation({
     original: { score: numericOrNull(item.similarity), cost: numericOrNull(roi.estimatedCostBefore) },
     ai: { score: bScore },
     final: { score: cScore, cost: numericOrNull(roi.estimatedCostAfter) },
@@ -2034,6 +2043,12 @@ function reviewPresentationForItem(item = {}) {
       ? { safe: true }
       : { safe: false, reason: explainFocusAiAbsence(item) },
   });
+  const decision = classifyReviewDecision({
+    ...item,
+    presentation,
+    aiAbsence: explainFocusAiAbsence(item),
+  });
+  return decision ? { ...presentation, headline: decision.label } : presentation;
 }
 
 function renderCard(item) {
@@ -2210,6 +2225,11 @@ function renderFocus() {
     ? `<div class="focus-meta error">${escapeHtml(tmState.message)}</div>`
     : '';
   const aiAbsence = explainFocusAiAbsence(item);
+  const focusDecision = classifyReviewDecision({
+    ...item,
+    presentation: reviewPresentationForItem(item),
+    aiAbsence,
+  });
   const bestPostScore = item.post_rewrite_tm?.status === 'complete'
     ? `${Math.round(item.post_rewrite_tm.score)}% ${scoreDelta(item.post_rewrite_tm.score, item.similarity)}`
     : '—';
@@ -2234,7 +2254,7 @@ function renderFocus() {
       </button>`;
     }).join('')}</div>`
     : `<div class="focus-text">None</div>
-       <div class="focus-meta error">${escapeHtml(aiAbsence)}</div>`;
+       <div class="focus-meta">${escapeHtml(focusDecision?.label || 'No candidate')}</div>`;
   const aiDisclosureOpen = reviewableAiCandidates.length <= 1 ? ' open' : '';
 
   document.getElementById('focus-pos').textContent = `${focusIndex + 1} / ${visibleItems.length}`;

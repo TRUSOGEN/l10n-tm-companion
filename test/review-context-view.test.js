@@ -13,7 +13,7 @@ class FakeElement {
   constructor(id = '') { this.id = id; this.textContent = ''; this.innerHTML = ''; this.open = false; this.classList = new FakeClassList(); }
 }
 function fakeDocument() {
-  const ids = ['review-context', 'review-context-summary', 'review-context-coverage', 'review-context-explanations', 'review-context-incomplete', 'review-context-destination'];
+  const ids = ['review-context', 'review-context-summary', 'review-context-coverage', 'review-context-explanations', 'review-context-incomplete', 'review-context-decisions', 'review-context-destination'];
   const elements = Object.fromEntries(ids.map((id) => [id, new FakeElement(id)]));
   return { elements, getElementById: (id) => elements[id] || null };
 }

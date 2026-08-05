@@ -16,7 +16,7 @@ test('Review DOM has one collapsed context tray before filters and results', () 
   assert.ok(indexOfId('review-filter') < indexOfId('results'));
   assert.ok(indexOfId('results') < indexOfId('btn-confirm-remaining'));
   assert.equal((html.match(/A<\/strong> is the original baseline/g) || []).length, 1, 'full methodology appears globally once');
-  for (const id of ['review-context-summary', 'review-context-coverage', 'review-context-explanations', 'review-context-incomplete', 'review-context-destination']) {
+  for (const id of ['review-context-summary', 'review-context-coverage', 'review-context-explanations', 'review-context-incomplete', 'review-context-decisions', 'review-context-destination']) {
     assert.ok(indexOfId(id) > indexOfId('review-context'), `${id} belongs to context tray`);
   }
 });

@@ -1077,3 +1077,10 @@ html, body { max-width: 100%; overflow-x: hidden; }
   font-size: 11px;
   line-height: 1.35;
 }
+
+.review-context-decisions {
+  white-space: pre-line;
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  line-height: 1.4;
+}

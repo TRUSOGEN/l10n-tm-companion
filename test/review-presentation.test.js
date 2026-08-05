@@ -35,9 +35,11 @@ test('renderer exposes warning role and official A-C amount', () => {
 test('safe no-uplift and rejected candidate explanations render in shared view', () => {
   const safe = buildReviewPresentation({ original: { score: 70, cost: 8 }, ai: { score: 70 }, final: { score: 70, cost: 8 }, candidateSafety: { safe: true } });
   assert.equal(safe.headline, 'Safe rewrite available');
-  assert.match(createReviewPresentationElement(documentRef, safe).querySelector('.review-explanation').textContent, /not auto-applied/);
+  assert.equal(createReviewPresentationElement(documentRef, safe).querySelector('.review-explanation'), null);
   const rejected = buildReviewPresentation({ original: { score: 70 }, candidateSafety: { safe: false, reason: 'protected tokens changed' }, final: {} });
-  assert.match(createReviewPresentationElement(documentRef, rejected).querySelector('.review-explanation').textContent, /protected tokens changed/);
+  const rejectedExplanation = createReviewPresentationElement(documentRef, rejected).querySelector('.review-explanation').textContent;
+  assert.match(rejectedExplanation, /protected tokens changed/);
+  assert.doesNotMatch(rejectedExplanation, /Official saving/);
 });
 
 test('production coverage comes from real dual-vendor routes, not one vendor summary', () => {
@@ -92,4 +94,25 @@ test('one hundred shared presentations never repeat the global methodology copy'
   assert.equal(views.filter((view) => view.querySelector('.review-explanation')).length, 0);
   assert.equal(views.filter((view) => view.querySelector('.score-rail')).length, 100, 'A/B/C rails remain visible');
   assert.equal(views.filter((view) => view.querySelector('.review-saving')).length, 100, 'amounts remain visible');
+});
+
+test('one hundred card and Focus presentations omit repeated decision prose but keep short labels and A-C data', () => {
+  const repeated = [
+    ['No safe rewrite', 'Inspire returned the original source unchanged; no safe rewrite was available. Official saving still compares A with confirmed C only.'],
+    ['Auto-revised', 'Auto-revised based on review. Official saving compares A with confirmed C only.'],
+    ['Below 50', 'Orig Match % (37) is below 50; show Top-3 TM without AI rewrite. Official saving compares A with confirmed C only.'],
+    ['Not improved', 'TM score did not improve, so it was not auto-applied. Official saving compares A with confirmed C only.'],
+  ];
+  const views = Array.from({ length: 100 }, (_, index) => {
+    const [headline, explanation] = repeated[index % repeated.length];
+    return createReviewPresentationElement(documentRef, {
+      headline,
+      explanation,
+      officialSaving: 4,
+      rail: [{ key: 'A', label: 'Original', score: 50 }, { key: 'B', label: 'AI', score: 70 }, { key: 'C', label: 'Final', score: 80 }],
+    }, { compact: index < 50 });
+  });
+  assert.equal(views.filter((view) => view.querySelector('.review-explanation')).length, 0);
+  assert.ok(views.every((view) => repeated.some(([label]) => label === view.querySelector('.review-headline').textContent)));
+  assert.ok(views.every((view) => view.querySelector('.score-rail') && view.querySelector('.review-saving')));
 });
