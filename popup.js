@@ -3337,6 +3337,11 @@ export function renderUiError(model, container, context = {}) {
   const pre = document.createElement('pre');
   pre.textContent = model.rawDetails;
   details.append(summary, pre);
+  // <details> 和动作区必须放在 flow 容器里：错误卡片会被渲染进 <p> 之外的任意容器，
+  // 不能依赖调用方的标签类型，也不能把块级元素塞进 <p>。
+  const detailsWrapper = document.createElement('div');
+  detailsWrapper.className = 'ui-error-details';
+  detailsWrapper.append(details);
   const actions = document.createElement('div');
   actions.className = 'ui-error-actions';
   [model.primaryAction, model.secondaryAction].filter(Boolean).forEach((action) => {
@@ -3367,7 +3372,7 @@ export function renderUiError(model, container, context = {}) {
     });
     actions.append(button);
   });
-  container.append(title, message, details, actions);
+  container.append(title, message, detailsWrapper, actions);
   return container;
 }
 

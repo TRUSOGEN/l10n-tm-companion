@@ -140,7 +140,7 @@
                 <select id="sheet-output-start-column"></select>
               </label>
             </div>
-            <p id="sheet-layout-status" class="run-status"></p>
+            <div id="sheet-layout-status" class="run-status"></div>
             <div id="sheet-range-summary" class="sheet-range-summary"></div>
             <div class="sheet-preview-block">
               <strong data-i18n="sourcePreview">Source preview (first 5 non-empty rows)</strong>
@@ -181,7 +181,7 @@
       </div>
 
       <!-- Status / error -->
-      <div id="status" class="status hidden"></div>
+      <div id="status" class="status hidden" aria-live="polite"></div>
 
     </section>
 

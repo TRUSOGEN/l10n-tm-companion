@@ -43,6 +43,18 @@ function render(action, context = {}) {
   return { container, buttons: container.children.at(-1).children };
 }
 
+function detailsText(container) {
+  const found = [];
+  const walk = (node) => {
+    if (!node || typeof node !== 'object') return;
+    if (node.tag === 'pre') found.push(node.textContent);
+    (node.children || []).forEach(walk);
+  };
+  walk(container);
+  assert.equal(found.length, 1, 'exactly one sanitized details block is rendered');
+  return found[0];
+}
+
 // Retry success: real renderer click awaits the promise and disables every action while in flight.
 let releaseRetry;
 const retryGate = new Promise((resolve) => { releaseRetry = resolve; });
@@ -92,7 +104,7 @@ const rejectedUi = render({ id: 'retry', label: 'Retry' }, {
   retry: async () => { throw { code: 'RETRY_FAILED', message: 'request failed token=top-secret', requestId: 'req-retry', token: 'top-secret' }; },
 });
 await assert.doesNotReject(() => rejectedUi.buttons[0].click());
-const rejectedText = rejectedUi.container.children[2].children[1].textContent;
+const rejectedText = detailsText(rejectedUi.container);
 assert.match(rejectedText, /req-retry/);
 assert.doesNotMatch(rejectedText, /top-secret/);
 assert.equal(rejectedUi.container.children.at(-1).children[0].disabled, false);
@@ -102,7 +114,7 @@ const clipboardUi = render({ id: 'copy-details', label: 'Copy Details' }, {
   clipboard: { writeText: async () => { throw { message: 'clipboard denied secret=clip-secret', requestId: 'req-copy' }; } },
 });
 await assert.doesNotReject(() => clipboardUi.buttons[0].click());
-const clipboardText = clipboardUi.container.children[2].children[1].textContent;
+const clipboardText = detailsText(clipboardUi.container);
 assert.match(clipboardText, /req-copy/);
 assert.doesNotMatch(clipboardText, /clip-secret/);
 
@@ -111,5 +123,24 @@ const missingUi = render({ id: 'resume-archive', label: 'Resume Archive' }, { sn
 await assert.doesNotReject(() => missingUi.buttons[0].click());
 assert.match(missingUi.container.children[1].textContent, /unexpected error/i);
 assert.equal(missingUi.container.children.at(-1).children[0].disabled, false);
+
+// Markup validity: the error card must not nest <details>/<div> inside the <p> message,
+// and every container that receives an error card must be a flow container, never a <p>.
+const structureUi = render({ id: 'retry', label: 'Retry' }, { retry: () => {} });
+const messageNode = structureUi.container.children.find((child) => child.tag === 'p');
+assert.ok(messageNode, 'message stays a paragraph');
+assert.deepEqual(messageNode.children, [], '<p> must not contain block-level children');
+assert.deepEqual(
+  structureUi.container.children.map((child) => child.tag),
+  ['strong', 'p', 'div', 'div'],
+  'details block uses a flow container instead of being appended into a paragraph',
+);
+const detailsWrapper = structureUi.container.children[2];
+assert.equal(detailsWrapper.className, 'ui-error-details', 'details wrapper keeps the ui-error class semantics');
+assert.deepEqual(detailsWrapper.children.map((child) => child.tag), ['details']);
+const errorHtml = fs.readFileSync(new URL('../popup.html', import.meta.url), 'utf8');
+assert.match(errorHtml, /<div id="status"[^>]*aria-live="polite"/, '#status must announce errors politely');
+assert.doesNotMatch(errorHtml, /<p id="sheet-layout-status"/, 'sheet layout status must be a flow container');
+assert.match(errorHtml, /<div id="sheet-layout-status"[^>]*class="run-status"/, 'sheet layout status keeps its class semantics');
 
 console.log('popup-error-actions behavior tests: 9 scenarios passed');
