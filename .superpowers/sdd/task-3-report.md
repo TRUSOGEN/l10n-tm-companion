@@ -1,41 +1,38 @@
-# Task 3 实施报告：Archive summary 与 inline confirmation
+# Task 3 修复报告：Archive summary 与 confirmation controller
 
-## 变更
+## 审查反馈修复
 
-- 新增纯函数模块 `lib/archive-summary.js`：
-  - `estimateTmRequests()` 固定按 batch=40 估算 A/C 请求；B 不进入正式请求或金额口径。
-  - `summarizeArchive()` 汇总 source/confirmed/language、RWS/Pactera/unpriced coverage、请求数与时长区间。
-  - `served:false` 视为正常未服务路由；仅 `served:true && completeRate:false` 计 incomplete。
-- Popup 归档入口移除 `window.confirm`，改为 inline modal：
-  - `role=dialog`、`aria-modal`、label/description。
-  - Escape、Tab focus trap、Cancel、Start、关闭后焦点归还。
-  - 仅 Start 进入既有 archive runtime；测试 hook 继续直接覆盖既有 broker/runtime 回归。
-- 保持既有 stable Run ID、snapshot 重试、broker authority、Final TM、56 scope 与 vendor archive 流程不变。
-- Modal 展示 A/C 正式口径，明确 B 不计请求/金额；适配窄 Side Panel，按钮最小高度 44px，并提供可见 focus。
+1. 抽取 `lib/archive-confirmation.js`，导出 `createArchiveConfirmationController()` 与 `confirmThenRunArchive()`；controller 通过依赖注入接收 document、dialog、按钮、字段和 trigger。
+2. 新增真实行为测试，实际触发 click/keydown，验证：打开聚焦 Start、Tab/Shift+Tab 循环、Escape/Cancel 返回 false、Start 返回 true、所有路径归还 trigger 焦点。
+3. 新增 popup 编排测试：Cancel/Escape 的 runtime 调用为 0，Start 恰好调用 1 次；删除原有对应源码字符串搜索断言。
+4. 新增 `buildVendorRoutes()`，生产 summary 直接读取 `deriveVendorRoiResults` 产生的真实 `scopeRuns[].rate.status` 与 `unservedScopes`，不再把所有 scopeRun 强制标成完整费率。
+5. 真实 fixture 覆盖 ready rate、served 但 word rate incomplete、vendor unserved；仅 served 且 rate 不完整计 incomplete。
+6. 请求估算固定为产品 A/C 两 pass，移除可变 passes；`total === original + final`，B 不计请求或金额。
+7. row/language/batch 全部规范化为非负整数；batch 最小为 1。
+8. stable Run ID、Broker authority、snapshot retry/resume、Final TM、batch=40 与 56 scope 边界未改变。
 
-## TDD 记录
+## TDD
 
-1. RED：`node test/archive-summary.test.js` 因 `lib/archive-summary.js` 不存在而失败。
-2. GREEN：新增纯模块后通过；100 rows × 56 languages × ceil(100/40) 得到 A=168、C=168、总计=336。
-3. UI RED：先更新 popup contract test，确认 dialog/动作/正式口径及移除 `window.confirm` 的断言失败。
-4. UI GREEN：接入 modal、键盘行为、焦点归还与既有 runtime 边界后通过。
+- RED：`archive-confirmation.test.js` 首次因生产 controller 模块不存在失败。
+- GREEN：实现可注入 controller 后，真实键盘/焦点/关闭行为全部通过。
+- RED：summary 测试首次因缺少 `buildVendorRoutes` 导出失败。
+- GREEN：从真实 vendor run/rate shape 建模后 fixture、incomplete 与 coverage 断言通过。
 
 ## 验证
 
-- Focused：
-  - `node test/archive-summary.test.js`：通过。
-  - `node test/popup-run-config.test.js`：74/74 通过。
-  - `node test/popup-broker-failure-policy.test.js`：33/33 通过。
-- Archive/Broker：
-  - `node test/popup-broker-confirmation.test.js`：35/35 通过。
-  - `node test/popup-broker-resume-archive.test.js`：16/16 通过。
-  - `node test/roi-analytics-archive.test.js`：45/45 通过。
-  - `node test/roi-bitable-archive.test.js`：19/19 通过。
-- 完整 JS regression：`for test_file in test/*.test.js; do node "$test_file" || exit 1; done`：通过。
-- 语法：`node --check lib/archive-summary.js && node --check popup.js`：通过。
-- Diff：`git diff --check`：通过。
+- `node test/archive-confirmation.test.js`：通过。
+- `node test/archive-summary.test.js`：通过；100×56、batch=40 为 A=168、C=168、总计=336。
+- `node test/popup-archive-confirmation.test.js`：通过；Cancel/Escape=0 次 runtime，Start=1 次。
+- `node test/popup-run-config.test.js`：70/70。
+- `node test/popup-broker-failure-policy.test.js`：33/33。
+- `node test/popup-broker-confirmation.test.js`：35/35。
+- `node test/popup-broker-resume-archive.test.js`：16/16。
+- `node test/roi-analytics-archive.test.js`：45/45。
+- `node test/roi-bitable-archive.test.js`：19/19。
+- 完整 JS regression：`for test_file in test/*.test.js; do node "$test_file" || exit 1; done` 通过。
+- 语法：`node --check lib/archive-confirmation.js lib/archive-summary.js popup.js` 通过。
+- `git diff --check`：通过。
 
 ## Concerns
 
-- 无已知功能阻塞或回归。
-- 未实施 Task 6 的全局视觉 token/motion 重构；本任务样式仅限定在 archive confirmation。
+无已知功能阻塞或回归。Task 6 全局视觉重构仍未提前实施。

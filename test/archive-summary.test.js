@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { estimateTmRequests, summarizeArchive } from '../lib/archive-summary.js';
+import { buildVendorRoutes, estimateTmRequests, summarizeArchive } from '../lib/archive-summary.js';
 
 assert.deepEqual(
   estimateTmRequests({ rowCount: 100, languageCount: 56 }),
@@ -7,10 +7,39 @@ assert.deepEqual(
   '100 rows × 56 languages uses 40-row batches for A and C only',
 );
 assert.deepEqual(
-  estimateTmRequests({ rowCount: 100, languageCount: 56, passes: 3 }),
-  { original: 168, final: 168, total: 504 },
-  'extra passes can affect total without reclassifying B as an official A/C request',
+  estimateTmRequests({ rowCount: 100.9, languageCount: 56.8, batchSize: 40.7 }),
+  { original: 168, final: 168, total: 336 },
+  'counts are normalized to non-negative integers and the product is always A + C',
 );
+assert.deepEqual(estimateTmRequests({ rowCount: -2, languageCount: -1, batchSize: -4 }), { original: 0, final: 0, total: 0 });
+
+const realVendorFixture = buildVendorRoutes({
+  plannedScopes: [{ key: 'fr' }, { key: 'ja' }, { key: 'ar' }],
+  vendorResults: {
+    RWS: {
+      scopeRuns: [
+        { scope: { key: 'fr' }, rate: { status: 'ready', amount: 0.12 } },
+        { scope: { key: 'ar' }, rate: { status: 'incomplete', reason: 'word_rate_missing' } },
+      ],
+      unservedScopes: [{ key: 'ja' }],
+    },
+    Pactera: {
+      scopeRuns: [{ scope: { key: 'ja' }, rate: { status: 'ready', amount: 0.09 } }],
+      unservedScopes: [{ key: 'fr' }, { key: 'ar' }],
+    },
+  },
+});
+assert.deepEqual(realVendorFixture, [
+  { vendor: 'RWS', scopeKey: 'fr', served: true, completeRate: true },
+  { vendor: 'RWS', scopeKey: 'ar', served: true, completeRate: false },
+  { vendor: 'RWS', scopeKey: 'ja', served: false, completeRate: false },
+  { vendor: 'Pactera', scopeKey: 'ja', served: true, completeRate: true },
+  { vendor: 'Pactera', scopeKey: 'fr', served: false, completeRate: false },
+  { vendor: 'Pactera', scopeKey: 'ar', served: false, completeRate: false },
+]);
+const realRouteSummary = summarizeArchive({ sourceRowCount: 100, languageCount: 3, vendorRoutes: realVendorFixture });
+assert.equal(realRouteSummary.incompleteLanguageCount, 1, 'only the served RWS rate gap is incomplete');
+assert.deepEqual(realRouteSummary.vendorCoverage, { RWS: 2, Pactera: 1, unpriced: 0 });
 
 const summary = summarizeArchive({
   sourceRows: Array.from({ length: 100 }),
