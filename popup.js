@@ -114,7 +114,7 @@ import {
   prepareBulkConfirmations,
 } from './lib/review-workflow.js';
 import { createReviewPresentationElement } from './lib/review-presentation-view.js';
-import { appendResultCardsInBatches } from './lib/result-batch-renderer.js';
+import { appendResultCardsInBatches, captureActiveResultCardId } from './lib/result-batch-renderer.js';
 
 let extractedItems = [];
 const RESULT_RENDER_BATCH_SIZE = 25;
@@ -1902,7 +1902,7 @@ function buildProcessedDisplayItems(scopeRuns) {
 // ===== 渲染结果卡片 =====
 function renderResults(items) {
   const container = document.getElementById('results');
-  const activeCardId = document.activeElement?.closest?.('.result-card')?.dataset.id || null;
+  const activeCardId = captureActiveResultCardId(document);
   const renderGeneration = ++resultRenderGeneration;
   container.setAttribute('aria-busy', 'false');
   container.innerHTML = '';
@@ -3276,7 +3276,8 @@ function showProgress(text, percent = 0) {
   const el = document.getElementById('progress');
   el.classList.remove('hidden');
   document.getElementById('progress-text').textContent = text;
-  document.getElementById('progress-fill').style.width = `${percent}%`;
+  // 只用 transform 表达进度：避免 width 触发 layout，也符合 opacity/transform 动效约束。
+  document.getElementById('progress-fill').style.transform = `scaleX(${Math.min(Math.max(percent, 0), 100) / 100})`;
 }
 function hideProgress() {
   document.getElementById('progress').classList.add('hidden');
