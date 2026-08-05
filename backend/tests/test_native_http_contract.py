@@ -32,7 +32,7 @@ os.environ.setdefault("L10N_ASYNC_ROI_ENABLED", "true")
 os.environ.setdefault("L10N_LEGACY_LOCAL_SECRET_DEV_ONLY", "true")
 os.environ.setdefault("L10N_FEISHU_APP_SECRET", "test-app-secret")
 os.environ.setdefault("L10N_ROI_POLICY_PATH", str(ROOT / "config" / "policy.example.json"))
-os.environ.setdefault("L10N_PLUGIN_VERSION", "1.5.0")
+os.environ.setdefault("L10N_PLUGIN_VERSION", "1.6.0")
 os.environ.setdefault("L10N_LOCAL_SECRET_DEV_ONLY", "1")
 for _proxy_key in ("http_proxy", "https_proxy", "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "all_proxy"):
     os.environ.pop(_proxy_key, None)
@@ -201,7 +201,7 @@ def test_native_http_contract_oauth_create_submit_archive(tmp_path, monkeypatch)
     port = _free_port()
     base_url = f"http://127.0.0.1:{port}"
     monkeypatch.setenv("L10N_BROKER_BASE_URL", base_url)
-    monkeypatch.setenv("L10N_PLUGIN_VERSION", "1.5.0")
+    monkeypatch.setenv("L10N_PLUGIN_VERSION", "1.6.0")
     monkeypatch.setenv("L10N_DEV_SUBJECT", "subject-http")
     monkeypatch.setenv("L10N_DEV_TENANT", "tenant-http")
 
@@ -229,7 +229,7 @@ def test_native_http_contract_oauth_create_submit_archive(tmp_path, monkeypatch)
         challenge = feishu_oauth_broker.build_code_challenge(verifier)
         sess = feishu_oauth_broker.create_broker_session(
             code_challenge=challenge,
-            plugin_version="1.5.0",
+            plugin_version="1.6.0",
             installation_id=installation_id,
             request_id="http-1",
         )
@@ -241,7 +241,7 @@ def test_native_http_contract_oauth_create_submit_archive(tmp_path, monkeypatch)
             state=sess["state"],
             code_verifier=verifier,
             installation_id=installation_id,
-            plugin_version="1.5.0",
+            plugin_version="1.6.0",
         )
         assert ex["device_session_token"]
         assert ex["user"]["open_id"] == "oid-http"

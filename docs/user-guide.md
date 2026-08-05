@@ -1,6 +1,6 @@
 # L10n TM Companion 使用教程
 
-本教程面向使用飞书表格、Starling TM 和 ROI_Test 的内容运营、CD 与本地化同学。默认快速运行得到原文 A、Starling Top-3 TM 与真实 Score A；启用 AI 后，只有 `50 ≤ Score A < 85` 的 source 创建一个 Inspire task，最多生成三个结构化候选。CD 只需在“Review & edit / 审阅与修改”中修改例外项，其余默认结果可以批量确认；插件查询 Final TM、同步对应 Sheet 行，ROI mode 开启时再计算 A-C 整车节省。
+本教程适用于 **v1.6.0**，面向使用飞书表格、Starling TM 和 ROI_Test 的内容运营、CD 与本地化同学。默认快速运行得到原文 A、Starling Top-3 TM 与真实 Score A；启用 AI 后，只有 `50 ≤ Score A < 85` 的 source 创建一个 Inspire task，最多生成三个结构化候选。CD 只需在“Review & edit / 审阅与修改”中修改例外项，其余默认结果可以批量确认；插件查询 Final TM、同步对应 Sheet 行，ROI mode 开启时再计算 A-C 整车节省。
 
 ```mermaid
 flowchart LR
@@ -182,7 +182,7 @@ Working spreadsheet 不绑定固定文档。自动模式采用当前打开的任
 
 Score A 低于 50 或达到 85 时，插件不会发起 Inspire task，但 CD 仍可在“Review & edit / 审阅与修改”中手工填写最终 C。
 
-结果卡片严格按 Sheet 原文行号排列，使用 `TM → Post → Final` 分阶段颜色、相对 Score A 的箭头和用户状态标签，只保留 `Review & edit / 审阅与修改`。Review 顶部的 `All / AI rewritten` 筛选显示各自数量；`AI rewritten` 展示通过安全门禁且真实 Post-TM 完整的条目，下降或持平候选同样可审阅，筛选不会改变确认、写回与归档范围。审阅视图默认折叠 Top-3 TM 与多 AI 候选，完整显示 Source，并提供可自动伸缩的最终 C 编辑框；内部 `dirty` 状态显示为 `Edited · confirm again / 已修改，需重新确认`。升级时必须运行新版安装器并完全退出 Chrome 后重开；只刷新扩展无法更新 Native Host。旧 Host 仅返回首条 TM 时，审阅视图会保留该条真实命中并明确提示升级，不会把正分显示成 `No TM match`。
+结果卡片严格按 Sheet 原文行号排列，使用 `TM → Post → Final` 分阶段颜色、相对 Score A 的箭头和用户状态标签，只保留 `Review & edit / 审阅与修改`。Review 顶部集中展示一次可折叠的 `ROI methodology · A → B → C`，每张卡不再重复方法论；`Details` 默认折叠，相同决策原因汇总到 `Decision notes` 并标注影响条数。`All / AI rewritten` 筛选显示各自数量；`AI rewritten` 展示通过安全门禁且真实 Post-TM 完整的条目，下降或持平候选同样可审阅，筛选不会改变确认、写回与归档范围。审阅视图默认折叠 Top-3 TM 与多 AI 候选，完整显示 Source，并提供可自动伸缩的最终 C 编辑框；内部 `dirty` 状态显示为 `Edited · confirm again / 已修改，需重新确认`。升级时必须运行新版安装器并完全退出 Chrome 后重开；只刷新扩展无法更新 Native Host。旧 Host 仅返回首条 TM 时，审阅视图会保留该条真实命中并明确提示升级，不会把正分显示成 `No TM match`。
 
 Inspire 的改写 prompt 使用安装包内版本化保存的 TM Alignment Prompt、Content Review skill、Content Review Principles，以及按场景选择的唯一一份 Game 或 Revenue Legal Guidelines。相关证据经过确定性检索并受字符预算约束，Writer native copy 协议固定在 prompt 首尾；规则文件缺失时 AI 改写会停止并显示真实错误，不会退回无规则 prompt。`/copies` 只接受 `status=pass` 的非空 copy；短文案没有安全改写空间时 Agent 原样返回 source，客户端将其解释为 skip 而不是 AI 候选。
 

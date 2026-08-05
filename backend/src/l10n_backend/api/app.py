@@ -54,7 +54,7 @@ def create_app() -> FastAPI:
     configure_logging(settings.log_level)
     app = FastAPI(
         title="L10n TM Companion Broker",
-        version="1.5.0",
+        version="1.6.0",
         docs_url="/docs",
         openapi_url="/openapi.json",
     )
@@ -76,7 +76,7 @@ def create_app() -> FastAPI:
 
     @app.get("/healthz")
     def healthz() -> dict[str, Any]:
-        return {"status": "ok", "service": "l10n-tm-companion-broker", "version": "1.5.0"}
+        return {"status": "ok", "service": "l10n-tm-companion-broker", "version": "1.6.0"}
 
     oauth_router = APIRouter(prefix="/v1/oauth", tags=["oauth"])
     roi_router = APIRouter(prefix="/v1/roi", tags=["roi"])

@@ -1435,7 +1435,7 @@ def feishu_get_access_token(_message):
 
 
 def _broker_plugin_version(message):
-    return str(message.get('plugin_version') or os.environ.get('L10N_PLUGIN_VERSION', '1.5.0'))
+    return str(message.get('plugin_version') or os.environ.get('L10N_PLUGIN_VERSION', '1.6.0'))
 
 
 def native_broker_request(message):

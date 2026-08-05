@@ -1,6 +1,6 @@
 # L10n TM Companion
 
-当前线下交付版本为 **1.5.0**：ROI mode 自动覆盖全部共同支持的非英语目标语言，RWS 与 Pactera 共用一套 TM snapshot，延后语言只补算正式 A−C ROI 所需的 A/C；审阅、Sheet 六列写入和 `50 ≤ Score A < 85` 门禁保持不变。
+当前线下交付版本为 **1.6.0**：Review details 默认折叠，结果卡不重复方法论说明，Decision notes 聚合展示；ROI mode 自动覆盖全部共同支持的非英语目标语言，归档前显示摘要，归档中显示阶段进度与 ETA。RWS 与 Pactera 共用一套 TM snapshot，正式金额只计算 A−C，候选 B 不进入金额。
 
 服务端 OAuth Broker 与异步 ROI Worker 的关闭态实现和实施规格已经进入源码，见 [`docs/oauth-broker-async-roi.md`](docs/oauth-broker-async-roi.md)。公司网关、身份、Secret Manager/KMS、Feishu、Starling 与 ROI_Test 门禁完成前不得启用生产 feature flag。
 

@@ -41,7 +41,7 @@ class Settings(BaseSettings):
     request_id_header: str = "x-request-id"
     subject_header: str = "x-l10n-subject-id"
     tenant_header: str = "x-l10n-tenant-id"
-    min_plugin_version: str = "1.5.0"
+    min_plugin_version: str = "1.6.0"
 
     # Database
     database_url: str = "postgresql+psycopg://l10n:l10n@localhost:5432/l10n_tm"

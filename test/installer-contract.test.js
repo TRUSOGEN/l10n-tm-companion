@@ -57,7 +57,7 @@ assert.ok(progressSource.includes('--self-test'), '进度窗口必须提供无 G
 assert.ok(offlineManual.includes('桌面'), '非技术手册必须说明从桌面手动选择加载目录');
 assert.ok(!offlineManual.includes('Command + Shift + G'), '正式手册不得继续依赖无效的前往文件夹快捷键');
 assert.ok(packageScript.includes('docs/offline-install-manual.md'), '线下包必须包含非技术用户手册');
-assert.equal(manifest.version, '1.5.0', '自动 ROI、Broker 关闭态能力与受控 Starling 批量能力使用 1.5.0 版本');
+assert.equal(manifest.version, '1.6.0', '自动 ROI、Broker 关闭态能力与受控 Starling 批量能力使用 1.6.0 版本');
 assert.ok(popupHtml.includes('Read source → Query TM → AI rewrite'), '线下包主入口必须描述完整查询链路');
 assert.ok(!popupHtml.includes('id="btn-write-bitable"'), '线下包不得包含旧的全局主流程写回按钮');
 assert.ok(!popupHtml.includes('id="btn-write-results"'), '线下包不得包含旧的全局结果写回按钮');

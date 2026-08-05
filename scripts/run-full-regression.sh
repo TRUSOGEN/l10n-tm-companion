@@ -2,18 +2,18 @@
 set -u
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT" || exit 1
-OUT="$ROOT/temp/v1.5-regression/full-regression.txt"
+OUT="$ROOT/temp/v1.6-regression/full-regression.txt"
 PYTHON_BIN="${L10N_PYTHON_BIN:-python3}"
 BACKEND_PYTHON="${L10N_BACKEND_PYTHON:-$PYTHON_BIN}"
-export PYTHONPYCACHEPREFIX="$ROOT/temp/v1.5-regression/pycache"
-mkdir -p "$ROOT/temp/v1.5-regression"
+export PYTHONPYCACHEPREFIX="$ROOT/temp/v1.6-regression/pycache"
+mkdir -p "$ROOT/temp/v1.6-regression"
 : > "$OUT"
 log() { printf '%s\n' "$*" | tee -a "$OUT"; }
 run() {
   log "--- $* ---"
   if "$@" >> "$OUT" 2>&1; then log "OK"; else log "FAIL: $*"; return 1; fi
 }
-log "=== v1.5 full regression ==="
+log "=== v1.6 full regression ==="
 log "timestamp: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
 log ""
 run node test/broker-native-routing.test.js || exit 1
@@ -58,4 +58,4 @@ log "--- Backend compileall ---"
 if "$BACKEND_PYTHON" -m compileall -q src tests migrations >> "$OUT" 2>&1; then log "BACKEND_COMPILE_OK"; else log "BACKEND_COMPILE_FAIL"; exit 1; fi
 cd "$ROOT" || exit 1
 log ""
-log "=== v1.5 full regression completed ==="
+log "=== v1.6 full regression completed ==="

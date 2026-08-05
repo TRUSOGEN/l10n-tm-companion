@@ -42,7 +42,7 @@ OAuth session 创建与 exchange 要求公司身份；exchange 还必须匹配 s
   "redirect_uri":"http://127.0.0.1:39641/l10n-tm-companion/oauth/callback",
   "code_challenge":"base64url-sha256",
   "code_challenge_method":"S256",
-  "plugin_version":"1.5.0"
+  "plugin_version":"1.6.0"
 }
 ```
 

@@ -35,7 +35,7 @@ def _request(method: str, path: str, *, body: dict[str, Any] | None = None,
     url = f"{base}{path}"
     headers = {
         "Content-Type": "application/json; charset=utf-8",
-        "X-Plugin-Version": os.environ.get("L10N_PLUGIN_VERSION", "1.5.0"),
+        "X-Plugin-Version": os.environ.get("L10N_PLUGIN_VERSION", "1.6.0"),
     }
     installation_id = broker.load_installation_id()
     headers.update(broker._gateway_headers(installation_id, headers["X-Plugin-Version"]))  # noqa: SLF001
