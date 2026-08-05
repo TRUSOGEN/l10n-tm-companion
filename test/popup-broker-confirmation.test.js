@@ -617,6 +617,33 @@ async function run() {
     await new Promise((resolve) => setTimeout(resolve, 20));
     assert('Case 12: production poll emits Writing to Feishu', phases.includes('Writing to Feishu'));
     assert('Case 12: production poll emits Complete', phases.includes('Complete'));
+
+    for (const terminalState of ['failed', 'incomplete']) {
+      const terminalChrome = makeStubChrome({});
+      const terminalClient = makeBrokerClient();
+      const terminalExports = loadBrokerModule(terminalClient, makeHashStub(), terminalChrome).exports;
+      terminalExports.fetchBrokerRun = async () => ({
+        run_id: `run-${terminalState}`,
+        revision: 1,
+        a_state: 'complete',
+        archive_state: terminalState,
+      });
+      const terminalHooks = loadPopupModule(terminalExports, terminalChrome).sandbox.__popupBrokerTestHooks;
+      terminalHooks.setBrokerState({
+        brokerAsyncRoi: true,
+        activeBrokerRun: { run_id: `run-${terminalState}`, revision: 1 },
+      });
+      const terminalPhases = [];
+      await terminalHooks.pollActiveBrokerRun({
+        intervalMs: 1,
+        onProgress: (event) => terminalPhases.push(event.phase),
+      });
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      assert(`Case 12: ${terminalState} stops without Complete`,
+        terminalPhases.length === 1
+          && terminalPhases[0] === 'Writing to Feishu'
+          && !terminalPhases.includes('Complete'));
+    }
   }
 
   console.log(`\nA3 popup-broker-confirmation: ${passed} passed / ${failed} failed`);

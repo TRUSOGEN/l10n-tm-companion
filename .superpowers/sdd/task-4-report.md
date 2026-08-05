@@ -81,3 +81,10 @@ node --check lib/broker-async-roi.js
 5. 阶段使用固定有序状态机并取单调最大阶段；迟到的 A/C 事件不能将 Calculating ROI 等后续阶段回退，也不能重新激活已结束的 A/C。新增乱序测试。
 
 复验结果：focused tests 全部通过；`./scripts/run-full-regression.sh` 再次输出 `ALL_JS_TESTS_PASSED`、`JS_SYNTAX_OK`，顶层 Python 与 native compile 也通过。脚本仍在既有 backend pytest 阶段输出 `BACKEND_TESTS_FAIL` 并以 1 退出。
+
+## Broker terminal 语义修复
+
+- 将 Broker archive 的 terminal 与 success 分离：`complete|failed|incomplete` 都会停止生产轮询，但只有 `archive_state=complete` 才发出 `phase=Complete` 并触发 100%。
+- `failed` 与 `incomplete` 保持 `Writing to Feishu`/当前百分比，状态仍由既有 `syncBrokerRunStatus()` 错误或部分完成 UI 路径处理。
+- 新增生产轮询行为测试：complete 发 Complete；failed/incomplete 均停止且绝不发 Complete。
+- Focused regression、四文件语法检查与 `git diff --check` 通过；full JS regression 再次输出 `ALL_JS_TESTS_PASSED`。全量脚本仍仅在既有 backend pytest 阶段输出 `BACKEND_TESTS_FAIL`。

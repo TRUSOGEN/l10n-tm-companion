@@ -635,14 +635,16 @@ async function pollActiveBrokerRun({ intervalMs = 2500, onProgress = reportArchi
     try {
       const status = await fetchBrokerRun(activeBrokerRun.run_id);
       await syncBrokerRunStatus(status);
-      const archiveDone = ['complete', 'incomplete', 'failed'].includes(String(status.archive_state));
+      const archiveState = String(status.archive_state);
+      const archiveTerminal = ['complete', 'incomplete', 'failed'].includes(archiveState);
+      const archiveSucceeded = archiveState === 'complete';
       safeEmitBrokerProgress(onProgress, {
-        phase: archiveDone ? 'Complete' : 'Writing to Feishu',
+        phase: archiveSucceeded ? 'Complete' : 'Writing to Feishu',
         elapsedMs: archiveProgressState?.elapsedMs || 0,
       });
       const aDone = ['complete', 'incomplete', 'failed'].includes(String(status.a_state));
       const cDone = !status.items || status.items.every((item) => ['confirmed', 'open', 'failed', 'skipped'].includes(item.review_state));
-      if (archiveDone || (aDone && cDone && status.archive_state === 'not_requested')) {
+      if (archiveTerminal || (aDone && cDone && status.archive_state === 'not_requested')) {
         return;
       }
       brokerPollTimer = setTimeout(() => void tick(), intervalMs);
