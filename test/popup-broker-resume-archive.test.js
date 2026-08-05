@@ -308,6 +308,11 @@ function makePopupDeps(brokerExports, overrides = {}) {
     },
     './lib/i18n.js': { applyI18n: () => 'en', normalizeUiLanguage: (l) => l, t: (k, _lang, vars) => `${k}${vars ? ':' + JSON.stringify(vars) : ''}` },
     './lib/archive-summary.js': { buildVendorRoutes: () => [], summarizeArchive: () => ({ vendorCoverage: { RWS: 0, Pactera: 0, unpriced: 0 }, estimatedTmRequests: { original: 0, final: 0, total: 0 }, estimatedDuration: { minSeconds: 0, maxSeconds: 0 } }) },
+    './lib/archive-progress.js': {
+      createArchiveProgress: ({ estimatedRequests = 0, totalLanguages = 0, startedAt = 0 } = {}) => ({ estimatedRequests, totalLanguages, startedAt, completedRequests: 0, completedLanguages: 0, percent: 0, samples: [], activeOperations: [], elapsedMs: 0, etaMs: null, phase: 'Preparing' }),
+      updateArchiveProgress: (state, event) => ({ ...state, ...event }),
+      renderArchiveProgress: (model) => model,
+    },
     './lib/archive-confirmation.js': { createArchiveConfirmationController: () => ({}), confirmThenRunArchive: async ({ runtime }) => runtime() },
     './lib/feishu-popup-controller.js': { createFeishuPopupController: () => ({ bind: () => true }) },
     './lib/feishu-auth.js': { ...authBase, ...authOverride },

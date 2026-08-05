@@ -234,6 +234,23 @@
     </div>
   </div>
 
+  <section id="roi-archive-progress" class="archive-progress hidden" aria-labelledby="archive-progress-phase">
+    <div id="archive-progress-live" class="sr-only" aria-live="polite"></div>
+    <div class="archive-progress-heading">
+      <strong id="archive-progress-phase">Preparing</strong>
+      <span>Active: <b id="archive-progress-operations">—</b></span>
+    </div>
+    <div class="archive-progress-track" role="progressbar" aria-label="ROI archive progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+      <div id="archive-progress-bar" class="archive-progress-bar"></div>
+    </div>
+    <dl class="archive-progress-details">
+      <div><dt>Languages</dt><dd id="archive-progress-languages">0/0</dd></div>
+      <div><dt>Requests</dt><dd id="archive-progress-requests">0/0</dd></div>
+      <div><dt>Elapsed</dt><dd id="archive-progress-elapsed">0s</dd></div>
+      <div><dt>ETA</dt><dd id="archive-progress-eta">Estimating time</dd></div>
+    </dl>
+  </section>
+
   <!-- Focus overlay: single result detail view -->
   <div id="focus-overlay" class="focus-overlay hidden">
     <div class="focus-box">

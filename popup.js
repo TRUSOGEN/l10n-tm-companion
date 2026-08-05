@@ -62,6 +62,7 @@ import {
   preflightFeishuAuthorization,
 } from './lib/feishu-auth.js';
 import { buildVendorRoutes, summarizeArchive } from './lib/archive-summary.js';
+import { createArchiveProgress, renderArchiveProgress, updateArchiveProgress } from './lib/archive-progress.js';
 import { confirmThenRunArchive, createArchiveConfirmationController } from './lib/archive-confirmation.js';
 import { createFeishuPopupController } from './lib/feishu-popup-controller.js';
 import { sha256Text } from './lib/hash-utils.js';
@@ -122,6 +123,9 @@ let rateCatalog = null;
 let activeRunConfig = null;
 let multilingualRoiSummary = null;
 let multilingualScopeRuns = [];
+let archiveProgressState = null;
+let archiveOperationCounts = { A: 0, C: 0 };
+let archiveOperationBase = 0;
 let activeDisplayScopeKey = '';
 let finalValidationAttempted = false;
 let activeWorkflowContext = null;
@@ -2666,6 +2670,44 @@ function showRoiArchiveResult(ok, detail) {
  * Review 只等待展示 scope；本函数复用同一次 Inspire 决策，对其余语言受控并发执行
  * A/B/C TM。失败结果保留为 incomplete，不能使用展示语言分数填充。
  */
+function archiveProgressElements() {
+  return {
+    root: document.getElementById('roi-archive-progress'),
+    live: document.getElementById('archive-progress-live'),
+    phase: document.getElementById('archive-progress-phase'),
+    operations: document.getElementById('archive-progress-operations'),
+    languages: document.getElementById('archive-progress-languages'),
+    requests: document.getElementById('archive-progress-requests'),
+    elapsed: document.getElementById('archive-progress-elapsed'),
+    eta: document.getElementById('archive-progress-eta'),
+    progressbar: document.querySelector('#roi-archive-progress [role="progressbar"]'),
+  };
+}
+
+function reportArchiveProgress(event) {
+  if (!archiveProgressState) return;
+  if (event.phase === 'Complete') {
+    archiveOperationCounts = {
+      A: archiveProgressState.estimatedRequests / 2,
+      C: archiveProgressState.estimatedRequests / 2,
+    };
+  } else if (event.operation === 'A' || event.operation === 'C') {
+    archiveOperationCounts[event.operation] = Math.max(
+      archiveOperationCounts[event.operation],
+      archiveOperationBase + Number(event.completedRequests || 0),
+    );
+  }
+  const activeOperations = event.phase === 'Complete'
+    ? []
+    : ['A', 'C'].filter((operation) => archiveOperationCounts[operation] < archiveProgressState.estimatedRequests / 2);
+  archiveProgressState = updateArchiveProgress(archiveProgressState, {
+    ...event,
+    completedRequests: archiveOperationCounts.A + archiveOperationCounts.C,
+    activeOperations,
+  }, Date.now());
+  renderArchiveProgress(archiveProgressState, archiveProgressElements());
+}
+
 async function completeDeferredRoiScopesForArchive(config) {
   const allScopes = Array.isArray(activeWorkflowContext?.roiScopes)
     ? activeWorkflowContext.roiScopes
@@ -2697,14 +2739,8 @@ async function completeDeferredRoiScopesForArchive(config) {
     sourceItems: extractedItems,
     // A 与 C 现在按 scope 流水线并发发出；2026-08-04 PPE 实测 12 个在飞请求稳定且无限流。
     requestConcurrency: 12,
-    onProgress: (phase, scope, index, total) => showProgress(
-      phase === 'initial'
-        ? `Calculating ROI TM · ${scope.targetLocale} · ${index + 1}/${total} deferred scope(s)…`
-        : `Calculating ROI Final TM · ${scope.targetLocale} · ${index + 1}/${total} deferred scope(s)…`,
-      phase === 'initial'
-        ? 30 + Math.round(((index + 1) / total) * 30)
-        : 65 + Math.round(((index + 1) / total) * 20),
-    ),
+    requestWeight: Math.max(1, Math.ceil(sourceItems.length / 40)),
+    onProgress: (event) => reportArchiveProgress(event),
     queryOriginalTm: (texts, scope) => searchTM(
       texts,
       scope.sourceLocale,
@@ -2791,6 +2827,23 @@ async function writeCurrentRoiArchive({ skipConfirmation = false } = {}) {
   }
 
   const config = await loadConfig();
+  const archiveScopes = Array.isArray(activeWorkflowContext?.roiScopes)
+    ? activeWorkflowContext.roiScopes
+    : multilingualScopeRuns.map((run) => run.scope);
+  const requestWeight = Math.max(1, Math.ceil(extractedItems.length / 40));
+  const requestsPerOperation = archiveScopes.length * requestWeight;
+  archiveProgressState = createArchiveProgress({
+    estimatedRequests: requestsPerOperation * 2,
+    totalLanguages: archiveScopes.length,
+    startedAt: Date.now(),
+  });
+  const completedOperationRequests = Math.min(archiveScopes.length, multilingualScopeRuns.length) * requestWeight;
+  archiveOperationBase = completedOperationRequests;
+  archiveOperationCounts = { A: archiveOperationBase, C: archiveOperationBase };
+  reportArchiveProgress({
+    phase: 'Preparing',
+    completedLanguages: Math.min(archiveScopes.length, multilingualScopeRuns.length),
+  });
 
   const button = document.getElementById('btn-write-roi-archive');
   button.disabled = true;
@@ -2844,6 +2897,7 @@ async function writeCurrentRoiArchive({ skipConfirmation = false } = {}) {
       return;
     }
     await completeDeferredRoiScopesForArchive(config);
+    reportArchiveProgress({ phase: 'Calculating ROI' });
     let archivePlan = activeWorkflowContext?.roiArchivePlan;
     // 只归档真正拥有可计费语言的 vendor。费率目录中 vendor 语言覆盖互斥，若强行为
     // 不服务这些语言的 vendor 建 Run，只会产生一条必然 incomplete 的噪声记录。
@@ -2901,6 +2955,7 @@ async function writeCurrentRoiArchive({ skipConfirmation = false } = {}) {
       await persistWorkflowSnapshot();
     }
     button.textContent = 'Writing ROI archive...';
+    reportArchiveProgress({ phase: 'Writing to Feishu' });
     const archiveResults = [];
     for (const plan of archivePlan.vendors) {
       if (plan.status === 'complete' && plan.result) {
@@ -2928,6 +2983,11 @@ async function writeCurrentRoiArchive({ skipConfirmation = false } = {}) {
       archiveResults.push({ vendor: plan.vendor, runId: plan.runId, ...result });
       await persistWorkflowSnapshot();
     }
+    reportArchiveProgress({
+      phase: 'Complete',
+      completedRequests: archiveProgressState?.estimatedRequests || 0,
+      completedLanguages: archiveProgressState?.totalLanguages || 0,
+    });
     showRoiArchiveResult(true, {
       runId: archiveResults.map((result) => `${result.vendor}: ${result.runId}`).join(' · '),
       scopeRecordCount: archiveResults.reduce((total, result) => total + result.scopeRecordCount, 0),

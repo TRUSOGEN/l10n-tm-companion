@@ -442,7 +442,7 @@ function deferredInput(overrides) {
   const progress = [];
   const runs = await runnerModule.completeDeferredLocaleScopes(deferredInput({
     scopeCount: 3,
-    onProgress: (phase, scope, index, total) => progress.push([phase, scope.key, index, total]),
+    onProgress: (event) => progress.push(event),
     queryOriginalTm: async (_texts, scope) => {
       queried.push(scope.key);
       return [{ tm_match: scope.key, tm_source: scope.key, similarity: 72 }];
@@ -452,25 +452,29 @@ function deferredInput(overrides) {
   assert.equal(runs[0].items[0].final_tm.score, 91, '已完成 scope 的结果必须原样保留');
   assert.ok(progress.length >= 4, '流水线化后仍必须有可见进度');
   assert.deepEqual(
-    [...new Set(progress.map((entry) => entry[0]))].sort(),
-    ['final', 'initial'],
-    '进度仍分 initial/final 两个 phase',
+    [...new Set(progress.map((event) => event.operation))].sort(),
+    ['A', 'C'],
+    '进度仍区分 A/C 两个可同时 active 的 operation',
   );
   assert.deepEqual(
-    progress.map((entry) => entry[3]),
+    progress.map((event) => event.totalLanguages),
     progress.map(() => 2),
     '进度总数必须等于延后 scope 数量',
   );
   assert.deepEqual(
-    progress.filter((entry) => entry[0] === 'initial').map((entry) => entry[2]),
-    [0, 1],
-    'initial 进度必须按完成计数单调递增',
+    progress.filter((event) => event.operation === 'A').map((event) => event.completedRequests),
+    [1, 2],
+    'A 请求完成数必须单调递增',
   );
   assert.deepEqual(
-    progress.filter((entry) => entry[0] === 'final').map((entry) => entry[2]),
-    [0, 1],
-    'final 进度必须按完成计数单调递增',
+    progress.filter((event) => event.operation === 'C').map((event) => event.completedRequests),
+    [1, 2],
+    'C 请求完成数必须单调递增',
   );
+  for (const event of progress) {
+    assert.deepEqual(Object.keys(event).sort(), ['completedLanguages', 'completedRequests', 'operation', 'phase', 'sampleDurationMs', 'totalLanguages'].sort());
+    assert.equal(JSON.stringify(event).match(/source|secret|access.?key|token/i), null, 'progress event must not expose source or credentials');
+  }
 }
 
 console.log('multilingual-runner tests: 55 passed, 0 failed');
