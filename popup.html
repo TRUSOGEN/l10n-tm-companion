@@ -213,6 +213,27 @@
     </section>
   </div>
 
+  <div id="roi-archive-confirmation" class="archive-confirmation hidden" role="dialog" aria-modal="true" aria-labelledby="archive-confirm-title" aria-describedby="archive-confirm-description">
+    <div class="archive-confirm-card">
+      <h2 id="archive-confirm-title">Start ROI archive?</h2>
+      <p id="archive-confirm-description">Review the archive scope before starting the existing archive runtime.</p>
+      <dl class="archive-summary-grid">
+        <div><dt>Source rows</dt><dd id="archive-summary-sources">0</dd></div>
+        <div><dt>Confirmed rows</dt><dd id="archive-summary-confirmed">0</dd></div>
+        <div><dt>Languages</dt><dd id="archive-summary-languages">0</dd></div>
+        <div><dt>Vendor coverage</dt><dd id="archive-summary-coverage">—</dd></div>
+        <div><dt>TM requests (A + C)</dt><dd id="archive-summary-requests">0</dd></div>
+        <div><dt>Estimated duration</dt><dd id="archive-summary-duration">0s</dd></div>
+      </dl>
+      <p class="archive-confirm-note">Only confirmed rows affect official ROI amounts. Official saving is Cost(A) − Cost(C); B is review assistance and is not included in requests or amounts.</p>
+      <p class="archive-confirm-target">Destination: L10n ROI Runs, Scopes, and Items</p>
+      <div class="archive-confirm-actions">
+        <button id="archive-confirm-cancel" class="btn" type="button">Cancel</button>
+        <button id="archive-confirm-start" class="btn btn-success" type="button">Start archive</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Focus overlay: single result detail view -->
   <div id="focus-overlay" class="focus-overlay hidden">
     <div class="focus-box">

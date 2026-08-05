@@ -307,6 +307,7 @@ function makePopupDeps(brokerExports, overrides = {}) {
       writeRoiArchive: async ({ payload } = {}) => { writeRoiArchiveCalls.push({ payload }); return { ok: true, status: 'written' }; },
     },
     './lib/i18n.js': { applyI18n: () => 'en', normalizeUiLanguage: (l) => l, t: (k, _lang, vars) => `${k}${vars ? ':' + JSON.stringify(vars) : ''}` },
+    './lib/archive-summary.js': { summarizeArchive: () => ({ vendorCoverage: { RWS: 0, Pactera: 0, unpriced: 0 }, estimatedTmRequests: { original: 0, final: 0, total: 0 }, estimatedDuration: { minSeconds: 0, maxSeconds: 0 } }) },
     './lib/feishu-popup-controller.js': { createFeishuPopupController: () => ({ bind: () => true }) },
     './lib/feishu-auth.js': { ...authBase, ...authOverride },
     './lib/hash-utils.js': makeHashStub(),

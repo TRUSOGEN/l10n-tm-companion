@@ -67,15 +67,22 @@ assert('Popup 不从 storage 读取 ROI archive URL', !source.includes("'roiArch
 assert('归档按钮不依赖用户配置 URL', !source.includes('Boolean(config.roiArchiveUrl)')
   && !source.includes('Boolean(cfg.roiArchiveUrl)'));
 assert('归档调用 ROI writer', source.includes('writeRoiArchive('));
-assert('归档确认说明 Runs、Scopes 与 Items 三张表', source.includes('L10n ROI Items'));
+assert('归档确认说明 Runs、Scopes 与 Items 三张表', html.includes('L10n ROI Runs, Scopes, and Items'));
+assert('归档使用 inline modal 而不是 window.confirm', !source.includes('window.confirm(')
+  && html.includes('id="roi-archive-confirmation"')
+  && html.includes('aria-modal="true"')
+  && html.includes('aria-labelledby="archive-confirm-title"'));
+assert('归档 modal 有取消和开始动作', html.includes('id="archive-confirm-cancel"')
+  && html.includes('id="archive-confirm-start"'));
+assert('归档 modal 明确正式 ROI 仅使用 confirmed rows', html.includes('Only confirmed rows affect official ROI amounts.'));
 assert('Items payload 标记当前 CD 展示 scope', source.includes('displayScopeKey: activeDisplayScopeKey'));
 assert('归档成功摘要展示 Scope 与 Item 数量', source.includes('detail.itemRecordCount'));
-const archiveStart = source.indexOf('async function writeCurrentRoiArchive()');
+const archiveStart = source.indexOf('async function writeCurrentRoiArchive(');
 const archiveEnd = source.indexOf('// ===== UI 辅助 =====', archiveStart);
 const archiveFlow = source.slice(archiveStart, archiveEnd);
 assert(
   '用户确认发生在延后语言计算之前',
-  archiveFlow.indexOf('window.confirm(') < archiveFlow.indexOf('completeDeferredRoiScopesForArchive('),
+  archiveFlow.indexOf('openArchiveConfirmation(') < archiveFlow.indexOf('completeDeferredRoiScopesForArchive('),
 );
 assert('逐条确认写回调用单条 adapter', source.includes('await writeConfirmedReviewItem('));
 assert('AI 候选渲染前去重', source.includes('dedupeAiCandidates('));

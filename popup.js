@@ -61,6 +61,7 @@ import {
   openFeishuSettingsPage,
   preflightFeishuAuthorization,
 } from './lib/feishu-auth.js';
+import { summarizeArchive } from './lib/archive-summary.js';
 import { createFeishuPopupController } from './lib/feishu-popup-controller.js';
 import { sha256Text } from './lib/hash-utils.js';
 import {
@@ -350,7 +351,7 @@ if (typeof globalThis !== 'undefined') {
     countPendingBrokerFinalSubmissions: (snapshot) => countPendingBrokerFinalSubmissions(snapshot || activeBrokerRun),
     canArchiveBrokerRun: (snapshot) => canArchiveBrokerRun(snapshot || activeBrokerRun),
     replayPendingBrokerFinals: (...args) => replayPendingBrokerFinals(...args),
-    writeCurrentRoiArchive: () => writeCurrentRoiArchive(),
+    writeCurrentRoiArchive: () => writeCurrentRoiArchive({ skipConfirmation: true }),
     isLegacyLocalSecretDevOnlyEnabled: () => isLegacyLocalSecretDevOnlyEnabled(),
     shouldUseLegacyFallback: () => shouldUseLegacyFallback(),
     markBrokerCreateRunError: (error) => {
@@ -2742,8 +2743,71 @@ async function completeDeferredRoiScopesForArchive(config) {
   await persistWorkflowSnapshot();
 }
 
+function closeArchiveConfirmation(reason = 'cancel') {
+  const dialog = document.getElementById('roi-archive-confirmation');
+  if (!dialog || dialog.classList.contains('hidden')) return;
+  dialog.classList.add('hidden');
+  dialog._archiveResolve?.(reason === 'start');
+}
+
+function openArchiveConfirmation(summary) {
+  const dialog = document.getElementById('roi-archive-confirmation');
+  const trigger = document.activeElement;
+  const coverage = summary.vendorCoverage;
+  document.getElementById('archive-summary-sources').textContent = String(summary.sourceRowCount);
+  document.getElementById('archive-summary-confirmed').textContent = String(summary.confirmedRowCount);
+  document.getElementById('archive-summary-languages').textContent = String(summary.languageCount);
+  document.getElementById('archive-summary-coverage').textContent = `RWS ${coverage.RWS} · Pactera ${coverage.Pactera} · unpriced ${coverage.unpriced}`;
+  document.getElementById('archive-summary-requests').textContent = `${summary.estimatedTmRequests.original} A + ${summary.estimatedTmRequests.final} C = ${summary.estimatedTmRequests.total}`;
+  document.getElementById('archive-summary-duration').textContent = `${summary.estimatedDuration.minSeconds}–${summary.estimatedDuration.maxSeconds}s`;
+  dialog.classList.remove('hidden');
+
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (started) => {
+      if (settled) return;
+      settled = true;
+      dialog.classList.add('hidden');
+      dialog.removeEventListener('keydown', onKeydown);
+      cancel.removeEventListener('click', onCancel);
+      start.removeEventListener('click', onStart);
+      dialog._archiveResolve = null;
+      if (trigger?.focus) trigger.focus();
+      resolve(started);
+    };
+    const cancel = document.getElementById('archive-confirm-cancel');
+    const start = document.getElementById('archive-confirm-start');
+    const onCancel = () => finish(false);
+    const onStart = () => finish(true);
+    const onKeydown = (event) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        finish(false);
+        return;
+      }
+      if (event.key !== 'Tab') return;
+      const controls = [...dialog.querySelectorAll('button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])')];
+      if (!controls.length) return;
+      const first = controls[0];
+      const last = controls[controls.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    dialog._archiveResolve = finish;
+    cancel.addEventListener('click', onCancel);
+    start.addEventListener('click', onStart);
+    dialog.addEventListener('keydown', onKeydown);
+    start.focus();
+  });
+}
+
 /** 将当前整车 ROI 结果追加写入产品固定的 Bitable Run/Scope/Item 归档表。 */
-async function writeCurrentRoiArchive() {
+async function writeCurrentRoiArchive({ skipConfirmation = false } = {}) {
   const config = await loadConfig();
   if (!roiEnabled) {
     showStatus('ROI mode is off. Turn it on before writing an ROI archive.', 'error');
@@ -2754,16 +2818,29 @@ async function writeCurrentRoiArchive() {
     return;
   }
   const confirmedCount = processedItems.filter((item) => item.review_status === 'confirmed').length;
-  const plannedScopeCount = Array.isArray(activeWorkflowContext?.roiScopes)
-    ? activeWorkflowContext.roiScopes.length
-    : multilingualScopeRuns.length;
-  const confirmed = window.confirm(
-    `Write ROI archive to:\n${FIXED_ROI_ARCHIVE_URL}\n\n`
-    + 'Tables: L10n ROI Runs, L10n ROI Scopes, and L10n ROI Items\n'
-    + `Sources: ${processedItems.length}; confirmed: ${confirmedCount}; unconfirmed: ${processedItems.length - confirmedCount}\n`
-    + `Records: 1 Run, ${plannedScopeCount} Scope(s), and ${processedItems.length} source Item(s)`,
-  );
-  if (!confirmed) return;
+  const plannedScopes = Array.isArray(activeWorkflowContext?.roiScopes)
+    ? activeWorkflowContext.roiScopes
+    : multilingualScopeRuns.map((run) => run.scope);
+  const servedKeys = new Set();
+  const vendorRoutes = [];
+  const summaryVendors = Array.isArray(ROI_VENDORS) ? ROI_VENDORS : ['RWS', 'Pactera'];
+  summaryVendors.forEach((vendor) => {
+    (vendorRoiResults[vendor]?.scopeRuns || []).forEach((run) => {
+      servedKeys.add(run.scope?.key);
+      vendorRoutes.push({ vendor, served: true, completeRate: true });
+    });
+  });
+  plannedScopes.forEach((scope) => {
+    if (!servedKeys.has(scope?.key)) vendorRoutes.push({ vendor: null, served: false, completeRate: false });
+  });
+  const archiveSummary = summarizeArchive({
+    sourceRowCount: processedItems.length,
+    confirmedRowCount: confirmedCount,
+    languageCount: plannedScopes.length,
+    vendorRoutes,
+    batchSize: 40,
+  });
+  if (!skipConfirmation && !(await openArchiveConfirmation(archiveSummary))) return;
 
   const button = document.getElementById('btn-write-roi-archive');
   button.disabled = true;
