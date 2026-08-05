@@ -1071,3 +1071,9 @@ html, body { max-width: 100%; overflow-x: hidden; }
   #view-results .results-title { font-size: 12px; }
   #view-results .btn-sm { white-space: normal; }
 }
+
+.review-context-explanations {
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  line-height: 1.35;
+}
