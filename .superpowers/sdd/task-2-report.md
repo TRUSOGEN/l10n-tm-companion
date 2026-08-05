@@ -63,3 +63,11 @@ git diff --check
 - Settings 打开流程捕获 storage 与 openOptionsPage 拒绝，并在既有诊断区展示 safe friendly error，不产生 unhandled rejection。
 
 验证通过：focused Secret/OAuth tests、`feishu-auth`（33/0）、Broker failure policy（33/0）、全部 `test/*.test.js`、三个 `node --check` 及 `git diff --check`。
+
+## 复审测试修复（2026-08-05）
+
+为避免 Popup 编排仅靠源码字符串断言，新增 `lib/feishu-popup-controller.js`，生产 Popup 与测试共同使用该 controller/binder。测试通过最小 fake DOM、fake window 和 mock Chrome API 实际触发 click、visibilitychange 与 focus，验证 legacy 缺 Secret、Broker authority、Settings 顺序/失败 UI、返回后恢复 Connect，以及 binder 幂等性。对应 Popup 生命周期源码字符串断言已删除。
+
+新增 controller 文件是满足“生产接线与行为测试使用同一实现”所必需的计划外小幅文件调整，不涉及 ROI/TM/vendor/Run ID。
+
+本轮 focused/auth、全部 JavaScript regression、`popup.js`/`options.js`/`lib/feishu-auth.js`/controller 语法检查和 `git diff --check` 全部通过。

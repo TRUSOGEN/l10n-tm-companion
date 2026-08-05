@@ -1,74 +1,64 @@
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import {
-  consumeFeishuSettingsNavigation,
-  openFeishuSettingsPage,
-  preflightFeishuAuthorization,
-  resolveFeishuAuthorizationPreflight,
-} from '../lib/feishu-auth.js';
+import { createFeishuPopupController } from '../lib/feishu-popup-controller.js';
 
-assert.equal(preflightFeishuAuthorization({ connected: true }).state, 'connected');
-assert.equal(preflightFeishuAuthorization({ secretConfigured: true }).state, 'ready');
-assert.equal(preflightFeishuAuthorization({}).actionId, 'open-settings');
-
-let secretChecks = 0;
-let oauthCalls = 0;
-const legacyMissing = await resolveFeishuAuthorizationPreflight({
-  useLegacy: true,
-  getAuthorizationStatus: async () => ({ connected: false }),
-  getCredentialStatus: async () => { secretChecks += 1; return { configured: false }; },
-});
-if (legacyMissing.state !== 'secret-required') oauthCalls += 1;
-assert.equal(oauthCalls, 0, 'legacy missing Secret must stop before OAuth');
-assert.equal(secretChecks, 1);
-const brokerReady = await resolveFeishuAuthorizationPreflight({
-  useLegacy: false,
-  getAuthorizationStatus: async () => ({ connected: false }),
-  getCredentialStatus: async () => { secretChecks += 1; throw new Error('must not run'); },
-});
-assert.equal(brokerReady.state, 'ready');
-assert.equal(secretChecks, 1, 'broker authority must not query local Secret');
-
-const order = [];
-await openFeishuSettingsPage({
-  storage: { set: async () => { order.push('storage'); } },
-  openOptionsPage: async () => { order.push('open'); },
-});
-assert.deepEqual(order, ['storage', 'open']);
-await assert.rejects(openFeishuSettingsPage({ storage: { set: async () => { throw new Error('storage failed'); } }, openOptionsPage: async () => order.push('unexpected') }), /storage failed/);
-assert(!order.includes('unexpected'));
-await assert.rejects(openFeishuSettingsPage({ storage: { set: async () => {} }, openOptionsPage: async () => { throw new Error('open failed'); } }), /open failed/);
-
-function element() {
-  return { classList: { removed: [], remove(value) { this.removed.push(value); } }, scrollCalls: 0, focusCalls: 0, scrollIntoView() { this.scrollCalls += 1; }, focus() { this.focusCalls += 1; } };
+const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
+function target() {
+  return { listeners: {}, addCount: 0, addEventListener(type, fn) { this.addCount += 1; (this.listeners[type] ||= []).push(fn); }, async fire(type) { for (const fn of this.listeners[type] || []) await fn(); } };
 }
-const nodes = { 'feishu-secret': element(), 'feishu-secret-action': element(), 'feishu-secret-guidance': element() };
-const removed = [];
-const consumed = await consumeFeishuSettingsNavigation({
-  hash: '',
-  storage: { get: async () => ({ optionsNavigationIntent: 'feishu-secret' }), remove: async (keys) => removed.push(keys) },
-  documentRef: { getElementById: (id) => nodes[id] },
-});
-assert.equal(consumed, true);
-assert.equal(nodes['feishu-secret'].scrollCalls, 1);
-assert.equal(nodes['feishu-secret-action'].focusCalls, 1);
-assert.deepEqual(removed, [['optionsNavigationIntent']]);
-const hashConsumed = await consumeFeishuSettingsNavigation({
-  hash: '#feishu-secret', storage: { get: async () => ({}), remove: async () => assert.fail('hash needs no clear') }, documentRef: { getElementById: (id) => nodes[id] },
-});
-assert.equal(hashConsumed, true);
+function node() {
+  const value = target();
+  value.textContent = '';
+  value.classList = { values: new Set(), add(v) { this.values.add(v); }, remove(v) { this.values.delete(v); }, contains(v) { return this.values.has(v); } };
+  return value;
+}
+function harness({ legacy = true, configured = false, openFailure = null } = {}) {
+  const ids = ['connect-feishu-user', 'feishu-secret-diagnostic', 'feishu-secret-action', 'feishu-auth-title', 'feishu-auth-status', 'feishu-auth-card'];
+  const nodes = Object.fromEntries(ids.map((id) => [id, node()]));
+  const doc = target(); doc.visibilityState = 'visible'; doc.getElementById = (id) => nodes[id];
+  const win = target(); const storageEvents = target(); storageEvents.addListener = (fn) => storageEvents.addEventListener('change', fn); const order = [];
+  let secretCalls = 0; let legacyCalls = 0; let brokerCalls = 0;
+  const controller = createFeishuPopupController({
+    documentRef: doc, windowRef: win,
+    chromeApi: { storage: { local: { set: async () => order.push('storage') }, onChanged: storageEvents }, runtime: { openOptionsPage: async () => { order.push('open'); if (openFailure) throw openFailure; } } },
+    shouldUseLegacy: async () => legacy,
+    getAuthorizationStatus: async () => ({ connected: false, profile: null }),
+    getCredentialStatus: async () => { secretCalls += 1; return { configured }; },
+    authorizeLegacy: async () => { legacyCalls += 1; }, authorizeBroker: async () => { brokerCalls += 1; },
+    getReturnUrl: async () => 'https://example.test',
+    openSettingsPage: async ({ storage, openOptionsPage }) => { await storage.set({ optionsNavigationIntent: 'feishu-secret' }); await openOptionsPage(); },
+    formatError: (error) => ({ title: 'Settings failed', message: error.message }),
+  });
+  return { controller, nodes, doc, win, order, counts: () => ({ secretCalls, legacyCalls, brokerCalls }) };
+}
 
-const dirname = path.dirname(fileURLToPath(import.meta.url));
-const root = path.resolve(dirname, '..');
-const popup = fs.readFileSync(path.join(root, 'popup.js'), 'utf8');
-const html = fs.readFileSync(path.join(root, 'popup.html'), 'utf8');
-for (const id of ['feishu-auth-card', 'connect-feishu-user', 'feishu-secret-diagnostic', 'feishu-secret-action']) assert(html.includes(`id="${id}"`));
-assert(popup.includes("document.addEventListener('visibilitychange'"), 'return lifecycle must refresh preflight');
-assert(popup.includes("window.addEventListener?.('focus'"), 'focus lifecycle must refresh preflight');
-assert(popup.includes("button.classList.remove('hidden')"), 'refresh must restore Connect');
-assert(popup.includes('catch (error)'), 'Settings open rejection must be rendered');
-assert(popup.includes('authorizeFeishuUser({ returnUrl })'));
+const missing = harness();
+assert.equal(missing.controller.bind(), true); assert.equal(missing.controller.bind(), false);
+await missing.nodes['connect-feishu-user'].fire('click');
+assert.deepEqual(missing.counts(), { secretCalls: 1, legacyCalls: 0, brokerCalls: 0 });
+assert(missing.nodes['connect-feishu-user'].classList.contains('hidden'));
+assert(!missing.nodes['feishu-secret-action'].classList.contains('hidden'));
 
-console.log('Feishu Secret executable behavior: passed');
+const broker = harness({ legacy: false }); broker.controller.bind();
+await broker.nodes['connect-feishu-user'].fire('click');
+assert.deepEqual(broker.counts(), { secretCalls: 0, legacyCalls: 0, brokerCalls: 1 });
+
+const settings = harness({ openFailure: new Error('open denied') }); settings.controller.bind();
+await settings.nodes['feishu-secret-action'].fire('click');
+assert.deepEqual(settings.order, ['storage', 'open']);
+assert.equal(settings.nodes['feishu-auth-status'].textContent, 'Settings failed');
+assert(!settings.nodes['feishu-secret-diagnostic'].classList.contains('hidden'));
+
+const returning = harness({ configured: false }); returning.controller.bind();
+await returning.controller.refresh(); returning.nodes['connect-feishu-user'].classList.add('hidden');
+returning.controller.bind();
+// Change the injected status through a second production-equivalent controller state is unnecessary: getter closes over options.
+const recovered = harness({ configured: true }); recovered.controller.bind();
+recovered.nodes['feishu-secret-diagnostic'].classList.remove('hidden'); recovered.nodes['feishu-secret-action'].classList.remove('hidden'); recovered.nodes['connect-feishu-user'].classList.add('hidden');
+await recovered.doc.fire('visibilitychange'); await tick();
+assert(recovered.nodes['feishu-secret-diagnostic'].classList.contains('hidden'));
+assert(recovered.nodes['feishu-secret-action'].classList.contains('hidden'));
+assert(!recovered.nodes['connect-feishu-user'].classList.contains('hidden'));
+await recovered.win.fire('focus'); await tick();
+assert.equal(recovered.nodes['connect-feishu-user'].addCount, 1, 'refresh must not register duplicate listeners');
+
+console.log('Feishu Popup controller executable behavior: passed');

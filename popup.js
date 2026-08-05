@@ -61,6 +61,7 @@ import {
   openFeishuSettingsPage,
   preflightFeishuAuthorization,
 } from './lib/feishu-auth.js';
+import { createFeishuPopupController } from './lib/feishu-popup-controller.js';
 import { sha256Text } from './lib/hash-utils.js';
 import {
   BROKER_WORKFLOW_SNAPSHOT_KEY,
@@ -176,17 +177,6 @@ document.getElementById('settings-btn').addEventListener('click', () => {
 });
 document.getElementById('setup-open-settings').addEventListener('click', () => {
   chrome.runtime.openOptionsPage();
-});
-document.getElementById('connect-feishu-user').addEventListener('click', connectFeishuUserFromPopup);
-document.getElementById('feishu-secret-action').addEventListener('click', openFeishuSettings);
-document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible') void renderPopupFeishuAuthorizationStatus();
-});
-window.addEventListener?.('focus', () => { void renderPopupFeishuAuthorizationStatus(); });
-chrome.storage.onChanged?.addListener((changes, area) => {
-  if (area === 'local' && (changes.feishuUserAccessToken || changes.optionsNavigationIntent)) {
-    void renderPopupFeishuAuthorizationStatus();
-  }
 });
 document.getElementById('refresh-projects').addEventListener('click', loadAccessibleProjects);
 document.getElementById('project-page-previous').addEventListener('click', () => {
@@ -326,6 +316,24 @@ async function shouldUseLegacyFallback() {
   if (await isLegacyLocalSecretDevOnlyEnabled()) return true;
   return !(await isBrokerAsyncRoiEnabled());
 }
+
+const feishuPopupController = createFeishuPopupController({
+  documentRef: document,
+  windowRef: window,
+  chromeApi: chrome,
+  shouldUseLegacy: shouldUseLegacyFallback,
+  getAuthorizationStatus: getFeishuUserAuthorizationStatus,
+  getCredentialStatus: getFeishuCredentialStatus,
+  authorizeLegacy: authorizeFeishuUser,
+  authorizeBroker: authorizeFeishuUserViaBroker,
+  getReturnUrl: getActiveReturnUrl,
+  openSettingsPage: openFeishuSettingsPage,
+  formatError: (error) => {
+    const model = friendlyError(error);
+    return { title: model.title || 'Could not open Settings', message: model.action || model.raw || error.message };
+  },
+});
+feishuPopupController.bind();
 
 // 暴露给 node 测试 sandbox 使用，无需经过 DOM 事件即可覆盖单条/批量确认的 Broker 同步分支。
 if (typeof globalThis !== 'undefined') {

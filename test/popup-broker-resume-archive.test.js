@@ -307,6 +307,7 @@ function makePopupDeps(brokerExports, overrides = {}) {
       writeRoiArchive: async ({ payload } = {}) => { writeRoiArchiveCalls.push({ payload }); return { ok: true, status: 'written' }; },
     },
     './lib/i18n.js': { applyI18n: () => 'en', normalizeUiLanguage: (l) => l, t: (k, _lang, vars) => `${k}${vars ? ':' + JSON.stringify(vars) : ''}` },
+    './lib/feishu-popup-controller.js': { createFeishuPopupController: () => ({ bind: () => true }) },
     './lib/feishu-auth.js': { ...authBase, ...authOverride },
     './lib/hash-utils.js': makeHashStub(),
     './lib/broker-async-roi.js': brokerExports,
