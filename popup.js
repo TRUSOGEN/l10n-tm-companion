@@ -451,7 +451,7 @@ async function initializePopup() {
       const latest = await fetchBrokerRun(activeBrokerRun.run_id);
       await syncBrokerRunStatus(latest);
     } catch (error) {
-      console.warn('Could not restore async broker run status.', error);
+      logSanitizedError('Could not restore async broker run status.', error);
     }
     void pollActiveBrokerRun();
   }
@@ -1850,7 +1850,7 @@ async function processItems(items) {
       // archive fallback。Broker 是权威路径，不能在 create 失败后静默清空 activeBrokerRun
       // 再继续走本地 ROI 归档，否则 archive 时会因为 activeBrokerRun 为 null 而绕过 broker
       // 分支直接 writeRoiArchive 到本地 Bitable。
-      console.warn('Broker ROI run creation failed; broker-authoritative workflow is unavailable for this run.', error);
+      logSanitizedError('Broker ROI run creation failed; broker-authoritative workflow is unavailable for this run.', error);
       brokerRunCreateError = error instanceof Error ? error : new Error(String(error || 'createBrokerRun failed'));
       activeBrokerRun = null;
       showError(brokerRunCreateError);
@@ -2456,7 +2456,7 @@ async function confirmReviewItem(item) {
       }
     } catch (brokerError) {
       // Sheet 已经成功，本地 confirmed 必须成立；pending outbox 已由 enqueue 持久化。
-      console.warn('Broker final submission failed after successful sheet write; queued for replay.', brokerError);
+      logSanitizedError('Broker final submission failed after successful sheet write; queued for replay.', brokerError);
       brokerPendingAfterSingle = countPendingBrokerFinalSubmissions(activeBrokerRun);
       showStatus('Final TM and Sheet sync completed; broker submission queued for retry.', 'info');
     }
@@ -2638,7 +2638,7 @@ async function confirmRemainingReviewItems() {
         const brokerSync = await syncConfirmedItemsToBroker({ writable, outputStartColumn });
         pendingCount = brokerSync?.pendingCount || 0;
       } catch (brokerError) {
-        console.warn('Broker final submission batch sync failed after successful sheet write; queued for replay.', brokerError);
+        logSanitizedError('Broker final submission batch sync failed after successful sheet write; queued for replay.', brokerError);
         pendingCount = countPendingBrokerFinalSubmissions(activeBrokerRun);
       }
       void pollActiveBrokerRun();
@@ -3051,7 +3051,7 @@ async function writeCurrentRoiArchive({ skipConfirmation = false } = {}) {
       status: archiveResults.map((result) => `${result.vendor} ${result.status}`).join(', '),
     });
   } catch (error) {
-    console.warn('ROI archive / Feishu authorization failed.', error);
+    logSanitizedError('ROI archive / Feishu authorization failed.', error);
     const preview = document.getElementById('roi-archive-preview');
     preview.classList.remove('hidden');
     preview.className = 'dest-preview dest-error';
@@ -3369,6 +3369,14 @@ export function renderUiError(model, container, context = {}) {
   });
   container.append(title, message, details, actions);
   return container;
+}
+
+/**
+ * 错误日志的唯一出口：只输出 toUiError 脱敏后的 rawDetails，绝不把原始 error 对象
+ * 交给 console，避免 Secret / AK/SK / token 通过 DevTools 或崩溃日志泄漏。
+ */
+export function logSanitizedError(scope, error, logger = console) {
+  logger.warn(scope, toUiError(error).rawDetails);
 }
 
 function showUiError(error, operation, context = {}) {
