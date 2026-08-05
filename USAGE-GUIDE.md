@@ -202,6 +202,12 @@ AI 改写只影响 Orig<85 的条目，不影响 TM 查询和写回。不需要 
 **Q：写回报「valueRanges is nil」？**
 A：旧 bug，已修。若再出现，看「原始错误」贴给我。
 
+**Q：报错看不懂 / 不知道下一步做什么？**
+A：1.5 起所有失败都显示成一张错误卡片：人话标题 + 说明 + `Details` + 明确动作按钮。缺飞书 Secret 点 `Open Settings`（自动跳到 Settings 并聚焦 Secret 输入框，Secret 永不回显）；表头缺失点 `Configure Sheet Layout`（展开列映射并聚焦来源列，插件不会自己写表头）；超时/限流/Final TM 失败点 `Retry`；归档中断点 `Resume Archive`（复用原 Run ID 与断点，不会重复建 Run）。反馈问题时用 `Copy Details`，内容已脱敏，保留 Request ID，Secret/AK/SK/token 显示为 `[REDACTED]`。
+
+**Q：整车 ROI 归档要跑多久，能看到进度吗？**
+A：点 `Write ROI archive` 会先弹摘要确认窗（source/confirmed 行数、语言数、vendor coverage、TM 请求数 A+C、预估时长），`Esc`/`Cancel` 不会写飞书。确认后顶部显示进度区：阶段、语言/请求计数、已用时间和 ETA（样本不足时显示 `Estimating time`）。正式金额只算 `A − C`，AI 候选 B 不进金额也不计请求数。
+
 **Q：给同事用？**
 A：把整个 zip 给对方，对方只要装齐 starling-cli + AK/SK + Python + Node，双击「双击安装.command」（自动注册 native host + 探测本机扩展 ID + 自检），再加载扩展、**Cmd+Q 重启 Chrome**、填设置即可。飞书凭证已预填，飞书表记得「共享给飞书应用」一次。
 

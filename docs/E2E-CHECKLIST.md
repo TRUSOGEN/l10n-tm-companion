@@ -95,6 +95,20 @@
 - [ ] Top-3 TM 按 source+target 去重并保留最高 score；非法 score 正确失败
 - [ ] LLM 仅生成 Writer native copy，客户端包装为内部结构化候选；LLM 不参与 Orig/Post/Final TM 打分
 
+## Side Panel UX 升级（1.5，需重载扩展手动验证）
+
+- [ ] 未配置 Feishu Secret 时点击 `Authorize` → 显示 `Feishu setup required` 与 `Open Settings`；跳转后 Feishu 区块滚动可见、Secret 输入框获得焦点；保存后返回 Side Panel 可继续授权，且 Settings 只显示 `Configured` 不回显 Secret
+- [ ] Broker 授权失败 → 只出现 `Retry`，日志与 Details 中无 Secret/AK/SK/token，且未走 legacy 本机授权
+- [ ] 100 行 × 56 语言开启 ROI mode → 摘要弹窗显示 `TM requests (A + C) = 336`、vendor coverage（RWS / Pactera / unpriced）与预估时长；`Cancel`/`Esc` 不写入飞书
+- [ ] 摘要弹窗键盘可达：Tab 只在弹窗内循环，`Esc` 关闭后焦点回到 `Write ROI archive`
+- [ ] `Start archive` 后进度区阶段依次为 Preparing → Original TM (A) → Final TM (C) → Calculating ROI → Writing to Feishu → Complete；A/C 可同时 active，百分比不回退，ETA 前期显示 `Estimating time`
+- [ ] 存储配额、Starling rate limit、Final TM 失败、部分归档四类错误分别给出 `Retry` / `Resume Archive`；`Copy Details` 内容保留 Request ID 且敏感值为 `[REDACTED]`
+- [ ] `Resume Archive` 复用原 Run ID 与 snapshot 断点，ROI_Test 未新增重复 Run，已完成 vendor Run 未重复写
+- [ ] 表头缺失 Sheet → 报 `Spreadsheet headers required`，`Configure Sheet Layout` 展开列映射并聚焦来源列；确认布局后 `Retry` 成功，插件未自动写表头
+- [ ] Review 卡片按 A → B → C 显示分数轨；B 大幅提升时正式 saving 仍等于 A−C；安全改写未提升时显示固定说明
+- [ ] 窄侧栏无横向滚动条；开启系统「减少动态效果」后非必要动画停止，进度条仍平滑
+- [ ] Review 超过 50 条时分批渲染顺序正确、焦点不丢、无闪烁
+
 ## 已知未完成（非阻塞 MVP）
 
 - [ ] Bitable 与普通 Spreadsheet 的数据行写回仍只支持 Spreadsheet；ROI archive 仅追加 Runs/Scopes/Items 审计记录

@@ -205,8 +205,21 @@ Inspire 的改写 prompt 使用安装包内版本化保存的 TM Alignment Promp
 ### 写入整车 ROI
 
 1. 至少一条 source 显示 confirmed 后，点击 `Write ROI archive`；零确认整车禁止归档。
-2. 核对确认窗口中的固定 ROI_Test 链接，以及 `1 Run + N Scopes + M source Items` 的记录数；取消不会补算延后语言或写入飞书。
-3. 确认后，插件补齐尚未查询的语言 scope，再按 Runs → Scopes → Items → Run 最终状态的顺序写入。
+2. 弹出的 `Start ROI archive?` 摘要确认窗口会先列出六项口径：`Source rows`、`Confirmed rows`、`Languages`、`Vendor coverage`（RWS / Pactera / unpriced 计数）、`TM requests (A + C)` 与 `Estimated duration`，并固定提示 `Only confirmed rows affect official ROI amounts.`；正式金额只用 `Cost(A) − Cost(C)`，候选 B 既不计入请求数也不计入金额。目标位置固定为 `L10n ROI Runs / Scopes / Items`。
+3. 该窗口是标准 modal：`Esc` 或 `Cancel` 取消，Tab 只在窗口内循环，关闭后焦点回到 `Write ROI archive` 按钮。取消不会补算延后语言，也不会写入飞书。
+4. 只有点击 `Start archive` 才进入既有归档流程；插件补齐尚未查询的语言 scope，再按 Runs → Scopes → Items → Run 最终状态的顺序写入。
+5. TM 请求量可以自行核算：每个语言按 40 条一批，A 与 C 各查一遍。100 行 × 56 语言即 `56 × ceil(100/40) = 168`，A、C 合计 336 个请求。
+
+### 归档进度与 ETA
+
+点击 `Start archive` 后，Side Panel 顶部出现归档进度区：
+
+- 阶段固定为 `Preparing` → `Original TM (A)` → `Final TM (C)` → `Calculating ROI` → `Writing to Feishu` → `Complete`；A 与 C 可能同时活动，`Active` 会同时列出。
+- 进度条与 `Languages`、`Requests`、`Elapsed`、`ETA` 同步更新；百分比只前进不回退。
+- 样本不足 3 个时 `ETA` 显示 `Estimating time`，之后用最近 8 个请求耗时的移动平均估算，属于预估而非承诺。
+- 进度以 `aria-live="polite"` 播报，读屏用户无需手动聚焦即可听到阶段变化。
+
+进度失败或中断时不会静默结束，见下面的“出错时怎么办”。
 
 无需在 Settings 配置归档链接，也不需要创建 Formula 或手工建表。首次归档会自动增量创建缺失的三张表、字段和基础视图，不会删除或替换既有数据。
 
@@ -242,6 +255,60 @@ Inspire 的改写 prompt 使用安装包内版本化保存的 TM Alignment Promp
 当 `Write status=incomplete` 时，插件仍会汇总所有成功得到 A/C TM 与费率的文案，金额代表“已覆盖文案小计”。只有一条文案都无法计算时金额才保持空白，避免把未知金额写成 0 或完整整车节省。
 
 TM Cost 由每个 target locale scope 的 RWS 或 Pactera 精确费率、本地英文词数和真实 TM Score 计算，再汇总为各自的整车金额。AIPE 是 AI post-editing 单价，T-only 是纯翻译单价；0–75 分按 AIPE 计价，(75,85]、(85,95]、(95,100) 分别按 T-only 的 60%、40%、20% 计价。100% 按 Starling 返回的 ICE/repetition/exact 分类计价；没有分类时保守按 T-only 的 20% 估算并记录 `exact_unclassified_conservative`。完整规则见[多语言 ROI 规则](multilingual-roi.md)。
+
+## 出错时怎么办：友好错误与下一步动作
+
+从 1.5 起，Side Panel 不再直接抛原始报文。每个失败都会渲染为一张错误卡片：一句人话标题、一句说明、一个可折叠 `Details`，以及最多两个明确动作按钮。
+
+| 你看到的错误 | 含义 | 主动作 |
+| --- | --- | --- |
+| `Feishu setup required` | 飞书 App Secret 还没在 Settings 配好 | `Open Settings`：直接跳到 Settings 的 Feishu 区块并聚焦 Secret 输入框，填写保存后回 Side Panel 继续授权 |
+| `Feishu connection failed` | Broker 权威授权失败 | `Retry`；插件绝不静默降级到本机 legacy 授权 |
+| `Spreadsheet headers required` | 目标 Sheet 没有可识别表头 | `Configure Sheet Layout` |
+| `Storage is full` | Chrome 存储配额已满 | `Retry`（先清理空间） |
+| `Starling setup required` / `Starling request timed out` / `Starling rate limit reached` | 凭据缺失或 Starling 侧限流、超时 | 分别为 `Open Settings` 与 `Retry` |
+| `Word rate is incomplete` | 该 vendor 服务此语言但缺按字费率 | `Open Settings` 补费率 |
+| `Final TM query failed` | 正式 ROI 依赖的真实 Final TM 没查成功 | `Retry`，不会用估算值代替 |
+| `Archive partially completed` | 归档中断，部分 scope 未完成 | `Resume Archive` |
+
+要点：
+
+- 动作执行期间按钮会禁用并标记忙碌状态，避免重复点击；动作自身失败时会在同一位置再显示一张脱敏后的错误卡片，等你再次点击，不会自动无限重试。
+- `Copy Details` 复制的是脱敏文本：保留 Request ID 与错误码，Secret、AK/SK、token 一律替换为 `[REDACTED]`。反馈问题时请直接粘贴这段内容。
+- `Resume Archive` 复用快照里已有的 Run ID 与断点，不会新建 Run，也不会重复写入已完成的 vendor Run；Broker 仍是唯一权威授权路径。
+- Settings 只显示 Secret 是否 `Configured`，永不回显已保存的 Secret 明文。
+
+### 表头缺失的 Sheet 怎么恢复
+
+当目标 Sheet 首行不是表头（例如直接从第一行开始就是正文）时，插件不会猜测表头，而是返回 `incomplete` 并说明 `header row required`：
+
+1. 在错误卡片点 `Configure Sheet Layout`。
+2. Side Panel 自动展开 `Working spreadsheet` 区块与列映射面板，并把焦点放到来源列选择框。
+3. 手动确认来源列、数据起始行与输出起始列，点击 `Confirm this layout`。
+4. 回到错误卡片点 `Retry` 重新读取。
+
+插件不会自动写入表头、不会改写你的正文行；确认布局始终是显式动作。
+
+## 看懂 A → B → C 与 vendor coverage
+
+Review 区顶部有可折叠的 `ROI methodology · A → B → C`：
+
+- **A** 原始文案的 TM 基线成本；
+- **B** AI 改写候选，只作为审阅证据，**永不进入金额，也不计入 TM 请求估算**；
+- **C** 你逐条确认后的最终文案成本；
+- 正式节省固定为 `Cost(A) − Cost(C)`。
+
+每张结果卡片按 A → B → C 排成一条分数轨：提升为绿色，下降或为负为琥珀色警示，安全改写但分数没提升时固定显示 `Safe rewrite available / TM score did not improve, so it was not auto-applied.`，不会假装成收益。
+
+`Vendor coverage` 在归档摘要与完成态都会显示 RWS、Pactera、`unpriced` 三个计数：某 vendor 不服务某语言是**正常路由**，不是错误，也不会借用另一家价格或填 0；只有“确实服务却缺按字费率”的语言才计为 incomplete，需要补费率表。
+
+## 无障碍、窄屏与动效
+
+- 全部交互元素统一 focus 环、最小 44px 点击区，键盘可完整走通四步 Stepper、摘要确认弹窗、Focus View 与错误动作按钮。
+- 弹窗与 Focus View 都有 `role="dialog"`/`aria-modal` 与可读标题，支持 `Esc` 关闭并把焦点归还触发按钮。
+- 窄侧栏下容器不再横向溢出，长文案换行显示；配色使用统一 token，状态不靠颜色单独表达，同时有文字标签。
+- 动效只用 opacity/transform，且很短（步骤 150ms、卡片 180ms、Focus 200ms）；系统开启“减少动态效果”时非必要动画基本关闭，进度条仍平滑且不回退。
+- Review 结果超过 50 条时分批渲染（每帧最多 25 张卡片），顺序与焦点保持不变，不会出现闪烁。
 
 ## 常见问题
 
