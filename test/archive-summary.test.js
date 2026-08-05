@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { buildVendorRoutes, estimateTmRequests, summarizeArchive } from '../lib/archive-summary.js';
+import { buildVendorRoutes, estimateTmRequests, formatVendorCoverage, summarizeArchive } from '../lib/archive-summary.js';
 
 assert.deepEqual(
   estimateTmRequests({ rowCount: 100, languageCount: 56 }),
@@ -86,3 +86,14 @@ assert.equal(incomplete.incompleteLanguageCount, 1);
 assert.deepEqual(incomplete.estimatedTmRequests, { original: 0, final: 0, total: 0 });
 
 console.log('archive-summary tests passed');
+
+const formattedCoverage = formatVendorCoverage({ routes: [
+  { vendor: 'RWS', scopeKey: 'ja', served: false, completeRate: false },
+  { vendor: 'Pactera', scopeKey: 'ja', served: true, completeRate: true, completeTm: true, completeFinal: true },
+  { vendor: 'RWS', scopeKey: 'fr', served: true, completeRate: true, completeTm: false, completeFinal: true },
+  { vendor: null, scopeKey: 'de', served: false },
+] });
+assert.deepEqual(formattedCoverage.counts, { RWS: 1, Pactera: 1, unpriced: 1 });
+assert.equal(formattedCoverage.incomplete, true, 'only served missing rate/TM/final is incomplete');
+assert.equal(formattedCoverage.incompleteCount, 1);
+assert.match(formattedCoverage.explanations.join(' '), /routed/i);

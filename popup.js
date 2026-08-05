@@ -1940,11 +1940,22 @@ function renderReviewFilter(items = []) {
   });
 }
 
-/** ROI 金额只在 Bitable 公式字段中呈现，Popup 不显示金额或小计。 */
-function renderMultilingualRoiSummary(_summary) {
+/** Display vendor coverage and routing without presenting popup money. */
+function renderMultilingualRoiSummary(summary) {
   const container = document.getElementById('multilingual-roi-summary');
-  container.classList.add('hidden');
-  container.innerHTML = '';
+  if (!summary) {
+    container.classList.add('hidden');
+    container.innerHTML = '';
+    return;
+  }
+  const coverage = summary.vendorCoverage || { RWS: 0, Pactera: 0, unpriced: 0 };
+  container.classList.remove('hidden');
+  container.innerHTML = `
+    <strong>Vendor coverage</strong>
+    <span>RWS ${Number(coverage.RWS) || 0}</span>
+    <span>Pactera ${Number(coverage.Pactera) || 0}</span>
+    <span>Unpriced ${Number(coverage.unpriced) || 0}</span>
+    <p>Locales are routed to their configured vendor; unpriced scopes are reported without borrowing a rate.</p>`;
 }
 
 // BX5：更新结果 tab 的数量角标
@@ -1971,7 +1982,7 @@ function renderCard(item) {
     <div class="card-summary">
       <span class="source-text" data-focus="${item.id}">"${escapeHtml(truncate(item.source_text, 60))}"</span>
       <div class="score-rail" aria-label="TM score flow">
-        <span class="score-stage tm">TM ${sim}%</span>
+        <span class="score-stage tm">A · Original ${sim}%</span>
         <span class="score-arrow" aria-hidden="true">→</span>
         ${postRewriteTmBadge(item.post_rewrite_tm, item.similarity)}
         <span class="score-arrow" aria-hidden="true">→</span>
@@ -2026,7 +2037,7 @@ function renderAiCandidates(candidates) {
  */
 function postRewriteTmBadge(snapshot, baseline) {
   if (snapshot?.status === 'complete') {
-    return `<span class="score-stage post">Post ${Math.round(snapshot.score)}% <small>${scoreDelta(snapshot.score, baseline)}</small></span>`;
+    return `<span class="score-stage post">B · AI ${Math.round(snapshot.score)}% <small>${scoreDelta(snapshot.score, baseline)}</small></span>`;
   }
   if (snapshot?.status === 'incomplete') {
     return '<span class="score-stage post incomplete">Post incomplete</span>';
@@ -2037,7 +2048,7 @@ function postRewriteTmBadge(snapshot, baseline) {
 /** 渲染 CD 最终 C 的第三次真实 TM score。 */
 function finalTmBadge(snapshot, baseline) {
   if (snapshot?.status === 'complete') {
-    return `<span class="score-stage final">Final ${Math.round(snapshot.score)}% <small>${scoreDelta(snapshot.score, baseline)}</small></span>`;
+    return `<span class="score-stage final">C · Confirmed ${Math.round(snapshot.score)}% <small>${scoreDelta(snapshot.score, baseline)}</small></span>`;
   }
   if (snapshot?.status === 'incomplete') return '<span class="score-stage final incomplete">Final incomplete</span>';
   return '<span class="score-stage final pending">Final —</span>';

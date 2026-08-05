@@ -906,3 +906,21 @@ body {
 .archive-progress-details dt { color: #646a73; }
 .archive-progress-details dd { margin: 0; font-variant-numeric: tabular-nums; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+
+/* Task 5: compact audit hierarchy; global visual tokens remain Task 6. */
+.roi-methodology,
+.multilingual-roi-summary {
+  margin: 10px 0;
+  padding: 10px 12px;
+  border: 1px solid #d9dee8;
+  border-radius: 8px;
+  background: #fff;
+  color: #334155;
+}
+.roi-methodology summary { cursor: pointer; font-weight: 650; }
+.roi-methodology p { margin: 8px 0 0; line-height: 1.45; }
+.multilingual-roi-summary { display: flex; flex-wrap: wrap; gap: 8px 14px; }
+.multilingual-roi-summary strong,
+.multilingual-roi-summary p { flex-basis: 100%; margin: 0; }
+.score-stage.post { border-color: #8b7bd8; }
+.score-stage.final { border-color: #2d8a68; }
