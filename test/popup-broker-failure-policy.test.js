@@ -362,6 +362,7 @@ function makePopupDeps(brokerExports, overrides = {}) {
       filterReviewItems: (items) => items,
       getReviewableAiCandidates: () => [],
       isAiCandidateSelected: () => false,
+      numericOrNull: (value) => value == null || !Number.isFinite(Number(value)) ? null : Number(value),
       prepareBulkConfirmations: (items) => ({ ready: [], failed: [] }),
     },
   };

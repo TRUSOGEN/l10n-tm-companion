@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { buildReviewPresentation } from '../lib/review-workflow.js';
+import { buildReviewPresentation, numericOrNull } from '../lib/review-workflow.js';
 import { createReviewPresentationElement } from '../lib/review-presentation-view.js';
 import { buildVendorRoutes, formatVendorCoverage } from '../lib/archive-summary.js';
 import { deriveVendorRoiResults } from '../lib/multilingual-roi.js';
@@ -62,4 +62,26 @@ test('production coverage comes from real dual-vendor routes, not one vendor sum
   assert.equal(coverage.incomplete, true, 'ja has no confirmed final score yet');
   assert.match(coverage.explanations.join(' '), /routed outside vendor pricing/);
   assert.doesNotThrow(() => formatVendorCoverage({ routes: routes.filter((route) => route.served === false) }));
+});
+
+test('production numeric adapter preserves missing and non-finite amounts as null', () => {
+  assert.equal(numericOrNull(null), null);
+  assert.equal(numericOrNull(undefined), null);
+  assert.equal(numericOrNull(Number.NaN), null);
+  assert.equal(numericOrNull(Number.POSITIVE_INFINITY), null);
+  assert.equal(numericOrNull('12.5'), 12.5);
+  assert.equal(numericOrNull(0), 0);
+});
+
+test('renderer reports pending confirmed C when A/C amount is missing and never invents $0.00', () => {
+  const model = buildReviewPresentation({
+    original: { score: 70, cost: numericOrNull(null) },
+    ai: { score: 75 },
+    final: { score: null, cost: numericOrNull(undefined) },
+    candidateSafety: { safe: true },
+  });
+  assert.equal(model.officialSaving, null);
+  const view = createReviewPresentationElement(documentRef, model);
+  assert.equal(view.querySelector('.review-saving').textContent, 'Official A−C saving: pending confirmed C');
+  assert.doesNotMatch(view.querySelector('.review-saving').textContent, /\$0\.00/);
 });

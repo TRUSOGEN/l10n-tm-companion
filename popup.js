@@ -109,6 +109,7 @@ import {
   filterReviewItems,
   getReviewableAiCandidates,
   isAiCandidateSelected,
+  numericOrNull,
   prepareBulkConfirmations,
 } from './lib/review-workflow.js';
 import { createReviewPresentationElement } from './lib/review-presentation-view.js';
@@ -1992,12 +1993,12 @@ function updateResultsBadge(n) {
 function reviewPresentationForItem(item = {}) {
   const roi = item.roi || {};
   const reviewable = getReviewableAiCandidates(item);
-  const bScore = item.post_rewrite_tm?.status === 'complete' ? Number(item.post_rewrite_tm.score) : null;
-  const cScore = item.final_tm?.status === 'complete' ? Number(item.final_tm.score) : null;
+  const bScore = item.post_rewrite_tm?.status === 'complete' ? numericOrNull(item.post_rewrite_tm.score) : null;
+  const cScore = item.final_tm?.status === 'complete' ? numericOrNull(item.final_tm.score) : null;
   return buildReviewPresentation({
-    original: { score: Number(item.similarity), cost: Number(roi.estimatedCostBefore) },
+    original: { score: numericOrNull(item.similarity), cost: numericOrNull(roi.estimatedCostBefore) },
     ai: { score: bScore },
-    final: { score: cScore, cost: Number(roi.estimatedCostAfter) },
+    final: { score: cScore, cost: numericOrNull(roi.estimatedCostAfter) },
     candidateSafety: reviewable.length > 0
       ? { safe: true }
       : { safe: false, reason: explainFocusAiAbsence(item) },
