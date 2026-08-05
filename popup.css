@@ -924,3 +924,12 @@ body {
 .multilingual-roi-summary p { flex-basis: 100%; margin: 0; }
 .score-stage.post { border-color: #8b7bd8; }
 .score-stage.final { border-color: #2d8a68; }
+.review-presentation { display: grid; gap: 6px; }
+.review-presentation .review-saving { font-weight: 650; }
+.review-presentation[data-tone="warning"] .review-saving { color: #a15c00; }
+.review-presentation[data-tone="positive"] .review-saving { color: #14805e; }
+.review-presentation .review-explanation { margin: 0; color: #667085; line-height: 1.45; }
+.review-presentation.is-compact .review-explanation { font-size: 12px; }
+.score-stage.stage-b { border-color: #8b7bd8; }
+.score-stage.stage-c { border-color: #2d8a68; }
+.coverage-incomplete { color: #a15c00; }

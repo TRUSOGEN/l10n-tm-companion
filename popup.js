@@ -61,7 +61,7 @@ import {
   openFeishuSettingsPage,
   preflightFeishuAuthorization,
 } from './lib/feishu-auth.js';
-import { buildVendorRoutes, summarizeArchive } from './lib/archive-summary.js';
+import { buildVendorRoutes, formatVendorCoverage, summarizeArchive } from './lib/archive-summary.js';
 import { createArchiveProgress, renderArchiveProgress, updateArchiveProgress } from './lib/archive-progress.js';
 import { confirmThenRunArchive, createArchiveConfirmationController } from './lib/archive-confirmation.js';
 import { createFeishuPopupController } from './lib/feishu-popup-controller.js';
@@ -99,6 +99,7 @@ import {
 import {
   beginConfirmation,
   buildFocusTmState,
+  buildReviewPresentation,
   completeConfirmation,
   createReviewState,
   dedupeAiCandidates,
@@ -110,6 +111,7 @@ import {
   isAiCandidateSelected,
   prepareBulkConfirmations,
 } from './lib/review-workflow.js';
+import { createReviewPresentationElement } from './lib/review-presentation-view.js';
 
 let extractedItems = [];
 let processedItems = [];
@@ -1886,7 +1888,7 @@ function buildProcessedDisplayItems(scopeRuns) {
 function renderResults(items) {
   const container = document.getElementById('results');
   container.innerHTML = '';
-  renderMultilingualRoiSummary(multilingualRoiSummary);
+  renderVendorCoverageSummary();
   renderReviewFilter(items);
   if (items.length === 0) {
     container.innerHTML = '<div class="empty-hint">No results</div>';
@@ -1940,22 +1942,34 @@ function renderReviewFilter(items = []) {
   });
 }
 
-/** Display vendor coverage and routing without presenting popup money. */
-function renderMultilingualRoiSummary(summary) {
+/**
+ * 展示真实双 vendor 路由覆盖，不读取单个 vendor 的 summary。
+ *
+ * counts 与解释全部来自 `formatVendorCoverage`，Popup 不显示金额。
+ */
+function renderVendorCoverageSummary() {
   const container = document.getElementById('multilingual-roi-summary');
-  if (!summary) {
+  const plannedScopes = Array.isArray(activeWorkflowContext?.roiScopes) && activeWorkflowContext.roiScopes.length > 0
+    ? activeWorkflowContext.roiScopes
+    : multilingualScopeRuns.map((run) => run.scope);
+  const routes = buildVendorRoutes({ plannedScopes, vendorResults: vendorRoiResults });
+  if (routes.length === 0) {
     container.classList.add('hidden');
     container.innerHTML = '';
-    return;
+    return null;
   }
-  const coverage = summary.vendorCoverage || { RWS: 0, Pactera: 0, unpriced: 0 };
+  const coverage = formatVendorCoverage({ routes });
   container.classList.remove('hidden');
   container.innerHTML = `
     <strong>Vendor coverage</strong>
-    <span>RWS ${Number(coverage.RWS) || 0}</span>
-    <span>Pactera ${Number(coverage.Pactera) || 0}</span>
-    <span>Unpriced ${Number(coverage.unpriced) || 0}</span>
-    <p>Locales are routed to their configured vendor; unpriced scopes are reported without borrowing a rate.</p>`;
+    <span class="coverage-rws">RWS ${coverage.counts.RWS}</span>
+    <span class="coverage-pactera">Pactera ${coverage.counts.Pactera}</span>
+    <span class="coverage-unpriced">Unpriced ${coverage.counts.unpriced}</span>
+    <p class="coverage-explanation">${escapeHtml(coverage.explanations.join(' '))}</p>
+    ${coverage.incomplete
+    ? `<p class="coverage-incomplete">${coverage.incompleteCount} served scope(s) are missing a word rate, TM score, or confirmed final score.</p>`
+    : ''}`;
+  return coverage;
 }
 
 // BX5：更新结果 tab 的数量角标
@@ -1970,31 +1984,46 @@ function updateResultsBadge(n) {
   }
 }
 
+/**
+ * 构建卡片与 Focus 共用的 A→B→C 展示 model。
+ *
+ * 金额口径只在 `buildReviewPresentation` 内部计算，Popup 不重复推导 saving。
+ */
+function reviewPresentationForItem(item = {}) {
+  const roi = item.roi || {};
+  const reviewable = getReviewableAiCandidates(item);
+  const bScore = item.post_rewrite_tm?.status === 'complete' ? Number(item.post_rewrite_tm.score) : null;
+  const cScore = item.final_tm?.status === 'complete' ? Number(item.final_tm.score) : null;
+  return buildReviewPresentation({
+    original: { score: Number(item.similarity), cost: Number(roi.estimatedCostBefore) },
+    ai: { score: bScore },
+    final: { score: cScore, cost: Number(roi.estimatedCostAfter) },
+    candidateSafety: reviewable.length > 0
+      ? { safe: true }
+      : { safe: false, reason: explainFocusAiAbsence(item) },
+  });
+}
+
 function renderCard(item) {
   const card = document.createElement('div');
   card.className = 'result-card';
   card.dataset.id = item.id;
 
-  const sim = item.similarity ? Math.round(item.similarity) : 0;
   const reviewStatus = item.review_status || item.review?.status || 'draft';
 
   card.innerHTML = `
     <div class="card-summary">
       <span class="source-text" data-focus="${item.id}">"${escapeHtml(truncate(item.source_text, 60))}"</span>
-      <div class="score-rail" aria-label="TM score flow">
-        <span class="score-stage tm">A · Original ${sim}%</span>
-        <span class="score-arrow" aria-hidden="true">→</span>
-        ${postRewriteTmBadge(item.post_rewrite_tm, item.similarity)}
-        <span class="score-arrow" aria-hidden="true">→</span>
-        ${finalTmBadge(item.final_tm, item.similarity)}
-        ${reviewStatusTag(reviewStatus)}
-      </div>
+      <div class="card-review-presentation">${reviewStatusTag(reviewStatus)}</div>
     </div>
     <div class="card-actions">
       <button class="btn-sm btn-focus">${t('focus', uiLanguage)}</button>
     </div>
     ${renderAiAgentAttribution(item)}
   `;
+  card.querySelector('.card-review-presentation').append(
+    createReviewPresentationElement(document, reviewPresentationForItem(item), { compact: true }),
+  );
 
   const openFocus = () => openFocusView(item.id);
   card.querySelector('.btn-focus').addEventListener('click', openFocus);
@@ -2027,31 +2056,6 @@ function renderAiCandidates(candidates) {
     return `<li><strong>${index + 1}${score}${title}</strong><br>${escapeHtml(candidate.revision || '')}</li>`;
   }).join('');
   return detailSection(t('aiCandidates', uiLanguage), `<ol class="ai-candidate-list">${rows}</ol>`);
-}
-
-/**
- * 渲染结果卡片中的改写后真实 Starling TM 快照摘要。
- *
- * @param {object|undefined} snapshot 改写后二次 TM 查询快照。
- * @returns {string} 可安全插入卡片 badge 区域的 HTML。
- */
-function postRewriteTmBadge(snapshot, baseline) {
-  if (snapshot?.status === 'complete') {
-    return `<span class="score-stage post">B · AI ${Math.round(snapshot.score)}% <small>${scoreDelta(snapshot.score, baseline)}</small></span>`;
-  }
-  if (snapshot?.status === 'incomplete') {
-    return '<span class="score-stage post incomplete">Post incomplete</span>';
-  }
-  return '<span class="score-stage post pending">Post —</span>';
-}
-
-/** 渲染 CD 最终 C 的第三次真实 TM score。 */
-function finalTmBadge(snapshot, baseline) {
-  if (snapshot?.status === 'complete') {
-    return `<span class="score-stage final">C · Confirmed ${Math.round(snapshot.score)}% <small>${scoreDelta(snapshot.score, baseline)}</small></span>`;
-  }
-  if (snapshot?.status === 'incomplete') return '<span class="score-stage final incomplete">Final incomplete</span>';
-  return '<span class="score-stage final pending">Final —</span>';
 }
 
 /** 将审阅状态显示为紧凑、可区分的标签。 */
@@ -2200,12 +2204,7 @@ function renderFocus() {
       <div class="focus-label">${t('sourceDetail', uiLanguage)}</div>
       <div class="focus-text">${escapeHtml(item.source_text)}</div>
     </div>
-    <div class="score-rail focus-score-rail" aria-label="TM score flow">
-      <span class="score-stage tm">TM ${sim}%</span>
-      <span class="score-arrow" aria-hidden="true">→</span>
-      ${postRewriteTmBadge(item.post_rewrite_tm, item.similarity)}
-      <span class="score-arrow" aria-hidden="true">→</span>
-      ${finalTmBadge(item.final_tm, item.similarity)}
+    <div class="focus-review-presentation">
       ${reviewStatusTag(item.review.status)}
     </div>
     <details class="focus-disclosure focus-tm-disclosure">
@@ -2247,6 +2246,10 @@ function renderFocus() {
       </button>
     </div>
   `;
+
+  body.querySelector('.focus-review-presentation').append(
+    createReviewPresentationElement(document, reviewPresentationForItem(item)),
+  );
 
   body.querySelectorAll('[data-ai-candidate]').forEach((btn) => {
     btn.addEventListener('click', () => {
@@ -3038,6 +3041,7 @@ async function resetState() {
   reviewFilter = 'all';
   userChoices = {};
   multilingualRoiSummary = null;
+  vendorRoiResults = {};
   multilingualScopeRuns = [];
   activeDisplayScopeKey = '';
   finalValidationAttempted = false;
@@ -3046,7 +3050,7 @@ async function resetState() {
   activeBrokerRun = null;
   document.getElementById('results').innerHTML = '';
   document.getElementById('review-filter').classList.add('hidden');
-  renderMultilingualRoiSummary(null);
+  renderVendorCoverageSummary();
   document.getElementById('status').classList.add('hidden');
   document.getElementById('dest-preview').classList.add('hidden');
   updateRoiArchiveButtonEnabled(false);

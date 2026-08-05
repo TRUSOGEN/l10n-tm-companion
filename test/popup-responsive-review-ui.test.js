@@ -17,9 +17,16 @@ assert(source.includes('class="focus-disclosure focus-ai-disclosure"'), 'AI 候�
 assert(source.includes('rows="6"'), 'Final copy 必须提供足够的初始可读高度');
 assert(source.includes('autoSizeTextarea(manual)'), 'Final copy 必须根据内容自动伸缩');
 
-assert(source.includes('class="score-rail"'), '结果卡必须显示 A/B/C 分阶段得分轨道');
-assert(source.includes('score-arrow'), '结果卡必须显示阶段箭头');
-assert(source.includes('scoreDelta(snapshot.score, baseline)'), 'Post-TM 和 Final TM 必须显示相对 Score A 的变化');
+const reviewView = fs.readFileSync(path.join(root, 'lib/review-presentation-view.js'), 'utf8');
+assert(reviewView.includes("rail.className = 'score-rail'"), '共用 renderer 必须渲染 A/B/C 分阶段得分轨道');
+assert(reviewView.includes('score-arrow'), '共用 renderer 必须显示阶段箭头');
+assert(reviewView.includes('Math.round(score - baseline)'), 'B/C 必须显示相对 Score A 的变化');
+assert(source.includes('buildReviewPresentation') && source.includes('createReviewPresentationElement'), 'Popup 必须真实导入并调用共用 A→B→C model 与 renderer');
+assert(source.includes('function reviewPresentationForItem'), '卡片与 Focus 必须共用同一个 presentation model 构造函数');
+assert((source.match(/reviewPresentationForItem\(item\)/g) || []).length >= 2, '结果卡与 Focus 必须都使用共用 model');
+assert(!source.includes('function postRewriteTmBadge') && !source.includes('function finalTmBadge'), 'Popup 不得重复计算 A/B/C 展示口径');
+assert(source.includes('formatVendorCoverage({ routes })'), 'vendor 覆盖必须来自真实双 vendor routes');
+assert(!source.includes('renderMultilingualRoiSummary'), '禁止使用单个 vendor summary 渲染覆盖');
 assert(source.includes('reviewStatusTag(reviewStatus)'), 'draft/dirty/confirmed 必须渲染为状态标签');
 assert(source.includes("t(`reviewStatus${statusKey}`, uiLanguage)"), '审阅状态必须映射为用户动作，禁止直接显示内部枚举');
 assert(!source.includes("const label = normalized.charAt(0).toUpperCase() + normalized.slice(1)"), '界面不得直接显示 Dirty 等内部状态名');

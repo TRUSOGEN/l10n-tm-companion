@@ -18,28 +18,32 @@ const realVendorFixture = buildVendorRoutes({
   vendorResults: {
     RWS: {
       scopeRuns: [
-        { scope: { key: 'fr' }, rate: { status: 'ready', amount: 0.12 } },
-        { scope: { key: 'ar' }, rate: { status: 'incomplete', reason: 'word_rate_missing' } },
+        {
+          scope: { key: 'fr' },
+          rate: { status: 'ready', amount: 0.12 },
+          items: [{ similarity: 72, review_status: 'confirmed', final_tm: { status: 'complete', score: 88 } }],
+        },
+        { scope: { key: 'ar' }, rate: { status: 'incomplete', reason: 'word_rate_missing' }, items: [{ similarity: 60 }] },
       ],
       unservedScopes: [{ key: 'ja' }],
     },
     Pactera: {
-      scopeRuns: [{ scope: { key: 'ja' }, rate: { status: 'ready', amount: 0.09 } }],
+      scopeRuns: [{ scope: { key: 'ja' }, rate: { status: 'ready', amount: 0.09 }, items: [] }],
       unservedScopes: [{ key: 'fr' }, { key: 'ar' }],
     },
   },
 });
 assert.deepEqual(realVendorFixture, [
-  { vendor: 'RWS', scopeKey: 'fr', served: true, completeRate: true },
-  { vendor: 'RWS', scopeKey: 'ar', served: true, completeRate: false },
-  { vendor: 'RWS', scopeKey: 'ja', served: false, completeRate: false },
-  { vendor: 'Pactera', scopeKey: 'ja', served: true, completeRate: true },
-  { vendor: 'Pactera', scopeKey: 'fr', served: false, completeRate: false },
-  { vendor: 'Pactera', scopeKey: 'ar', served: false, completeRate: false },
-  { vendor: null, scopeKey: 'de', served: false, completeRate: false },
-]);
+  { vendor: 'RWS', scopeKey: 'fr', served: true, completeRate: true, completeTm: true, completeFinal: true },
+  { vendor: 'RWS', scopeKey: 'ar', served: true, completeRate: false, completeTm: true, completeFinal: false },
+  { vendor: 'RWS', scopeKey: 'ja', served: false, completeRate: false, completeTm: false, completeFinal: false },
+  { vendor: 'Pactera', scopeKey: 'ja', served: true, completeRate: true, completeTm: false, completeFinal: false },
+  { vendor: 'Pactera', scopeKey: 'fr', served: false, completeRate: false, completeTm: false, completeFinal: false },
+  { vendor: 'Pactera', scopeKey: 'ar', served: false, completeRate: false, completeTm: false, completeFinal: false },
+  { vendor: null, scopeKey: 'de', served: false, completeRate: false, completeTm: false, completeFinal: false },
+], 'served routes carry real rate/TM/final completeness and unknown is never faked complete');
 const realRouteSummary = summarizeArchive({ sourceRowCount: 100, languageCount: 4, vendorRoutes: realVendorFixture });
-assert.equal(realRouteSummary.incompleteLanguageCount, 1, 'only the served RWS rate gap is incomplete');
+assert.equal(realRouteSummary.incompleteLanguageCount, 2, 'served ar (rate/final) and served ja (no TM yet) are incomplete');
 assert.deepEqual(realRouteSummary.vendorCoverage, { RWS: 2, Pactera: 1, unpriced: 1 });
 assert.equal(realRouteSummary.unpricedLanguageCount, 1, 'a planned scope absent from every vendor is unpriced once');
 

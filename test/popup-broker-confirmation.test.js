@@ -304,7 +304,7 @@ function makePopupDeps(brokerExports, overrides = {}) {
     './lib/multilingual-runner.js': { completeDeferredLocaleScopes: async () => {}, partitionPriorityScope: (scopes) => ({ priority: scopes || [], deferred: [] }), runLocaleScopes: async () => ({ scopeRuns: [] }) },
     './lib/roi-bitable-archive.js': { FIXED_ROI_ARCHIVE_URL: 'https://bytedance.feishu.cn/base/roi', buildRoiArchivePayload: () => ({}), writeRoiArchive: async () => ({ ok: true }) },
     './lib/i18n.js': { applyI18n: () => 'en', normalizeUiLanguage: (l) => l, t: (k, _lang, vars) => `${k}${vars ? ':' + JSON.stringify(vars) : ''}` },
-    './lib/archive-summary.js': { buildVendorRoutes: () => [], summarizeArchive: () => ({ vendorCoverage: { RWS: 0, Pactera: 0, unpriced: 0 }, estimatedTmRequests: { original: 0, final: 0, total: 0 }, estimatedDuration: { minSeconds: 0, maxSeconds: 0 } }) },
+    './lib/archive-summary.js': { buildVendorRoutes: () => [], formatVendorCoverage: () => ({ counts: { RWS: 0, Pactera: 0, unpriced: 0 }, explanations: [], incomplete: false, incompleteCount: 0 }), summarizeArchive: () => ({ vendorCoverage: { RWS: 0, Pactera: 0, unpriced: 0 }, estimatedTmRequests: { original: 0, final: 0, total: 0 }, estimatedDuration: { minSeconds: 0, maxSeconds: 0 } }) },
     './lib/archive-progress.js': {
       createArchiveProgress: ({ estimatedRequests = 0, totalLanguages = 0, startedAt = 0 } = {}) => ({ estimatedRequests, totalLanguages, startedAt, completedRequests: 0, completedLanguages: 0, percent: 0, samples: [], activeOperations: [], elapsedMs: 0, etaMs: null, phase: 'Preparing' }),
       updateArchiveProgress: (state, event) => ({ ...state, ...event }),
@@ -317,9 +317,11 @@ function makePopupDeps(brokerExports, overrides = {}) {
     './lib/broker-async-roi.js': brokerExports,
     './lib/source-rewrite-policy.js': { evaluateRewriteCandidate: () => ({}), evaluateRewriteCandidates: () => [], formatTmSourceForDisplay: (s) => s },
     './lib/sheet-layout.js': { buildSourcePreview: () => '', getOutputColumns: () => [], sheetLayoutStorageKey: () => 'layout', validateSheetLayout: () => ({ ok: true }) },
+    './lib/review-presentation-view.js': { createReviewPresentationElement: () => ({}) },
     './lib/review-workflow.js': {
       beginConfirmation: (r) => ({ ...(r || {}), status: 'confirming' }),
       buildFocusTmState: () => ({}),
+      buildReviewPresentation: () => ({ rail: [], officialSaving: null, savingTone: 'neutral', headline: '', explanation: '' }),
       completeConfirmation: (r, meta) => ({ ...(r || {}), status: 'confirmed', finalText: r?.finalText, meta }),
       createReviewState: () => ({}),
       dedupeAiCandidates: (arr) => arr,
@@ -327,6 +329,7 @@ function makePopupDeps(brokerExports, overrides = {}) {
       explainFocusAiAbsence: () => '',
       failConfirmation: (r, e) => ({ ...(r || {}), status: 'error', error: e?.message || String(e) }),
       filterReviewItems: (items) => items,
+      getReviewableAiCandidates: () => [],
       isAiCandidateSelected: () => false,
       prepareBulkConfirmations: (items) => {
         const ready = [];
