@@ -322,6 +322,7 @@ function makePopupDeps(brokerExports, overrides = {}) {
     './lib/source-rewrite-policy.js': { evaluateRewriteCandidate: () => ({}), evaluateRewriteCandidates: () => [], formatTmSourceForDisplay: (s) => s },
     './lib/sheet-layout.js': { buildSourcePreview: () => '', getOutputColumns: () => [], sheetLayoutStorageKey: () => 'layout', validateSheetLayout: () => ({ ok: true }) },
     './lib/review-presentation-view.js': { createReviewPresentationElement: () => ({}) },
+    './lib/review-context-view.js': { buildReviewContextModel: () => ({}), renderReviewContext: () => {} },
     './lib/result-batch-renderer.js': { appendResultCardsInBatches: () => {}, captureActiveResultCardId: () => null },
     './lib/review-workflow.js': {
       beginConfirmation: (r) => ({ ...(r || {}), status: 'confirming' }),

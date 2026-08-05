@@ -114,6 +114,7 @@ import {
   prepareBulkConfirmations,
 } from './lib/review-workflow.js';
 import { createReviewPresentationElement } from './lib/review-presentation-view.js';
+import { buildReviewContextModel, renderReviewContext } from './lib/review-context-view.js';
 import { appendResultCardsInBatches, captureActiveResultCardId } from './lib/result-batch-renderer.js';
 
 let extractedItems = [];
@@ -130,6 +131,8 @@ let vendorRoiResults = {};
 let rateCatalog = null;
 let activeRunConfig = null;
 let multilingualRoiSummary = null;
+let reviewContextCoverage = null;
+let reviewContextDestination = null;
 let multilingualScopeRuns = [];
 let archiveProgressState = null;
 let archiveOperationCounts = { A: 0, C: 0 };
@@ -1973,6 +1976,13 @@ function renderReviewFilter(items = []) {
  *
  * counts 与解释全部来自 `formatVendorCoverage`，Popup 不显示金额。
  */
+function refreshReviewContext() {
+  renderReviewContext(document, buildReviewContextModel({
+    coverage: reviewContextCoverage,
+    destination: reviewContextDestination,
+  }));
+}
+
 function renderVendorCoverageSummary() {
   const container = document.getElementById('multilingual-roi-summary');
   const plannedScopes = Array.isArray(activeWorkflowContext?.roiScopes) && activeWorkflowContext.roiScopes.length > 0
@@ -1982,19 +1992,15 @@ function renderVendorCoverageSummary() {
   if (routes.length === 0) {
     container.classList.add('hidden');
     container.innerHTML = '';
+    reviewContextCoverage = null;
+    refreshReviewContext();
     return null;
   }
   const coverage = formatVendorCoverage({ routes });
-  container.classList.remove('hidden');
-  container.innerHTML = `
-    <strong>Vendor coverage</strong>
-    <span class="coverage-rws">RWS ${coverage.counts.RWS}</span>
-    <span class="coverage-pactera">Pactera ${coverage.counts.Pactera}</span>
-    <span class="coverage-unpriced">Unpriced ${coverage.counts.unpriced}</span>
-    <p class="coverage-explanation">${escapeHtml(coverage.explanations.join(' '))}</p>
-    ${coverage.incomplete
-    ? `<p class="coverage-incomplete">${coverage.incompleteCount} served scope(s) are missing a word rate, TM score, or confirmed final score.</p>`
-    : ''}`;
+  container.classList.add('hidden');
+  container.innerHTML = '';
+  reviewContextCoverage = coverage;
+  refreshReviewContext();
   return coverage;
 }
 
@@ -3252,6 +3258,8 @@ function renderDestPreview(items, config) {
   const sheetId = config.sheetId || parsed?.sheetId || '(default first sheet)';
   if (!token) {
     el.classList.add('hidden');
+    reviewContextDestination = null;
+    refreshReviewContext();
     return;
   }
 
@@ -3266,9 +3274,14 @@ function renderDestPreview(items, config) {
   }
 
   const typeLabel = parsed?.type === 'bitable' ? 'Bitable' : 'Spreadsheet (Sheet)';
-  el.classList.remove('hidden');
-  el.innerHTML = `<span class="dest-label">Will write to:</span>
-    <span class="dest-target">${typeLabel} / ${token} / ${sheetId} / ${loc}</span>`;
+  el.classList.add('hidden');
+  el.innerHTML = '';
+  reviewContextDestination = {
+    type: typeLabel,
+    location: loc,
+    fullPath: `${typeLabel} / ${token} / ${sheetId} / ${loc}`,
+  };
+  refreshReviewContext();
 }
 
 

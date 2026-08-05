@@ -191,14 +191,27 @@
         <span class="results-title" data-i18n="resultTitle">Extraction & processing results</span>
         <button id="btn-back-main" class="btn-sm" data-i18n="back">Back to workflow</button>
       </div>
-      <details id="roi-methodology" class="roi-methodology">
-        <summary>ROI methodology · A → B → C</summary>
-        <p><strong>A</strong> Original baseline · <strong>B</strong> AI-assisted review evidence · <strong>C</strong> Confirmed final.</p>
-        <p>Official saving is Cost(A) − Cost(C). B never affects official amounts.</p>
+      <details id="review-context" class="review-context">
+        <summary><span id="review-context-summary">A→B→C · RWS 0 · Pactera 0 · Unpriced 0 · Destination/not selected</span></summary>
+        <div class="review-context-body">
+          <section aria-labelledby="review-methodology-title">
+            <strong id="review-methodology-title">Review details · A → B → C</strong>
+            <p><strong>A</strong> is the original baseline, <strong>B</strong> is AI-assisted review evidence, and <strong>C</strong> is the confirmed final. Official saving compares A with C only.</p>
+          </section>
+          <section aria-labelledby="review-coverage-title">
+            <strong id="review-coverage-title">Vendor coverage</strong>
+            <p id="review-context-coverage">RWS 0 · Pactera 0 · Unpriced 0</p>
+            <p id="review-context-incomplete" class="coverage-incomplete hidden"></p>
+          </section>
+          <section aria-labelledby="review-destination-title">
+            <strong id="review-destination-title">Will write to</strong>
+            <p id="review-context-destination" class="review-context-path">Not selected</p>
+          </section>
+        </div>
       </details>
-      <div id="multilingual-roi-summary" class="multilingual-roi-summary roi-only hidden"></div>
+      <div id="multilingual-roi-summary" class="multilingual-roi-summary roi-only hidden" aria-hidden="true"></div>
       <div id="roi-archive-preview" class="dest-preview roi-only hidden"></div>
-      <div id="dest-preview" class="dest-preview hidden"></div>
+      <div id="dest-preview" class="dest-preview hidden" aria-hidden="true"></div>
       <div id="review-filter" class="review-filter hidden" role="group" aria-label="Review result filter" data-i18n-aria-label="reviewFilter">
         <button id="review-filter-all" class="review-filter-option" type="button" aria-pressed="true">
           <span data-i18n="allResults">All</span>

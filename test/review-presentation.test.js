@@ -28,7 +28,7 @@ test('renderer exposes warning role and official A-C amount', () => {
   const view = createReviewPresentationElement(documentRef, model);
   assert.equal(view.dataset.tone, 'warning');
   assert.equal(view.querySelector('.review-saving').textContent, 'Official A−C saving: −$5.00');
-  assert.equal(view.querySelector('.review-explanation').textContent, model.explanation);
+  assert.equal(view.querySelector('.review-explanation'), null, 'global methodology is not repeated in cards or Focus View');
   assert.equal(view.attributes.role, 'status');
 });
 
@@ -84,4 +84,12 @@ test('renderer reports pending confirmed C when A/C amount is missing and never 
   const view = createReviewPresentationElement(documentRef, model);
   assert.equal(view.querySelector('.review-saving').textContent, 'Official A−C saving: pending confirmed C');
   assert.doesNotMatch(view.querySelector('.review-saving').textContent, /\$0\.00/);
+});
+
+test('one hundred shared presentations never repeat the global methodology copy', () => {
+  const model = buildReviewPresentation({ original: { score: 70, cost: 8 }, ai: { score: 82 }, final: { score: 90, cost: 4 } });
+  const views = Array.from({ length: 100 }, () => createReviewPresentationElement(documentRef, model));
+  assert.equal(views.filter((view) => view.querySelector('.review-explanation')).length, 0);
+  assert.equal(views.filter((view) => view.querySelector('.score-rail')).length, 100, 'A/B/C rails remain visible');
+  assert.equal(views.filter((view) => view.querySelector('.review-saving')).length, 100, 'amounts remain visible');
 });

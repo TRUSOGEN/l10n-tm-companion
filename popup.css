@@ -1029,3 +1029,45 @@ html, body { max-width: 100%; overflow-x: hidden; }
 .ui-error pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 11px; }
 .ui-error-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 .ui-error-actions button { min-height: 44px; }
+
+/* Compact Review context: one disclosure owns methodology, coverage, and destination. */
+.review-context {
+  margin: 6px 10px 4px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--card);
+  min-width: 0;
+}
+.review-context > summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  padding: 4px 8px;
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.review-context > summary:focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: 2px;
+}
+.review-context-body { padding: 0 10px 8px; display: grid; gap: 8px; font-size: 12px; }
+.review-context-body section { border-top: 1px solid var(--border); padding-top: 8px; }
+.review-context-body p { margin: 3px 0 0; line-height: 1.45; }
+.review-context-path { overflow-wrap: anywhere; word-break: break-word; }
+#view-results > .multilingual-roi-summary,
+#view-results > #dest-preview { display: none !important; }
+#view-results .results-toolbar { padding: 4px 10px; min-height: 44px; gap: 8px; }
+#view-results .results-title { min-width: 0; line-height: 1.2; }
+#view-results .review-filter { margin: 4px 10px; padding: 2px; gap: 2px; }
+#view-results .review-filter-option { min-height: 44px; padding: 4px 8px; }
+#view-results .results-footer { padding-block: 4px; }
+#view-results .results-footer .btn { min-height: 44px; padding-block: 4px; }
+@media (max-width: 375px) {
+  #view-results, #view-results * { min-width: 0; max-width: 100%; }
+  #view-results .results-toolbar { align-items: center; flex-direction: row; }
+  #view-results .results-title { font-size: 12px; }
+  #view-results .btn-sm { white-space: normal; }
+}
