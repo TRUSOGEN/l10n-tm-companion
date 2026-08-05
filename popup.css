@@ -1032,3 +1032,9 @@ html, body { max-width: 100%; overflow-x: hidden; }
   }
   .result-card.is-confirmed { animation-duration: .01ms !important; }
 }
+
+/* Actionable errors preserve Task 6 focus, spacing, and 44px target contracts. */
+.ui-error p { margin: 6px 0; }
+.ui-error pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 11px; }
+.ui-error-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.ui-error-actions button { min-height: 44px; }

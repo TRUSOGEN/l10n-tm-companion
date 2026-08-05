@@ -52,6 +52,7 @@ import {
   buildRoiArchivePayload,
   writeRoiArchive,
 } from './lib/roi-bitable-archive.js';
+import { toUiError } from './lib/ui-errors.js';
 import { applyI18n, normalizeUiLanguage, t } from './lib/i18n.js';
 import {
   authorizeFeishuUser,
@@ -1261,8 +1262,10 @@ async function refreshWorkingSheetContext() {
     activeSheetLayout = null;
     activeSheetInspectionRows = [];
     const status = document.getElementById('sheet-layout-status');
-    status.textContent = `Cannot load spreadsheet sheets or layout: ${error.message}`;
-    status.className = 'run-status error';
+    renderUiError(toUiError(error, { operation: 'sheet' }), status, {
+      retry: refreshWorkingSheetContext,
+      documentRef: document,
+    });
     document.getElementById('working-sheet-details').open = true;
   }
 }
@@ -3049,7 +3052,14 @@ async function writeCurrentRoiArchive({ skipConfirmation = false } = {}) {
     });
   } catch (error) {
     console.warn('ROI archive / Feishu authorization failed.', error);
-    showRoiArchiveResult(false, error instanceof Error ? error.message : String(error));
+    const preview = document.getElementById('roi-archive-preview');
+    preview.classList.remove('hidden');
+    preview.className = 'dest-preview dest-error';
+    preview.textContent = 'ROI archive failed. Use the recovery action below.';
+    showUiError(error, 'archive', {
+      retry: () => writeCurrentRoiArchive({ skipConfirmation: true }),
+      resume: () => writeCurrentRoiArchive({ skipConfirmation: true }),
+    });
   } finally {
     hideProgress();
     button.textContent = 'Write ROI archive';
@@ -3278,16 +3288,75 @@ function showStatus(text, type = '') {
   el.className = `status ${type}`;
 }
 
-// 可操作错误：把原始 error 映射成「问题 + 下一步」展示（LOOP_SPEC §6.3）
+// 可操作错误：仅渲染 toUiError 已脱敏的详情，动作通过生产路径执行。
+export async function executeUiErrorAction(actionId, context = {}) {
+  if (actionId === 'copy-details') {
+    const details = String(context.rawDetails || '');
+    await (context.clipboard || navigator.clipboard).writeText(details);
+    return details;
+  }
+  if (actionId === 'open-settings') {
+    return (context.openSettings || (() => chrome.runtime.openOptionsPage()))();
+  }
+  if (actionId === 'configure-sheet-layout') {
+    const details = context.documentRef?.getElementById('working-sheet-details') || document.getElementById('working-sheet-details');
+    const config = context.documentRef?.getElementById('sheet-context-config') || document.getElementById('sheet-context-config');
+    const source = context.documentRef?.getElementById('sheet-source-column') || document.getElementById('sheet-source-column');
+    details.open = true;
+    config.classList.remove('hidden');
+    source.focus();
+    return;
+  }
+  if (actionId === 'retry') {
+    if (typeof context.retry !== 'function') throw new Error('Retry action is unavailable.');
+    return context.retry();
+  }
+  if (actionId === 'resume-archive') {
+    const snapshot = context.snapshot || (await chrome.storage.local.get(ROI_WORKFLOW_SNAPSHOT_KEY))[ROI_WORKFLOW_SNAPSHOT_KEY];
+    const plan = snapshot?.workflowContext?.roiArchivePlan;
+    const runIds = plan?.vendors?.map((entry) => entry.runId).filter(Boolean) || [];
+    if (!plan?.baseRunId || runIds.length === 0) throw new Error('No resumable archive snapshot was found.');
+    if (typeof context.resume === 'function') return context.resume({ snapshot, runId: plan.baseRunId, runIds });
+    activeWorkflowContext = snapshot.workflowContext;
+    return writeCurrentRoiArchive({ skipConfirmation: true });
+  }
+  throw new Error(`Unsupported error action: ${actionId}`);
+}
+
+export function renderUiError(model, container, context = {}) {
+  if (typeof container.replaceChildren === 'function') container.replaceChildren();
+  else container.innerHTML = '';
+  container.className = `status ui-error ${model.severity || 'error'}`;
+  const title = document.createElement('strong');
+  title.textContent = model.title;
+  const message = document.createElement('p');
+  message.textContent = model.message;
+  const details = document.createElement('details');
+  const summary = document.createElement('summary');
+  summary.textContent = 'Details';
+  const pre = document.createElement('pre');
+  pre.textContent = model.rawDetails;
+  details.append(summary, pre);
+  const actions = document.createElement('div');
+  actions.className = 'ui-error-actions';
+  [model.primaryAction, model.secondaryAction].filter(Boolean).forEach((action) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = action.label;
+    button.dataset.errorAction = action.id;
+    button.addEventListener('click', () => executeUiErrorAction(action.id, { ...context, rawDetails: model.rawDetails }));
+    actions.append(button);
+  });
+  container.append(title, message, details, actions);
+  return container;
+}
+
+function showUiError(error, operation, context = {}) {
+  return renderUiError(toUiError(error, { operation }), document.getElementById('status'), context);
+}
+
 function showError(err) {
-  const fe = friendlyError(err, uiLanguage);
-  const el = document.getElementById('status');
-  // 必须显示原始错误（fe.raw），否则 friendlyError 的宽匹配会吞掉诊断信息，
-  // 用户只看到通用标题（如「未设置写入目标」），看不到真正的根因/诊断 JSON。
-  el.innerHTML = `<strong>${escapeHtml(fe.title)}</strong><br>` +
-    `<span class="status-action">${escapeHtml(fe.action)}</span>` +
-    `<details><summary>Raw error</summary><pre style="white-space:pre-wrap;font-size:11px;">${escapeHtml(fe.raw)}</pre></details>`;
-  el.className = 'status error';
+  showUiError(err, 'general');
 }
 
 function updateSelectedCount() {

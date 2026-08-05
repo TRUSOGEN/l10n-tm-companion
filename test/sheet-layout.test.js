@@ -48,7 +48,8 @@ check('第二行 D 列唯一标准表头自动识别，数据从第三行开始'
 check('Source 与 English Source 使用精确标准化匹配', () => {
   assert.equal(detectSheetLayout([['  source  '], ['Hello']]).layout.sourceColumn, 'A');
   assert.equal(detectSheetLayout([['English   Source'], ['Hello']]).layout.dataStartRow, 2);
-  assert.equal(detectSheetLayout([['Source note'], ['Hello']]).status, 'confirmation_required');
+  assert.equal(detectSheetLayout([['Source note'], ['Hello']]).status, 'incomplete');
+  assert.equal(detectSheetLayout([['Source note'], ['Hello']]).reason, 'header_row_required');
 });
 
 check('多个合法表头不会擅自选择', () => {
@@ -58,20 +59,21 @@ check('多个合法表头不会擅自选择', () => {
   assert.deepEqual(result.candidates.map((candidate) => candidate.sourceColumn), ['A', 'C']);
 });
 
-check('无表头以首个非空单元格作为候选并要求确认', () => {
+check('缺少标准表头固定阻断为 header_row_required，不臆造表头并保留显式确认', () => {
   const result = detectSheetLayout([[], ['', 'First source'], ['', 'Second source']]);
-  assert.equal(result.status, 'confirmation_required');
-  assert.equal(result.reason, 'source_header_not_found');
+  assert.equal(result.status, 'incomplete');
+  assert.equal(result.reason, 'header_row_required');
   assert.equal(result.layout.sourceColumn, 'B');
   assert.equal(result.layout.dataStartRow, 2);
   assert.equal(result.layout.confirmed, false);
+  assert.equal('headerRow' in result.layout, false);
 });
 
-check('无表头候选位于第一行时要求调整数据起始行', () => {
+check('无表头候选位于第一行时仍固定要求 header row', () => {
   const result = detectSheetLayout([['First source'], ['Second source']]);
-  assert.equal(result.status, 'confirmation_required');
+  assert.equal(result.status, 'incomplete');
   assert.equal(result.reason, 'header_row_required');
-  assert.equal(validateSheetLayout(result.layout).reason, 'data_start_row_requires_header');
+  assert.equal(result.layout.confirmed, false);
 });
 
 check('输出连续六列且来源列不可与输出重叠', () => {

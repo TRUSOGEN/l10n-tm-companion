@@ -297,6 +297,7 @@ function makePopupDeps(brokerExports, overrides = {}) {
     './lib/tm-threshold.js': { TM_MATCH_THRESHOLD: 85 },
     './lib/feishu-sheets.js': { writeConfirmedReviewItems: async () => ({}), writeConfirmedReviewItem: async () => ({}), listSourceSegments: async () => [], listSpreadsheetSheets: async () => [], inspectSheetLayout: async () => ({}), testSheetsConnection: async () => ({ ok: true }), parseSheetsUrl: () => null, parseFeishuUrl: () => null, resolveSpreadsheetReference: async () => null },
     './lib/errors.js': { friendlyError: (e) => (e?.message || String(e)) },
+    './lib/ui-errors.js': { toUiError: (e) => ({ title: 'Error', message: e?.message || String(e), primaryAction: { id: 'retry', label: 'Retry' }, secondaryAction: null, rawDetails: String(e), severity: 'error' }) },
     './lib/run-config.js': { buildFastTmScope: () => ({}), buildLocaleScopes: () => [], normalizeProject: (p) => p, paginateProjects: (items) => items, targetLocaleIntersection: () => [], toggleProjectSelection: () => {}, validateRunConfig: () => ({ ok: true }) },
     './lib/pricing-rules.js': { resolveWordRate: () => 0 },
     './lib/roi-calculation.js': { calculateRoiForItem: () => ({ status: 'not_requested' }) },
