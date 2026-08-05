@@ -15,13 +15,13 @@ const source = fs.readFileSync(path.join(root, 'popup.js'), 'utf8');
 assert(html.includes('id="feishu-auth-card"'), '首页必须展示飞书授权卡片');
 assert(html.includes('id="connect-feishu-user"'), '首页必须提供飞书授权按钮');
 assert(html.includes('id="feishu-auth-status"'), '首页必须展示授权结果');
-assert(source.includes('async function connectFeishuUserFromPopup()'), '首页必须实现用户授权动作');
+assert(source.includes('createFeishuPopupController({'), '首页必须使用唯一 controller 授权路径');
 assert(source.includes('feishuPopupController.bind()'), '首页必须通过可执行 controller 绑定飞书授权按钮');
 assert(source.includes('await runHealthCheck();'), '授权完成后必须即时刷新健康检查');
 assert(source.includes('async function getActiveReturnUrl()'), '首页授权前必须读取当前原页面 URL');
 assert(
-  source.includes('authorizeFeishuUser({ returnUrl })'),
-  '首页授权必须把原页面 URL 交给 OAuth callback',
+  source.includes('authorizeLegacy: authorizeFeishuUser') && source.includes('getReturnUrl: getActiveReturnUrl'),
+  'controller 必须保留 legacy OAuth 与 callback return URL 接线',
 );
 assert(
   source.includes('status.missingScopes'),

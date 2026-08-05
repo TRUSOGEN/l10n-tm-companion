@@ -71,3 +71,12 @@ git diff --check
 新增 controller 文件是满足“生产接线与行为测试使用同一实现”所必需的计划外小幅文件调整，不涉及 ROI/TM/vendor/Run ID。
 
 本轮 focused/auth、全部 JavaScript regression、`popup.js`/`options.js`/`lib/feishu-auth.js`/controller 语法检查和 `git diff --check` 全部通过。
+
+## 最终复审修复（2026-08-05）
+
+- Controller Connect 增加共享 in-flight Promise；授权全程禁用 Connect，所有完成/失败路径均在 `finally` 恢复按钮。
+- Connect 的 preflight、return URL、legacy/Broker OAuth 和授权后 refresh 全部由事件处理内部捕获，并统一进入注入的 safe error renderer；生命周期 refresh 同样使用安全包装，不产生 unhandled rejection。
+- 行为测试真实连续触发两次 Connect，确认仅一次 Broker OAuth；分别覆盖 legacy/Broker reject，确认错误可见、按钮恢复且另一授权路径调用为 0。
+- 删除 Popup 中旧 `openFeishuSettings` 与 `connectFeishuUserFromPopup` 死路径；生产授权仅由 controller 负责，保留 return URL callback 和 Broker 无 fallback 边界。
+
+全部 focused/auth tests、`test/*.test.js`、四个相关 JS 语法检查及 `git diff --check` 通过。

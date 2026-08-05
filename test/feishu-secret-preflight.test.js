@@ -11,7 +11,7 @@ function node() {
   value.classList = { values: new Set(), add(v) { this.values.add(v); }, remove(v) { this.values.delete(v); }, contains(v) { return this.values.has(v); } };
   return value;
 }
-function harness({ legacy = true, configured = false, openFailure = null } = {}) {
+function harness({ legacy = true, configured = false, openFailure = null, authFailure = null } = {}) {
   const ids = ['connect-feishu-user', 'feishu-secret-diagnostic', 'feishu-secret-action', 'feishu-auth-title', 'feishu-auth-status', 'feishu-auth-card'];
   const nodes = Object.fromEntries(ids.map((id) => [id, node()]));
   const doc = target(); doc.visibilityState = 'visible'; doc.getElementById = (id) => nodes[id];
@@ -23,7 +23,8 @@ function harness({ legacy = true, configured = false, openFailure = null } = {})
     shouldUseLegacy: async () => legacy,
     getAuthorizationStatus: async () => ({ connected: false, profile: null }),
     getCredentialStatus: async () => { secretCalls += 1; return { configured }; },
-    authorizeLegacy: async () => { legacyCalls += 1; }, authorizeBroker: async () => { brokerCalls += 1; },
+    authorizeLegacy: async () => { legacyCalls += 1; await tick(); if (authFailure) throw authFailure; },
+    authorizeBroker: async () => { brokerCalls += 1; await tick(); if (authFailure) throw authFailure; },
     getReturnUrl: async () => 'https://example.test',
     openSettingsPage: async ({ storage, openOptionsPage }) => { await storage.set({ optionsNavigationIntent: 'feishu-secret' }); await openOptionsPage(); },
     formatError: (error) => ({ title: 'Settings failed', message: error.message }),
@@ -39,8 +40,24 @@ assert(missing.nodes['connect-feishu-user'].classList.contains('hidden'));
 assert(!missing.nodes['feishu-secret-action'].classList.contains('hidden'));
 
 const broker = harness({ legacy: false }); broker.controller.bind();
-await broker.nodes['connect-feishu-user'].fire('click');
+const firstConnect = broker.nodes['connect-feishu-user'].fire('click');
+const secondConnect = broker.nodes['connect-feishu-user'].fire('click');
+assert.equal(broker.nodes['connect-feishu-user'].disabled, true);
+await Promise.all([firstConnect, secondConnect]);
 assert.deepEqual(broker.counts(), { secretCalls: 0, legacyCalls: 0, brokerCalls: 1 });
+assert.equal(broker.nodes['connect-feishu-user'].disabled, false);
+
+for (const legacy of [true, false]) {
+  const failed = harness({ legacy, configured: true, authFailure: new Error('oauth rejected') });
+  failed.controller.bind();
+  await failed.nodes['connect-feishu-user'].fire('click');
+  assert.deepEqual(failed.counts(), legacy
+    ? { secretCalls: 1, legacyCalls: 1, brokerCalls: 0 }
+    : { secretCalls: 0, legacyCalls: 0, brokerCalls: 1 });
+  assert.equal(failed.nodes['connect-feishu-user'].disabled, false);
+  assert.equal(failed.nodes['feishu-auth-status'].textContent, 'Settings failed');
+  assert(!failed.nodes['feishu-secret-diagnostic'].classList.contains('hidden'));
+}
 
 const settings = harness({ openFailure: new Error('open denied') }); settings.controller.bind();
 await settings.nodes['feishu-secret-action'].fire('click');
