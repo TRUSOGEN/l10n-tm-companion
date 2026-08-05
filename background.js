@@ -12,9 +12,22 @@
 
 const NATIVE_HOST = 'com.l10n.tm_companion';
 
+/**
+ * 后台日志脱敏：Service Worker 是 classic script，无法复用 ESM 的 lib/ui-errors.js，
+ * 因此这里只输出错误类型与错误代码，绝不输出 error.message 或 error 对象本身，
+ * 从根上保证 secret / access key / token 不会进入后台日志。
+ * @param {unknown} error
+ * @returns {string} 形如 `Error (E_CODE)` 的脱敏描述
+ */
+function describeErrorForLog(error) {
+  const name = (error && typeof error === 'object' && error.name) ? String(error.name) : 'Error';
+  const code = (error && typeof error === 'object' && (error.code ?? error.status)) ?? null;
+  return code === null || code === undefined || code === '' ? name : `${name} (${String(code)})`;
+}
+
 // 点击扩展图标直接打开持久 Side Panel，避免 Popup 失焦关闭和固定高度截断结果。
 chrome.sidePanel?.setPanelBehavior({ openPanelOnActionClick: true }).catch((error) => {
-  console.warn('[bg] Side Panel behavior setup failed:', error?.message || error);
+  console.warn('[bg] Side Panel behavior setup failed:', describeErrorForLog(error));
 });
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
@@ -100,7 +113,7 @@ function forwardToActiveTab(msg, sendResponse) {
 
     chrome.tabs.sendMessage(tab.id, msg, async (response) => {
       const lastErr = chrome.runtime.lastError;
-      console.log('[bg] sendMessage 返回:', response, 'lastError:', lastErr?.message);
+      console.log('[bg] sendMessage 返回, lastError:', lastErr ? describeErrorForLog(lastErr) : 'none');
       // 没报错 → 正常返回
       if (!lastErr) {
         sendResponse(response);
@@ -124,7 +137,7 @@ function forwardToActiveTab(msg, sendResponse) {
 
       chrome.tabs.sendMessage(tab.id, msg, (resp2) => {
         const e2 = chrome.runtime.lastError;
-        console.log('[bg] 重试 sendMessage 返回:', resp2, 'lastError:', e2?.message);
+        console.log('[bg] 重试 sendMessage 返回, lastError:', e2 ? describeErrorForLog(e2) : 'none');
         if (e2) {
           sendResponse({
             error:
@@ -153,7 +166,7 @@ async function injectContentScriptIfNeeded(tabId) {
     return true;
   } catch (e) {
     // 可能是受限页面（chrome:// 等）或无 host 权限
-    console.warn('content.js 兜底注入失败:', e?.message || e);
+    console.warn('content.js 兜底注入失败（已脱敏）:', describeErrorForLog(e));
     return false;
   }
 }
