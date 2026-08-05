@@ -234,6 +234,16 @@ async function run() {
     console.error('FAIL: final_text_hash not awaited/valid', submitted?.body?.final_text_hash, finalHash);
   }
 
+  const polled = await brokerExports.pollBrokerRunUntil({
+    runId: 'run-1',
+    predicate: () => true,
+    onProgress: () => { throw new Error('observer failed'); },
+  });
+  if (polled?.run_id !== 'run-1') {
+    failures += 1;
+    console.error('FAIL: throwing progress observer changed broker poll result');
+  }
+
   const popupSource = fs.readFileSync(path.resolve(__dirname, '..', 'popup.js'), 'utf8');
   const suspiciousPatterns = [
     /const\s+brokerPayload\s*=\s*buildBrokerRunPayload\(/,

@@ -472,9 +472,19 @@ function deferredInput(overrides) {
     'C 请求完成数必须单调递增',
   );
   for (const event of progress) {
-    assert.deepEqual(Object.keys(event).sort(), ['completedLanguages', 'completedRequests', 'operation', 'phase', 'sampleDurationMs', 'totalLanguages'].sort());
+    assert.deepEqual(Object.keys(event).sort(), ['completedLanguages', 'completedRequests', 'operation', 'phase', 'sampleDurationMs', 'sampleRequestCount', 'totalLanguages'].sort());
     assert.equal(JSON.stringify(event).match(/source|secret|access.?key|token/i), null, 'progress event must not expose source or credentials');
   }
 }
 
-console.log('multilingual-runner tests: 55 passed, 0 failed');
+// Progress observer exceptions are isolated from scheduling and business results.
+{
+  const runs = await runnerModule.completeDeferredLocaleScopes(deferredInput({
+    scopeCount: 2,
+    onProgress: () => { throw new Error('observer failed'); },
+  }));
+  assert.equal(runs.length, 2);
+  assert.equal(runs[1].items[0].roi.status, 'complete');
+}
+
+console.log('multilingual-runner tests: 57 passed, 0 failed');

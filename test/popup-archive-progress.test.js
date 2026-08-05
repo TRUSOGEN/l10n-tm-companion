@@ -13,11 +13,13 @@ assert.match(popup, /renderArchiveProgress\(archiveProgressState, archiveProgres
 
 // Execute the exact renderer imported by production, rather than only checking source strings.
 const node = () => ({ textContent: '', style: {}, classList: { remove() {} }, setAttribute(name, value) { this[name] = value; } });
-const elements = Object.fromEntries(['root', 'live', 'phase', 'operations', 'languages', 'requests', 'elapsed', 'eta', 'progressbar'].map((key) => [key, node()]));
+const elements = Object.fromEntries(['root', 'live', 'phase', 'operations', 'languages', 'requests', 'elapsed', 'eta', 'progressTrack', 'progressFill'].map((key) => [key, node()]));
 renderArchiveProgress({ phase: 'Final TM (C)', activeOperations: ['A', 'C'], completedLanguages: 7, totalLanguages: 56, completedRequests: 14, estimatedRequests: 112, elapsedMs: 5000, etaMs: null, percent: 12.5 }, elements);
 assert.equal(elements.operations.textContent, 'A + C');
 assert.equal(elements.languages.textContent, '7/56');
 assert.equal(elements.requests.textContent, '14/112');
 assert.equal(elements.eta.textContent, 'Estimating time');
-assert.equal(elements.progressbar['aria-valuenow'], '13');
+assert.equal(elements.progressTrack['aria-valuenow'], '13');
+assert.equal(elements.progressTrack.style.width, undefined);
+assert.equal(elements.progressFill.style.width, '12.5%');
 console.log('popup archive progress tests passed');

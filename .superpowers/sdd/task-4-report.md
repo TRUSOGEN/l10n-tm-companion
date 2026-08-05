@@ -69,3 +69,15 @@ node --check lib/broker-async-roi.js
 - Final TM 仍调用原 `queryFinalTm` 路径。
 - Archive plan 继续复用既有 base Run ID / vendor Run ID；complete vendor 在 retry 时继续跳过。
 - Broker 权威模式、pending final archive guard 和 resume 行为的既有回归全部通过。
+
+## 审查修复（后续 commit）
+
+针对 Task 4 审查阻塞完成以下修复：
+
+1. Runner 与 Broker 均通过 safe emitter 调用进度观察者；观察者同步抛错被隔离，不改变查询、轮询、调度或业务返回。新增 callback throw 回归。
+2. 生产 `pollActiveBrokerRun` 接受并真实调用 `onProgress`，Writing 与 Complete 事件进入同一 UI 观察路径；Broker authority、Run ID 与 archive guard 未改变。生产轮询测试覆盖两个阶段。
+3. Renderer 明确分离 `progressTrack`（仅维护 ARIA）与 `progressFill`（仅维护视觉宽度），可执行 DOM 节点行为测试验证二者不会串写。
+4. ETA 样本统一为“单请求耗时”：runner 通过 `sampleRequestCount` 将 scope 总耗时按请求数规范化。新增 100 rows / batch 40（每 operation 3 请求）测试，确认 ETA 不重复乘 batch 数。
+5. 阶段使用固定有序状态机并取单调最大阶段；迟到的 A/C 事件不能将 Calculating ROI 等后续阶段回退，也不能重新激活已结束的 A/C。新增乱序测试。
+
+复验结果：focused tests 全部通过；`./scripts/run-full-regression.sh` 再次输出 `ALL_JS_TESTS_PASSED`、`JS_SYNTAX_OK`，顶层 Python 与 native compile 也通过。脚本仍在既有 backend pytest 阶段输出 `BACKEND_TESTS_FAIL` 并以 1 退出。

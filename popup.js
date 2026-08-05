@@ -82,6 +82,7 @@ import {
   pollBrokerRunUntil,
   replayPendingBrokerFinals,
   requestBrokerArchive,
+  safeEmitBrokerProgress,
   setBrokerAsyncRoiEnabled,
 } from './lib/broker-async-roi.js';
 import {
@@ -356,6 +357,7 @@ if (typeof globalThis !== 'undefined') {
     countPendingBrokerFinalSubmissions: (snapshot) => countPendingBrokerFinalSubmissions(snapshot || activeBrokerRun),
     canArchiveBrokerRun: (snapshot) => canArchiveBrokerRun(snapshot || activeBrokerRun),
     replayPendingBrokerFinals: (...args) => replayPendingBrokerFinals(...args),
+    pollActiveBrokerRun: (options) => pollActiveBrokerRun(options),
     writeCurrentRoiArchive: () => writeCurrentRoiArchive({ skipConfirmation: true }),
     isLegacyLocalSecretDevOnlyEnabled: () => isLegacyLocalSecretDevOnlyEnabled(),
     shouldUseLegacyFallback: () => shouldUseLegacyFallback(),
@@ -626,7 +628,7 @@ async function syncBrokerRunStatus(status) {
   await persistBrokerRunSnapshot(activeBrokerRun);
 }
 
-async function pollActiveBrokerRun({ intervalMs = 2500 } = {}) {
+async function pollActiveBrokerRun({ intervalMs = 2500, onProgress = reportArchiveProgress } = {}) {
   stopBrokerPolling();
   if (!brokerAsyncRoi || !activeBrokerRun?.run_id) return;
   const tick = async () => {
@@ -634,6 +636,10 @@ async function pollActiveBrokerRun({ intervalMs = 2500 } = {}) {
       const status = await fetchBrokerRun(activeBrokerRun.run_id);
       await syncBrokerRunStatus(status);
       const archiveDone = ['complete', 'incomplete', 'failed'].includes(String(status.archive_state));
+      safeEmitBrokerProgress(onProgress, {
+        phase: archiveDone ? 'Complete' : 'Writing to Feishu',
+        elapsedMs: archiveProgressState?.elapsedMs || 0,
+      });
       const aDone = ['complete', 'incomplete', 'failed'].includes(String(status.a_state));
       const cDone = !status.items || status.items.every((item) => ['confirmed', 'open', 'failed', 'skipped'].includes(item.review_state));
       if (archiveDone || (aDone && cDone && status.archive_state === 'not_requested')) {
@@ -2680,7 +2686,8 @@ function archiveProgressElements() {
     requests: document.getElementById('archive-progress-requests'),
     elapsed: document.getElementById('archive-progress-elapsed'),
     eta: document.getElementById('archive-progress-eta'),
-    progressbar: document.querySelector('#roi-archive-progress [role="progressbar"]'),
+    progressTrack: document.getElementById('archive-progress-track'),
+    progressFill: document.getElementById('archive-progress-bar'),
   };
 }
 

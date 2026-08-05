@@ -598,6 +598,27 @@ async function run() {
       /if\s*\(pendingCount\s*>\s*0\)\s*\{[\s\S]{0,500}?pending broker sync[\s\S]{0,500}?\}\s*else\s*\{[\s\S]{0,300}?remaining item/.test(popupSource));
   }
 
+  // Case 12: production broker polling forwards safe Writing/Complete events to the UI observer.
+  {
+    const chrome = makeStubChrome({});
+    const brokerClient = makeBrokerClient();
+    const brokerExports = loadBrokerModule(brokerClient, makeHashStub(), chrome).exports;
+    let poll = 0;
+    brokerExports.fetchBrokerRun = async () => {
+      poll += 1;
+      return poll === 1
+        ? { run_id: 'run-progress', revision: 1, a_state: 'processing', archive_state: 'writing' }
+        : { run_id: 'run-progress', revision: 1, a_state: 'complete', archive_state: 'complete' };
+    };
+    const hooks = loadPopupModule(brokerExports, chrome).sandbox.__popupBrokerTestHooks;
+    hooks.setBrokerState({ brokerAsyncRoi: true, activeBrokerRun: { run_id: 'run-progress', revision: 1 } });
+    const phases = [];
+    await hooks.pollActiveBrokerRun({ intervalMs: 1, onProgress: (event) => phases.push(event.phase) });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    assert('Case 12: production poll emits Writing to Feishu', phases.includes('Writing to Feishu'));
+    assert('Case 12: production poll emits Complete', phases.includes('Complete'));
+  }
+
   console.log(`\nA3 popup-broker-confirmation: ${passed} passed / ${failed} failed`);
   if (failed > 0) process.exit(1);
 }
