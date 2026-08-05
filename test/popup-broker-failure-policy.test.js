@@ -301,6 +301,11 @@ function makePopupDeps(brokerExports, overrides = {}) {
     authorizeFeishuUserViaBroker: async () => ({ connected: true, profile: { name: 'tester' }, broker: true }),
     getFeishuBrokerConnectionStatus: async () => ({ ok: true, has_device_session: true }),
     getFeishuUserAuthorizationStatus: async () => ({ connected: true, profile: { name: 'tester' }, missingScopes: [] }),
+    getFeishuCredentialStatus: async () => ({ configured: true }),
+    preflightFeishuAuthorization: (status = {}) => status.connected
+      ? { state: 'connected', title: 'Connected', message: 'Connected' }
+      : { state: status.secretConfigured ? 'ready' : 'secret-required', title: 'Ready', message: 'Ready' },
+    openFeishuSettingsPage: async ({ storage, openOptionsPage }) => { await storage.set({ optionsNavigationIntent: 'feishu-secret' }); await openOptionsPage(); },
     shouldUseFeishuBroker: async () => false,
     isLegacyLocalSecretPathEnabled: async () => false,
   };

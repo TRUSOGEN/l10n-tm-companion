@@ -58,6 +58,7 @@ import {
   authorizeFeishuUserViaBroker,
   getFeishuCredentialStatus,
   getFeishuUserAuthorizationStatus,
+  openFeishuSettingsPage,
   preflightFeishuAuthorization,
 } from './lib/feishu-auth.js';
 import { sha256Text } from './lib/hash-utils.js';
@@ -178,6 +179,15 @@ document.getElementById('setup-open-settings').addEventListener('click', () => {
 });
 document.getElementById('connect-feishu-user').addEventListener('click', connectFeishuUserFromPopup);
 document.getElementById('feishu-secret-action').addEventListener('click', openFeishuSettings);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') void renderPopupFeishuAuthorizationStatus();
+});
+window.addEventListener?.('focus', () => { void renderPopupFeishuAuthorizationStatus(); });
+chrome.storage.onChanged?.addListener((changes, area) => {
+  if (area === 'local' && (changes.feishuUserAccessToken || changes.optionsNavigationIntent)) {
+    void renderPopupFeishuAuthorizationStatus();
+  }
+});
 document.getElementById('refresh-projects').addEventListener('click', loadAccessibleProjects);
 document.getElementById('project-page-previous').addEventListener('click', () => {
   projectPageIndex -= 1;
@@ -423,7 +433,33 @@ async function renderPopupFeishuAuthorizationStatus() {
   const title = document.getElementById('feishu-auth-title');
   const statusText = document.getElementById('feishu-auth-status');
   const button = document.getElementById('connect-feishu-user');
+  const diagnostic = document.getElementById('feishu-secret-diagnostic');
+  const secretAction = document.getElementById('feishu-secret-action');
   const status = await getFeishuUserAuthorizationStatus();
+  const useLegacy = await shouldUseLegacyFallback();
+  const credential = useLegacy && typeof getFeishuCredentialStatus === 'function'
+    ? await getFeishuCredentialStatus()
+    : { configured: true };
+  const preflight = typeof preflightFeishuAuthorization === 'function'
+    ? preflightFeishuAuthorization({
+        connected: status.connected,
+        displayName: status.profile?.name || status.profile?.enName,
+        secretConfigured: credential.configured,
+      })
+    : { state: status.connected ? 'connected' : 'ready' };
+  diagnostic.classList.add('hidden');
+  secretAction.classList.add('hidden');
+  button.classList.remove('hidden');
+  if (preflight.state === 'secret-required') {
+    card.classList.add('error');
+    title.textContent = preflight.title;
+    statusText.textContent = preflight.message;
+    diagnostic.textContent = preflight.message;
+    diagnostic.classList.remove('hidden');
+    secretAction.classList.remove('hidden');
+    button.classList.add('hidden');
+    return;
+  }
   card.classList.toggle('connected', status.connected);
   card.classList.remove('error');
   if (!status.connected) {
@@ -464,8 +500,21 @@ async function renderPopupFeishuAuthorizationStatus() {
  */
 /** Persist a deep-link intent before opening Settings. */
 async function openFeishuSettings() {
-  await chrome.storage.local.set({ optionsNavigationIntent: 'feishu-secret' });
-  await chrome.runtime.openOptionsPage();
+  const card = document.getElementById('feishu-auth-card');
+  const statusText = document.getElementById('feishu-auth-status');
+  const diagnostic = document.getElementById('feishu-secret-diagnostic');
+  try {
+    await openFeishuSettingsPage({
+      storage: chrome.storage.local,
+      openOptionsPage: () => chrome.runtime.openOptionsPage(),
+    });
+  } catch (error) {
+    card.classList.add('error');
+    const model = friendlyError(error);
+    statusText.textContent = model.title || 'Could not open Settings';
+    diagnostic.textContent = model.action || model.raw || error.message;
+    diagnostic.classList.remove('hidden');
+  }
 }
 
 async function connectFeishuUserFromPopup() {

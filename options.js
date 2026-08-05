@@ -14,6 +14,7 @@ import {
 import { parseSheetsUrl } from './lib/feishu-sheets.js';
 import {
   configureFeishuApplication,
+  consumeFeishuSettingsNavigation,
   getFeishuCredentialStatus,
   getFeishuUserAuthorizationStatus,
 } from './lib/feishu-auth.js';
@@ -137,24 +138,16 @@ async function load() {
   await renderFeishuUserStatus();
   await renderFeishuApplicationStatus();
   await loadCredentials(data);
-  const navigation = await chrome.storage.local.get(['optionsNavigationIntent']);
-  focusOptionsSection(location.hash, navigation.optionsNavigationIntent);
-  if (navigation.optionsNavigationIntent === 'feishu-secret') {
-    await chrome.storage.local.remove(['optionsNavigationIntent']);
-  }
+  await focusOptionsSection(location.hash);
 }
 
 /** Focus the requested Settings section without exposing credential values. */
-export function focusOptionsSection(hash, intent) {
-  if (hash !== '#feishu-secret' && intent !== 'feishu-secret') return false;
-  const section = document.getElementById('feishu-secret');
-  const action = document.getElementById('feishu-secret-action');
-  const guidance = document.getElementById('feishu-secret-guidance');
-  if (!section || !action || !guidance) return false;
-  guidance.classList.remove('hidden');
-  section.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  action.focus({ preventScroll: true });
-  return true;
+export async function focusOptionsSection(hash) {
+  return consumeFeishuSettingsNavigation({
+    hash,
+    storage: chrome.storage.local,
+    documentRef: document,
+  });
 }
 
 /** 显示当前飞书 OAuth 用户资料和短期授权状态。 */

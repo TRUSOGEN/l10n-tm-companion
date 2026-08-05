@@ -52,3 +52,14 @@ git diff --check
 ## Concerns
 
 无已知阻塞问题。Secret preflight 仅约束需要本机 Keychain Secret 的 legacy 路径；Broker 开启且权威时由 Broker 持有应用 Secret，这是刻意保留的安全边界。
+
+## 审查修复（2026-08-05）
+
+按审查意见补充第二轮 RED→GREEN：
+
+- 将 Secret preflight 测试升级为可执行行为测试，通过依赖注入真实执行状态决策、Chrome storage/open 顺序、失败传播，以及 Settings intent/hash 的消费、清理、滚动和聚焦。
+- Popup 在 `visibilitychange`、window focus 和相关 storage change 时安全刷新授权状态；配置完成返回后会隐藏诊断/Settings action、恢复 Connect，并且监听器仅在模块初始化时注册一次。
+- Broker authoritative 刷新和连接均不会查询本机 Secret；legacy 缺 Secret 时在 OAuth 前停止。
+- Settings 打开流程捕获 storage 与 openOptionsPage 拒绝，并在既有诊断区展示 safe friendly error，不产生 unhandled rejection。
+
+验证通过：focused Secret/OAuth tests、`feishu-auth`（33/0）、Broker failure policy（33/0）、全部 `test/*.test.js`、三个 `node --check` 及 `git diff --check`。
