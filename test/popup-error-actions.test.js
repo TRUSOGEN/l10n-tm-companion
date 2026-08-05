@@ -174,3 +174,14 @@ assert.ok(preserveContainer.classList.contains('error'), '应附加 severity cla
 assert.notEqual(preserveContainer.className, 'status ui-error error', '不得整体覆写 className');
 
 console.log('popup-error-actions: className preserved');
+
+// renderUiError 渲染后必须移除 hidden，否则错误卡片会渲染进仍隐藏的容器（例如 #status）。
+const hiddenContainer = new Element();
+hiddenContainer.className = 'status hidden run-status';
+renderUiError(initialModel({ id: 'retry', label: 'Retry' }), hiddenContainer, {});
+assert.ok(!hiddenContainer.classList.contains('hidden'), '渲染错误卡片后必须移除 hidden');
+assert.ok(hiddenContainer.classList.contains('status'), 'hidden 移除后其他语义 class 必须保留');
+assert.ok(hiddenContainer.classList.contains('run-status'), 'hidden 移除后自定义 class 必须保留');
+assert.ok(hiddenContainer.classList.contains('ui-error'), '应附加 ui-error');
+
+console.log('popup-error-actions: hidden removed on render');

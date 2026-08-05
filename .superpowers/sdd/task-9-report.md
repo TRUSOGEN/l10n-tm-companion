@@ -84,11 +84,17 @@ Task 1–8 提交后进行整分支审查，发现 2 项 Critical、3 项 Import
 - 红灯：`test/popup-error-actions.test.js` 的 Element stub 升级为真实 `classList.add/remove/contains`，新增断言：容器初始 `run-status sheet-layout-status`，渲染后仍包含两者，并附加 `ui-error` + severity，且 `className` 不等于固定字符串。
 - 实现：`renderUiError` 不再覆写 `container.className`，改为移除过期 severity token（`error/warning/info/ok/success` 中非当前项）后 `classList.add('ui-error', severity)`。`popup.css` 的 `.ui-error*` 规则不依赖 `.status`，样式不受影响。
 
+### 12. 错误卡片渲染时取消容器隐藏 — `fix: unhide container when rendering error cards`
+
+- 问题：`renderUiError` 只附加 class，不会移除 `hidden`，因此当 `#status` 处于隐藏态时错误卡片会渲染进不可见容器，用户看不到任何错误提示与恢复按钮。
+- 红灯：`test/popup-error-actions.test.js` 新增断言：容器初始 `status hidden run-status`，渲染后不含 `hidden`，同时 `status` / `run-status` / `ui-error` 均保留。首次运行确认失败（`渲染错误卡片后必须移除 hidden`）。
+- 实现：`renderUiError` 在 `classList.add('ui-error', severity)` 之后追加一行 `container.classList.remove('hidden')`。
+
 ### 复测结果（最后一轮）
 
 | 命令 | 结果 |
 | --- | --- |
-| 全量 `test/*.test.js`（61 个文件，含新增 background 日志测试） | 全部通过 |
+| 全量 `test/*.test.js`（62 个文件） | 全部通过（含新增 hidden 断言，共 11 个 renderUiError 场景） |
 | `node --check`（popup/options/background + 全部 `lib/*.js`、`test/*.test.js`） | 通过 |
 | `git diff --check` | 无错误 |
 

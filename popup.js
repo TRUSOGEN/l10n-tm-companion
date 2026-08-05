@@ -3334,6 +3334,7 @@ export function renderUiError(model, container, context = {}) {
     if (stale !== severity) container.classList.remove(stale);
   }
   container.classList.add('ui-error', severity);
+  container.classList.remove('hidden');
   const title = document.createElement('strong');
   title.textContent = model.title;
   const message = document.createElement('p');
