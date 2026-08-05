@@ -343,7 +343,7 @@ body {
 .result-card {
   background: var(--card); border: 1px solid var(--border);
   border-radius: 8px; padding: 12px; margin-bottom: 10px;
-  transition: transform var(--motion-fast) var(--motion-ease), border-color var(--motion-fast) ease;
+  transition: opacity var(--motion-card) var(--motion-ease), transform var(--motion-card) var(--motion-ease);
 }
 .result-card:nth-child(-n+8) { animation: card-enter var(--motion-standard) var(--motion-ease) both; }
 .result-card:hover { transform: translateY(-1px); }
@@ -983,7 +983,7 @@ html, body { max-width: 100%; overflow-x: hidden; }
 .status.error, .run-status.error, .review-status-tag.status-error { color: var(--color-error); }
 
 .step { transition: opacity var(--motion-step) var(--motion-ease), transform var(--motion-step) var(--motion-ease); }
-.result-card { animation: none; transition: opacity var(--motion-card) var(--motion-ease), transform var(--motion-card) var(--motion-ease), border-color var(--motion-card) ease; }
+.result-card { animation: none; transition: opacity var(--motion-card) var(--motion-ease), transform var(--motion-card) var(--motion-ease); }
 .result-card.is-entering { opacity: 0; transform: translateY(6px); }
 .result-card.is-complete, .result-card.is-confirmed { border-color: var(--color-confirmed); }
 .result-card.is-confirmed { animation: confirmed-once var(--motion-card) var(--motion-ease) 1; }
@@ -1006,5 +1006,29 @@ html, body { max-width: 100%; overflow-x: hidden; }
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .step {
+    transition-duration: .01ms !important;
+    animation-duration: .01ms !important;
+    transform: none !important;
+  }
+  .result-card {
+    transition-duration: .01ms !important;
+    animation-duration: .01ms !important;
+    transform: none !important;
+  }
+  .focus-overlay {
+    transition-duration: .01ms !important;
+    animation-duration: .01ms !important;
+    transform: none !important;
+  }
+  .focus-box {
+    transition-duration: .01ms !important;
+    animation-duration: .01ms !important;
+    transform: none !important;
+  }
+  .archive-progress-bar {
+    transition-duration: .01ms !important;
+    animation-duration: .01ms !important;
+  }
   .result-card.is-confirmed { animation-duration: .01ms !important; }
 }

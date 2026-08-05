@@ -113,6 +113,7 @@ import {
   prepareBulkConfirmations,
 } from './lib/review-workflow.js';
 import { createReviewPresentationElement } from './lib/review-presentation-view.js';
+import { appendResultCardsInBatches } from './lib/result-batch-renderer.js';
 
 let extractedItems = [];
 const RESULT_RENDER_BATCH_SIZE = 25;
@@ -1896,34 +1897,9 @@ function buildProcessedDisplayItems(scopeRuns) {
 }
 
 // ===== 渲染结果卡片 =====
-function appendResultCardsInBatches(container, cards, generation) {
-  const activeId = document.activeElement?.closest?.('.result-card')?.dataset.id || null;
-  const finish = () => {
-    if (generation !== resultRenderGeneration) return;
-    container.setAttribute('aria-busy', 'false');
-    if (activeId) container.querySelector(`[data-id="${CSS.escape(activeId)}"] button`)?.focus();
-  };
-  if (cards.length <= 50) {
-    cards.forEach((card) => container.appendChild(card));
-    finish();
-    return;
-  }
-  let offset = 0;
-  container.setAttribute('aria-busy', 'true');
-  const appendBatch = () => {
-    if (generation !== resultRenderGeneration) return;
-    const fragment = document.createDocumentFragment();
-    cards.slice(offset, offset + RESULT_RENDER_BATCH_SIZE).forEach((card) => fragment.appendChild(card));
-    container.appendChild(fragment);
-    offset += RESULT_RENDER_BATCH_SIZE;
-    if (offset < cards.length) requestAnimationFrame(appendBatch);
-    else finish();
-  };
-  requestAnimationFrame(appendBatch);
-}
-
 function renderResults(items) {
   const container = document.getElementById('results');
+  const activeCardId = document.activeElement?.closest?.('.result-card')?.dataset.id || null;
   const renderGeneration = ++resultRenderGeneration;
   container.setAttribute('aria-busy', 'false');
   container.innerHTML = '';
@@ -1948,7 +1924,14 @@ function renderResults(items) {
     container.innerHTML = `<div class="empty-hint">${escapeHtml(t('noImprovedResults', uiLanguage))}</div>`;
   } else {
     const orderedCards = visibleItems.map((item) => renderCard(item));
-    appendResultCardsInBatches(container, orderedCards, renderGeneration);
+    appendResultCardsInBatches({
+      container,
+      cards: orderedCards,
+      generation: renderGeneration,
+      isCurrent: (generation) => generation === resultRenderGeneration,
+      activeCardId,
+      batchSize: RESULT_RENDER_BATCH_SIZE,
+    });
   }
   applyI18n(document, uiLanguage);
   updateSelectedCount();

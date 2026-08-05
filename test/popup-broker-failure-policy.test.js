@@ -349,6 +349,7 @@ function makePopupDeps(brokerExports, overrides = {}) {
     './lib/source-rewrite-policy.js': { evaluateRewriteCandidate: () => ({}), evaluateRewriteCandidates: () => [], formatTmSourceForDisplay: (s) => s },
     './lib/sheet-layout.js': { buildSourcePreview: () => '', getOutputColumns: () => [], sheetLayoutStorageKey: () => 'layout', validateSheetLayout: () => ({ ok: true }) },
     './lib/review-presentation-view.js': { createReviewPresentationElement: () => ({}) },
+    './lib/result-batch-renderer.js': { appendResultCardsInBatches: () => {} },
     './lib/review-workflow.js': {
       beginConfirmation: (r) => ({ ...(r || {}), status: 'confirming' }),
       buildFocusTmState: () => ({}),

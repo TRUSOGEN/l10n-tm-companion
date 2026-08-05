@@ -7,6 +7,7 @@ const root = path.resolve(import.meta.dirname, '..');
 const css = fs.readFileSync(path.join(root, 'popup.css'), 'utf8');
 const html = fs.readFileSync(path.join(root, 'popup.html'), 'utf8');
 const source = fs.readFileSync(path.join(root, 'popup.js'), 'utf8');
+const batchSource = fs.readFileSync(path.join(root, 'lib/result-batch-renderer.js'), 'utf8');
 
 const rootBlock = css.match(/:root\s*\{([^}]*)\}/)?.[1] || '';
 const tokens = Object.fromEntries([...rootBlock.matchAll(/--([\w-]+)\s*:\s*([^;]+);/g)].map((m) => [m[1], m[2].trim().toUpperCase()]));
@@ -26,6 +27,20 @@ assert.match(css, /--motion-step:\s*150ms/);
 assert.match(css, /--motion-card:\s*180ms/);
 assert.match(css, /--motion-focus:\s*200ms/);
 assert.match(css, /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*\.01ms/);
+const reducedBlocks = [...css.matchAll(/@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{([\s\S]*?)\n\}/g)].map((match) => match[1]).join('\n');
+for (const selector of ['.step', '.result-card', '.focus-overlay', '.focus-box', '.archive-progress-bar']) {
+  const escaped = selector.replace('.', '\\.');
+  assert.match(reducedBlocks, new RegExp(`${escaped}\\s*\\{[^}]*transition-duration:\\s*\\.01ms`, 's'), `${selector} 必须显式关闭 transition`);
+  assert.match(reducedBlocks, new RegExp(`${escaped}\\s*\\{[^}]*animation-duration:\\s*\\.01ms`, 's'), `${selector} 必须显式关闭 animation`);
+}
+for (const selector of ['.step', '.result-card', '.focus-overlay', '.focus-box']) {
+  const escaped = selector.replace('.', '\\.');
+  assert.match(reducedBlocks, new RegExp(`${escaped}\\s*\\{[^}]*transform:\\s*none`, 's'), `${selector} reduced-motion 不保留非必要 transform`);
+}
+const resultCardTransition = css.match(/\.result-card\s*\{[^}]*transition:\s*([^;]+);/s)?.[1] || '';
+const transitionedProperties = [...resultCardTransition.matchAll(/(?:^|,)\s*([\w-]+)/g)].map((match) => match[1]);
+assert.deepEqual(transitionedProperties, ['opacity', 'transform'], 'result-card motion property 只允许 opacity/transform');
+assert.doesNotMatch(css, /\.result-card\s*\{[^}]*transition:[^;}]*border-color/s);
 assert.doesNotMatch(css, /animation[^;]*(?:infinite|blink)/i, '状态高亮不得持续闪烁');
 assert.match(css, /@media\s*\(max-width:\s*375px\)[\s\S]*grid-template-columns:\s*1fr/, '375px 必须降为单列契约');
 
@@ -38,10 +53,11 @@ assert.match(html, /role="progressbar"[^>]*aria-valuenow="0"/);
 
 const batchSize = Number(source.match(/const RESULT_RENDER_BATCH_SIZE = (\d+)/)?.[1]);
 assert.ok(batchSize > 0 && batchSize <= 25, '每帧最多渲染 25 张卡');
-assert.match(source, /function appendResultCardsInBatches\([^)]*\)/);
-assert.match(source, /requestAnimationFrame\(/, '大列表必须把批次排入 animation frame');
-assert.match(source, /container\.setAttribute\('aria-busy', 'true'\)/);
-assert.match(source, /container\.setAttribute\('aria-busy', 'false'\)/);
+assert.match(batchSource, /export function appendResultCardsInBatches/);
+assert.match(batchSource, /raf\(appendBatch\)/, '大列表必须把批次排入 animation frame');
+assert.match(batchSource, /container\.setAttribute\('aria-busy', 'true'\)/);
+assert.match(batchSource, /container\.setAttribute\('aria-busy', 'false'\)/);
+assert.match(source, /const activeCardId = [^;]+;[\s\S]*container\.innerHTML = '';/, '必须在清空 DOM 前捕获 active card');
 assert.match(source, /visibleItems\.map\(\(item\) => renderCard\(item\)\)/, '渲染前必须按过滤结果建立有序卡片序列');
 
 console.log('side panel accessibility tests: passed');

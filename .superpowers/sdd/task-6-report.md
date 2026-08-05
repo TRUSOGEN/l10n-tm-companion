@@ -83,3 +83,28 @@
 - 当前环境无法完成 Backend pytest，仅为工具依赖缺失；本任务不修改 backend。
 - standard-lint 仍有仓库存量错误；Task 6 的完整 Node 测试与语法检查均通过。
 - 未在本次自动化环境执行真实 Chrome Side Panel 的视觉截图对比；375px、ARIA、键盘与 reduced-motion 由 CSS/DOM/行为契约覆盖。
+
+
+## 审查修复（2026-08-05）
+
+### 二次 RED
+
+- 扩展 `side-panel-accessibility.test.js`：逐选择器验证 `.step`、`.result-card`、`.focus-overlay`、`.focus-box`、`.archive-progress-bar` 在 reduced-motion 下显式使用 `.01ms`；非必要位移选择器必须 `transform:none`。
+- 增加 result-card motion property 白名单，只允许 `opacity` 与 `transform`，明确禁止 `border-color` transition。
+- 新增 `result-batch-renderer.test.js` fake DOM 行为测试：53 项多帧保持顺序、恢复第 51 项焦点；generation 改变后旧帧停止追加且不移动焦点。
+- RED 确认：缺少 batch renderer 模块；`.step` 未显式覆盖 reduced-motion。
+
+### 修复
+
+- 对全部新增 motion 选择器增加显式 reduced-motion 规则；Step/Card/Focus 清除非必要 transform，Progress 保留表达当前百分比所必需的 `scaleX` 状态，但将 transition/animation 缩短至 `.01ms`。
+- 从 result-card 的全部声明移除 `border-color` transition，motion 仅保留 opacity/transform。
+- 将批渲染调度提取为可执行纯模块 `lib/result-batch-renderer.js`。
+- `renderResults` 在 `innerHTML=''` 前捕获 active card ID，再把 ID 传给 renderer；renderer 以 generation guard 阻止 stale frame，按输入顺序每帧最多追加 25 项，完成后恢复同卡 action 焦点。
+- Popup VM 测试同步注入新模块，不改变 Broker、归档或 ROI 行为。
+
+### 二次验证
+
+- UI focused：7/7 测试通过（含 accessibility、fake DOM batch、compact、responsive、i18n、archive progress）。
+- Full JS：58/58 测试文件通过。
+- JS syntax：通过（包含新增模块与测试）。
+- `git diff --check`：通过。
