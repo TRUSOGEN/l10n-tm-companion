@@ -11,7 +11,12 @@ class Element {
   constructor(tag = 'div') {
     this.tag = tag; this.children = []; this.dataset = {}; this.attributes = {};
     this.className = ''; this.disabled = false; this.isConnected = false;
-    this.classList = { remove: (name) => { this.removed = name; } };
+    const tokens = () => this.className.split(/\s+/).filter(Boolean);
+    this.classList = {
+      add: (...names) => { this.className = [...new Set([...tokens(), ...names])].join(' '); },
+      remove: (...names) => { this.removed = names[0]; this.className = tokens().filter((t) => !names.includes(t)).join(' '); },
+      contains: (name) => tokens().includes(name),
+    };
   }
   connect(value) { this.isConnected = value; this.children.forEach((child) => child?.connect?.(value)); }
   append(...children) { children.forEach((child) => { this.children.push(child); child?.connect?.(this.isConnected); }); }
@@ -157,3 +162,15 @@ const popupSource = fs.readFileSync(new URL('../popup.js', import.meta.url), 'ut
 assert.match(popupSource, /toUiError\(error, \{ operation, locale: uiLanguage \}\)/, 'showUiError 必须语言感知');
 
 console.log('popup-error-actions behavior tests: 10 scenarios passed');
+
+// renderUiError 只能附加 .ui-error* class，必须保留调用方的语义 class（例如 run-status）。
+const preserveContainer = new Element();
+preserveContainer.className = 'run-status sheet-layout-status';
+renderUiError(initialModel({ id: 'retry', label: 'Retry' }), preserveContainer, {});
+assert.ok(preserveContainer.classList.contains('run-status'), '原有语义 class 必须保留');
+assert.ok(preserveContainer.classList.contains('sheet-layout-status'), '调用方自定义 class 必须保留');
+assert.ok(preserveContainer.classList.contains('ui-error'), '应附加 ui-error');
+assert.ok(preserveContainer.classList.contains('error'), '应附加 severity class');
+assert.notEqual(preserveContainer.className, 'status ui-error error', '不得整体覆写 className');
+
+console.log('popup-error-actions: className preserved');

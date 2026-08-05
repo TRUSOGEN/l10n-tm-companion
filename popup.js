@@ -3327,7 +3327,13 @@ export async function executeUiErrorAction(actionId, context = {}) {
 export function renderUiError(model, container, context = {}) {
   if (typeof container.replaceChildren === 'function') container.replaceChildren();
   else container.innerHTML = '';
-  container.className = `status ui-error ${model.severity || 'error'}`;
+  // 只附加 ui-error 相关 class：容器可能是 #status、run-status 或调用方自定义的语义容器，
+  // 整体覆写 className 会丢掉这些语义/布局 class。
+  const severity = model.severity || 'error';
+  for (const stale of ['error', 'warning', 'info', 'ok', 'success']) {
+    if (stale !== severity) container.classList.remove(stale);
+  }
+  container.classList.add('ui-error', severity);
   const title = document.createElement('strong');
   title.textContent = model.title;
   const message = document.createElement('p');
