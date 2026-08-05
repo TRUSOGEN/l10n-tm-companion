@@ -132,6 +132,43 @@ assert.doesNotMatch(shapeDetails, /eyJhbGciOiJIUzI1NiJ9/, 'bare Bearer value red
 assert.match(shapeDetails, /req-shape/);
 assert.doesNotThrow(() => JSON.parse(shapeDetails));
 
+// Locale awareness: zh-CN 用户看到中文标题/说明，action ID 与脱敏行为保持不变。
+const localizedSecret = toUiError(
+  { code: 'FEISHU_SECRET_MISSING', message: 'secret missing', requestId: 'req-zh' },
+  { operation: 'authorize', locale: 'zh-CN' },
+);
+assert.deepEqual(Object.keys(localizedSecret), ['title', 'message', 'primaryAction', 'secondaryAction', 'rawDetails', 'severity']);
+assert.match(localizedSecret.title, /飞书/, 'zh-CN 标题必须本地化');
+assert.match(localizedSecret.message, /Settings|设置/, 'zh-CN 说明必须指向 Settings');
+assert.match(localizedSecret.message, /Secret/, 'zh-CN 说明保留 Secret 术语');
+assert.deepEqual(localizedSecret.primaryAction, { id: 'open-settings', label: '打开 Settings' });
+assert.deepEqual(localizedSecret.secondaryAction, { id: 'copy-details', label: '复制详情' });
+assert.match(localizedSecret.rawDetails, /req-zh/, '本地化不影响脱敏详情');
+
+const localizedUnknown = toUiError(new Error('unexpected failure'), { locale: 'zh-CN' });
+assert.notEqual(localizedUnknown.title, 'Something went wrong');
+assert.deepEqual(localizedUnknown.primaryAction, { id: 'retry', label: '重试' });
+
+// 未知/缺省 locale 一律回退英文，既有契约不变。
+for (const locale of [undefined, 'en', 'fr-FR']) {
+  const fallback = toUiError({ code: 'PARTIAL_ARCHIVE_FAILED', message: 'archive partially failed' }, { locale });
+  assert.equal(fallback.title, 'Archive partially completed', `locale ${locale} 回退英文标题`);
+  assert.deepEqual(fallback.primaryAction, { id: 'resume-archive', label: 'Resume Archive' });
+}
+
+// 每条规则都必须有完整中文映射，避免半中半英。
+const ruleCodes = ['QUOTA_BYTES', 'SHEET_HEADER_MISSING', 'FEISHU_SECRET_MISSING', 'FEISHU_BROKER_ERROR',
+  'WORD_RATE_MISSING', 'FINAL_TM_FAILED', 'STARLING_CREDENTIAL_MISSING', 'STARLING_TIMEOUT',
+  'STARLING_RATE_LIMIT', 'PARTIAL_ARCHIVE_FAILED'];
+for (const code of ruleCodes) {
+  const english = toUiError({ code, message: code });
+  const zh = toUiError({ code, message: code }, { locale: 'zh-CN' });
+  assert.notEqual(english.title, 'Something went wrong', `${code} 必须命中规则`);
+  assert.doesNotMatch(zh.title, /^[\x20-\x7F]+$/, `${code} 必须有中文标题`);
+  assert.doesNotMatch(zh.message, /^[\x20-\x7F]+$/, `${code} 必须有中文说明`);
+  assert.equal(zh.primaryAction.id, english.primaryAction.id, `${code} action ID 与语言无关`);
+}
+
 const unknown = toUiError(new Error('unexpected failure'));
 assert.deepEqual(Object.keys(unknown), ['title', 'message', 'primaryAction', 'secondaryAction', 'rawDetails', 'severity']);
 assert.equal(unknown.severity, 'error');

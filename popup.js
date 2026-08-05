@@ -1262,7 +1262,7 @@ async function refreshWorkingSheetContext() {
     activeSheetLayout = null;
     activeSheetInspectionRows = [];
     const status = document.getElementById('sheet-layout-status');
-    renderUiError(toUiError(error, { operation: 'sheet' }), status, {
+    renderUiError(toUiError(error, { operation: 'sheet', locale: uiLanguage }), status, {
       retry: refreshWorkingSheetContext,
       documentRef: document,
     });
@@ -3363,7 +3363,7 @@ export function renderUiError(model, container, context = {}) {
           ...context,
           retry: () => executeUiErrorAction(action.id, { ...context, rawDetails: model.rawDetails }),
         };
-        renderUiError(toUiError(error, { operation: action.id }), container, recoveryContext);
+        renderUiError(toUiError(error, { operation: action.id, locale: context.locale }), container, recoveryContext);
       } finally {
         if (button.isConnected) {
           button.removeAttribute('aria-busy');
@@ -3386,7 +3386,8 @@ export function logSanitizedError(scope, error, logger = console) {
 }
 
 function showUiError(error, operation, context = {}) {
-  return renderUiError(toUiError(error, { operation }), document.getElementById('status'), context);
+  // 错误标题/说明跟随当前 UI 语言；脱敏详情与 action ID 与语言无关。
+  return renderUiError(toUiError(error, { operation, locale: uiLanguage }), document.getElementById('status'), context);
 }
 
 function showError(err) {

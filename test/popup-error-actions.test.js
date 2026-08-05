@@ -143,4 +143,17 @@ assert.match(errorHtml, /<div id="status"[^>]*aria-live="polite"/, '#status must
 assert.doesNotMatch(errorHtml, /<p id="sheet-layout-status"/, 'sheet layout status must be a flow container');
 assert.match(errorHtml, /<div id="sheet-layout-status"[^>]*class="run-status"/, 'sheet layout status keeps its class semantics');
 
-console.log('popup-error-actions behavior tests: 9 scenarios passed');
+// Locale awareness: 中文 UI 下 renderer 的恢复错误也必须本地化，动作 ID 不变。
+const zhUi = render({ id: 'retry', label: '重试' }, {
+  locale: 'zh-CN',
+  retry: async () => { throw { code: 'FEISHU_SECRET_MISSING', message: 'secret missing', requestId: 'req-zh-ui' }; },
+});
+await assert.doesNotReject(() => zhUi.buttons[0].click());
+assert.match(zhUi.container.children[0].textContent, /飞书/, '中文 UI 显示本地化标题');
+assert.equal(zhUi.container.children.at(-1).children[0].dataset.errorAction, 'open-settings', 'action ID 与语言无关');
+assert.match(detailsText(zhUi.container), /req-zh-ui/, '本地化不影响 Request ID');
+// popup 渲染错误时必须传入当前 UI 语言。
+const popupSource = fs.readFileSync(new URL('../popup.js', import.meta.url), 'utf8');
+assert.match(popupSource, /toUiError\(error, \{ operation, locale: uiLanguage \}\)/, 'showUiError 必须语言感知');
+
+console.log('popup-error-actions behavior tests: 10 scenarios passed');
