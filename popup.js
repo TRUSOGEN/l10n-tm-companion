@@ -115,6 +115,8 @@ import {
 import { createReviewPresentationElement } from './lib/review-presentation-view.js';
 
 let extractedItems = [];
+const RESULT_RENDER_BATCH_SIZE = 25;
+let resultRenderGeneration = 0;
 let processedItems = [];
 let userChoices = {}; // itemId → 'ai' | 'source' | 'manual'
 let accessibleProjects = [];
@@ -294,6 +296,14 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') closeFocusView();
   else if (e.key === 'ArrowLeft') focusStep(-1);
   else if (e.key === 'ArrowRight') focusStep(1);
+  else if (e.key === 'Tab') {
+    const focusable = [...overlay.querySelectorAll('button:not(:disabled), textarea:not(:disabled), input:not(:disabled), [tabindex]:not([tabindex="-1"])')];
+    if (focusable.length === 0) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  }
 });
 
 // 打开 Popup 时先建立单开步骤，再检测运行配置与当前飞书电子表格。
@@ -1886,8 +1896,36 @@ function buildProcessedDisplayItems(scopeRuns) {
 }
 
 // ===== 渲染结果卡片 =====
+function appendResultCardsInBatches(container, cards, generation) {
+  const activeId = document.activeElement?.closest?.('.result-card')?.dataset.id || null;
+  const finish = () => {
+    if (generation !== resultRenderGeneration) return;
+    container.setAttribute('aria-busy', 'false');
+    if (activeId) container.querySelector(`[data-id="${CSS.escape(activeId)}"] button`)?.focus();
+  };
+  if (cards.length <= 50) {
+    cards.forEach((card) => container.appendChild(card));
+    finish();
+    return;
+  }
+  let offset = 0;
+  container.setAttribute('aria-busy', 'true');
+  const appendBatch = () => {
+    if (generation !== resultRenderGeneration) return;
+    const fragment = document.createDocumentFragment();
+    cards.slice(offset, offset + RESULT_RENDER_BATCH_SIZE).forEach((card) => fragment.appendChild(card));
+    container.appendChild(fragment);
+    offset += RESULT_RENDER_BATCH_SIZE;
+    if (offset < cards.length) requestAnimationFrame(appendBatch);
+    else finish();
+  };
+  requestAnimationFrame(appendBatch);
+}
+
 function renderResults(items) {
   const container = document.getElementById('results');
+  const renderGeneration = ++resultRenderGeneration;
+  container.setAttribute('aria-busy', 'false');
   container.innerHTML = '';
   renderVendorCoverageSummary();
   renderReviewFilter(items);
@@ -1909,7 +1947,8 @@ function renderResults(items) {
   if (visibleItems.length === 0) {
     container.innerHTML = `<div class="empty-hint">${escapeHtml(t('noImprovedResults', uiLanguage))}</div>`;
   } else {
-    visibleItems.forEach((item) => container.appendChild(renderCard(item)));
+    const orderedCards = visibleItems.map((item) => renderCard(item));
+    appendResultCardsInBatches(container, orderedCards, renderGeneration);
   }
   applyI18n(document, uiLanguage);
   updateSelectedCount();
@@ -2011,6 +2050,8 @@ function renderCard(item) {
   card.dataset.id = item.id;
 
   const reviewStatus = item.review_status || item.review?.status || 'draft';
+  card.classList.toggle('is-confirmed', reviewStatus === 'confirmed');
+  card.classList.toggle('is-complete', reviewStatus === 'confirmed');
 
   card.innerHTML = `
     <div class="card-summary">
@@ -2129,18 +2170,23 @@ function renderScopeResults(scopeResults = {}) {
 
 // ===== BX4：聚焦大图视图 =====
 let focusIndex = -1;
+let focusReturnElement = null;
 
 function openFocusView(itemId) {
   const visibleItems = filterReviewItems(processedItems, reviewFilter);
   focusIndex = visibleItems.findIndex((it) => it.id === itemId);
   if (focusIndex < 0) return;
+  focusReturnElement = document.activeElement;
   renderFocus();
   document.getElementById('focus-overlay').classList.remove('hidden');
+  document.getElementById('focus-close').focus();
 }
 
 function closeFocusView() {
   document.getElementById('focus-overlay').classList.add('hidden');
   focusIndex = -1;
+  focusReturnElement?.focus?.();
+  focusReturnElement = null;
 }
 
 function focusStep(delta) {

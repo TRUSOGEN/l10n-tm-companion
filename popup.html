@@ -209,7 +209,7 @@
           <span id="review-filter-improved-count" class="review-filter-count">0</span>
         </button>
       </div>
-      <div id="results" class="results"></div>
+      <div id="results" class="results" aria-live="polite" aria-busy="false"></div>
       <footer class="footer results-footer">
         <button id="btn-confirm-remaining" type="button" class="btn btn-primary" disabled data-i18n="confirmRemaining">Confirm &amp; save remaining</button>
         <button id="btn-write-roi-archive" class="btn btn-success roi-only hidden" disabled data-i18n="writeRoi">Write ROI archive</button>
@@ -257,10 +257,10 @@
   </section>
 
   <!-- Focus overlay: single result detail view -->
-  <div id="focus-overlay" class="focus-overlay hidden">
+  <div id="focus-overlay" class="focus-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="focus-title">
     <div class="focus-box">
       <div class="focus-header">
-        <span class="focus-title" data-i18n="focusTitle">Review &amp; edit</span>
+        <span id="focus-title" class="focus-title" data-i18n="focusTitle">Review &amp; edit</span>
         <span class="focus-nav">
           <button id="focus-prev" class="focus-nav-btn" data-i18n="previous">Previous</button>
           <span id="focus-pos"></span>

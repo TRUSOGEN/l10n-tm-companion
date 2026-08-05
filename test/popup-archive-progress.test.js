@@ -21,5 +21,6 @@ assert.equal(elements.requests.textContent, '14/112');
 assert.equal(elements.eta.textContent, 'Estimating time');
 assert.equal(elements.progressTrack['aria-valuenow'], '13');
 assert.equal(elements.progressTrack.style.width, undefined);
-assert.equal(elements.progressFill.style.width, '12.5%');
+assert.equal(elements.progressFill.style.width, undefined);
+assert.equal(elements.progressFill.style.transform, 'scaleX(0.125)');
 console.log('popup archive progress tests passed');

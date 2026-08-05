@@ -45,6 +45,7 @@ const elements = Object.fromEntries(['root', 'live', 'phase', 'operations', 'lan
 renderArchiveProgress(state, elements);
 assert.equal(elements.progressTrack.attrs['aria-valuenow'], '100');
 assert.equal(elements.progressTrack.style.width, undefined, 'ARIA track width must not be mutated');
-assert.equal(elements.progressFill.style.width, '100%', 'visual fill owns width');
+assert.equal(elements.progressFill.style.width, undefined, 'progress motion must not animate layout width');
+assert.equal(elements.progressFill.style.transform, 'scaleX(1)', 'visual fill uses compositor-only transform');
 assert.match(elements.live.textContent, /Complete/);
 console.log('archive-progress tests passed');
