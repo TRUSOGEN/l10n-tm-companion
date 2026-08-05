@@ -20,6 +20,8 @@ Task 8 已完成。全量回归除 backend pytest 因本机缺少 `pytest` 模�
 | `git diff --check` | 无错误 |
 | `standard-lint` | `command not found` → 环境跳过，未安装依赖 |
 
+> 2026-08-05 下午整分支审查后，Task 1/6/7 的实现被进一步加固（脱敏重写、日志脱敏、CSS token 与动效迁移、断言行为化、语言感知错误文案），回归已重新执行，结论与上表一致（JS 60 个测试文件全绿，backend pytest 仍因缺少 pytest 失败）。详情见 `.superpowers/sdd/task-9-report.md`。
+
 完整日志：`temp/v1.5-regression/full-regression.txt`。
 
 ## 环境限制（如实记录，不记作通过）

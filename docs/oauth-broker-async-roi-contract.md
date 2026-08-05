@@ -228,5 +228,6 @@ Side Panel 的可解释性升级只增加渲染与观测层，不改变本文件
 - **金额口径**：UI 摘要、进度、Review rail 全部沿用 `Cost(A) − Cost(C)`；候选 B 不进入金额，也不计入 `estimatedTmRequests`。TM 请求估算为 `passes(2) × languageCount × ceil(rowCount / 40)`，仅用于展示 ETA，不改变实际调度、批大小或 Final TM 真实查询要求。
 - **stable Run ID**：`resume-archive` 只从既有 snapshot 读取 `runId` 与 vendor `runId` 列表并透传给既有 archive runtime，禁止调用 `createRoiArchiveRunId()`，因此不会新建 Run、不重复写已完成 vendor Run，写入幂等与 `write_uncertain` 规则不变。
 - **vendor coverage 展示**：`served:false` 是正常路由说明，只有 `served:true && completeRate:false` 记为 incomplete；UI 不借价、不填 0，与 policy 端 `rate_missing_*` 语义一致。
-- **脱敏边界**：`toUiError`/`sanitizeRawDetails` 保证错误标题、说明、Details、剪贴板内容、progress event 均不含 Secret、AK/SK、token、Authorization；Request ID 与错误码必须保留以便审计对齐服务端日志。
+- **脱敏边界**：`toUiError`/`sanitizeRawDetails` 保证错误标题、说明、Details、剪贴板内容、progress event 与 **console 日志**均不含 Secret、AK/SK、token、密码或其他凭据。敏感键判定按「归一化后包含敏感词根」执行（覆盖 `feishuAppSecret`、`starlingSecretKey`、`starlingAccessKey`、`appSecret`、`client_secret`、`accessToken`、`refreshToken`、`authToken`、`access_key_id` 等前后缀变体），字符串层同时覆盖 JSON 形态（`{"access_key":"…"}`、`"secret_key": "…"`）与凭据值形态兜底（`AKLT…` 前缀串、裸 `Bearer …`）。Request ID 与错误码必须保留以便审计对齐服务端日志；客户端所有 `console` 出口只允许输出 `toUiError(error).rawDetails`。
+- **i18n 边界**：`toUiError(error, { locale })` 只本地化 title/message/label；action ID、错误码、脱敏详情与服务端契约字段与语言无关，未知 locale 回退英文。
 - **progress 观测点**：`onProgress` 仅挂在既有 runner 请求边界与 broker poll 边界，是可选回调；缺省不改变行为、并发或重试策略。

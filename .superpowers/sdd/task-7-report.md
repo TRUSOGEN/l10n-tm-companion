@@ -30,3 +30,17 @@ Task 7 已完成。Headerless Sheet 现在固定返回 `incomplete/header_row_re
 - 恢复动作仅由后续用户点击触发，不在 catch 中自动执行，避免递归 retry/error 死循环。
 - 行为测试通过 renderer 生成的真实按钮执行并覆盖：retry 成功及 in-flight 状态、resume 成功及稳定 Run ID（重复点击仍复用同一 ID）、open-settings 引导、headerless Sheet 列映射恢复、copy-details 成功、retry rejection、Clipboard failure、snapshot 缺失；同时断言错误可见、Request ID 保留、敏感值删除和按钮状态恢复。
 - 移除了原先对 `popup.js` 源码字符串（`createRoiArchiveRunId`）的断言，改为通过重复点击 resume 断言 Run ID 稳定性，避免脆弱的源码搜索型测试。
+
+## 整分支审查修复（2026-08-05 下午）
+
+Task 1 的脱敏实现在整分支审查中被判定为 Critical 阻塞，已按 TDD 重写（commit `0f01a5a fix: redact credentials by sensitive key roots`）：
+
+- 敏感键判定从「精确拼写白名单」改为「归一化（仅字母数字、小写）后包含敏感词根」，词根包含 `secret / token / accesskey / apikey / authorization / password / credential / privatekey / signature / cookie`，并保留 `ak / sk / akid / pwd` 等短名精确匹配。这样 `feishuAppSecret`、`feishuAppSecretBackup`、`starlingSecretKey`、`starlingAccessKey`、`starlingAccessKeyId`、`appSecret`、`client_secret`、`accessToken`、`refreshToken`、`authToken`、`access_key_id`、`llmApiKey`、`userAccessToken`、`brokerCredential`、`keychainPassword` 全部命中。
+- 字符串脱敏改为同时覆盖自由文本赋值与 JSON 形态：`{"access_key":"…"}`、`"secret_key": "…"`、`"user_access_token" : "…"` 都会被替换为 `[REDACTED]`，非敏感字段（如 `safeField`）原样保留。
+- 新增值形态兜底：`AKLT` 前缀凭据串与裸 `Bearer <值>` 即使没有可识别键名也会被脱敏。
+- 测试先红后绿，使用真实业务字段名与真实 JSON payload（`test/ui-errors.test.js` 新增三组断言，共 15 个产品字段 + 4 个 JSON 泄漏点 + 3 个值形态）。
+
+Task 7 的两项审查修复（同日）：
+
+- `renderUiError` 不再把 `<details>`/动作区直接 append 进调用方容器可能是 `<p>` 的场景：`<details>` 现在包在 `div.ui-error-details` 里，`popup.html` 的 `#sheet-layout-status` 由 `<p>` 改为 `<div>`（保留 `run-status` class），`#status` 增加 `aria-live="polite"`（commit `4ab2062`）。
+- 错误文案支持语言感知：`toUiError(error, { locale })` 在 `zh-CN` 下返回中文标题/说明/按钮文案，action ID、错误码与脱敏详情不变，未知 locale 回退英文；`showUiError` 传入当前 `uiLanguage`（commit `8e7c9ed`）。
