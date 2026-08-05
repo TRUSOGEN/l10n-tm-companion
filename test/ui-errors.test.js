@@ -132,6 +132,44 @@ assert.doesNotMatch(shapeDetails, /eyJhbGciOiJIUzI1NiJ9/, 'bare Bearer value red
 assert.match(shapeDetails, /req-shape/);
 assert.doesNotThrow(() => JSON.parse(shapeDetails));
 
+// 诊断字段白名单：布尔/有限数值、*Configured、*Count、scope.key 必须保留；真实凭据仍必须删除。
+const diagnostics = sanitizeRawDetails({
+  code: 'FEISHU_SECRET_MISSING',
+  requestId: 'req-diagnostics',
+  scope: { key: 'de-DE', name: 'German (Germany)' },
+  secretConfigured: true,
+  brokerTokenConfigured: false,
+  starlingSecretKeyConfigured: 'configured',
+  tokenCount: 12,
+  accessKeyCount: 0,
+  apiKeyRetries: 3,
+  feishuAppSecret: 'diagnostic-feishu-secret-real',
+  starlingSecretKey: 'diagnostic-starling-secret-real',
+  accessToken: 'diagnostic-access-token-real',
+});
+const parsedDiagnostics = JSON.parse(diagnostics);
+assert.equal(parsedDiagnostics.requestId, 'req-diagnostics');
+assert.equal(parsedDiagnostics.scope.key, 'de-DE', 'scope.key 是 locale 诊断，必须保留');
+assert.equal(parsedDiagnostics.scope.name, 'German (Germany)');
+assert.equal(parsedDiagnostics.secretConfigured, true, '布尔诊断字段必须保留');
+assert.equal(parsedDiagnostics.brokerTokenConfigured, false, 'false 也必须保留');
+assert.equal(parsedDiagnostics.starlingSecretKeyConfigured, 'configured', '*Configured 显式保留');
+assert.equal(parsedDiagnostics.tokenCount, 12, '*Count 数值必须保留');
+assert.equal(parsedDiagnostics.accessKeyCount, 0, '0 不得被当成缺失丢弃');
+assert.equal(parsedDiagnostics.apiKeyRetries, 3, '有限数值一律保留');
+assert.ok(!('feishuAppSecret' in parsedDiagnostics), '真实凭据字段仍必须被删除');
+assert.ok(!('starlingSecretKey' in parsedDiagnostics));
+assert.ok(!('accessToken' in parsedDiagnostics));
+for (const leak of ['diagnostic-feishu-secret-real', 'diagnostic-starling-secret-real', 'diagnostic-access-token-real']) {
+  assert.doesNotMatch(diagnostics, new RegExp(leak), `凭据值仍必须脱敏: ${leak}`);
+}
+
+// 非有限数值不算诊断，敏感键上的 NaN/Infinity 仍然删除。
+const nonFinite = JSON.parse(sanitizeRawDetails({ apiKey: Number.NaN, secretKey: Number.POSITIVE_INFINITY, retries: 2 }));
+assert.ok(!('apiKey' in nonFinite));
+assert.ok(!('secretKey' in nonFinite));
+assert.equal(nonFinite.retries, 2);
+
 // Locale awareness: zh-CN 用户看到中文标题/说明，action ID 与脱敏行为保持不变。
 const localizedSecret = toUiError(
   { code: 'FEISHU_SECRET_MISSING', message: 'secret missing', requestId: 'req-zh' },
