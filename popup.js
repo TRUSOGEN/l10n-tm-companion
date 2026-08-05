@@ -3344,7 +3344,27 @@ export function renderUiError(model, container, context = {}) {
     button.type = 'button';
     button.textContent = action.label;
     button.dataset.errorAction = action.id;
-    button.addEventListener('click', () => executeUiErrorAction(action.id, { ...context, rawDetails: model.rawDetails }));
+    button.addEventListener('click', async () => {
+      const buttons = [...actions.querySelectorAll('button')];
+      buttons.forEach((candidate) => { candidate.disabled = true; });
+      button.setAttribute('aria-busy', 'true');
+      try {
+        await executeUiErrorAction(action.id, { ...context, rawDetails: model.rawDetails });
+      } catch (error) {
+        // Never leak a rejected action promise. Re-render a sanitized, user-triggered recovery
+        // in the same container; no action is executed automatically, avoiding retry loops.
+        const recoveryContext = {
+          ...context,
+          retry: () => executeUiErrorAction(action.id, { ...context, rawDetails: model.rawDetails }),
+        };
+        renderUiError(toUiError(error, { operation: action.id }), container, recoveryContext);
+      } finally {
+        if (button.isConnected) {
+          button.removeAttribute('aria-busy');
+          buttons.forEach((candidate) => { candidate.disabled = false; });
+        }
+      }
+    });
     actions.append(button);
   });
   container.append(title, message, details, actions);

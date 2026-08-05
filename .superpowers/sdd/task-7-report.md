@@ -21,3 +21,12 @@ Task 7 已完成。Headerless Sheet 现在固定返回 `incomplete/header_row_re
 - Full JS：`test/*.test.js` 全部通过。
 - `node --check lib/sheet-layout.js`、`node --check popup.js` 通过。
 - `git diff --check` 通过。
+
+## 审查修复（2026-08-05）
+
+- Renderer 的所有 action click handler 统一改为 `async`：动作执行期间禁用同组按钮，并设置 `aria-busy`。
+- Handler 必须 `await executeUiErrorAction`；任何 action rejection 均在 handler 内捕获，不会形成 unhandled rejection。
+- Catch 使用 `toUiError` 对 action error 再次脱敏，并在原容器重新渲染可恢复错误；旧按钮已被移除时，`finally` 不会错误恢复失效节点。
+- 恢复动作仅由后续用户点击触发，不在 catch 中自动执行，避免递归 retry/error 死循环。
+- 行为测试通过 renderer 生成的真实按钮执行并覆盖：retry 成功及 in-flight 状态、resume 成功及稳定 Run ID（重复点击仍复用同一 ID）、open-settings 引导、headerless Sheet 列映射恢复、copy-details 成功、retry rejection、Clipboard failure、snapshot 缺失；同时断言错误可见、Request ID 保留、敏感值删除和按钮状态恢复。
+- 移除了原先对 `popup.js` 源码字符串（`createRoiArchiveRunId`）的断言，改为通过重复点击 resume 断言 Run ID 稳定性，避免脆弱的源码搜索型测试。
