@@ -36,3 +36,20 @@
 ## Concerns
 
 无已知功能阻塞或回归。Task 6 全局视觉重构仍未提前实施。
+
+## Unpriced 跨 Vendor 聚合修复
+
+- `buildVendorRoutes()` 以 `plannedScopes[].key` 为全集，跨 RWS/Pactera 收集真实 served route。
+- planned scope 只要任一 vendor served，就不会生成 unpriced；所有 vendor 均未服务或 scope 完全缺失于 `vendorResults` 时，仅生成一条 synthetic unpriced route。
+- `summarizeArchive()` 按 `scopeKey` 聚合 served/unserved：同一 scope 的多个 vendor unserved 只计一次；其他 vendor served 时抵消 unpriced。
+- `served:true && completeRate:false` 继续按 vendor route 独立计入 incomplete，不受 unpriced 聚合影响。
+- 新增跨 vendor fixtures：一方不服务/另一方服务、双方不服务、planned scope 完全缺失、served rate incomplete。
+
+### 本轮验证
+
+- RED：新增 planned scope 缺失 fixture 后，因未生成 synthetic unpriced route 失败。
+- GREEN：`node test/archive-summary.test.js` 通过。
+- Focused archive/controller/broker 九项测试全部通过。
+- 完整 `test/*.test.js` JS regression 通过。
+- `node --check lib/archive-summary.js lib/archive-confirmation.js popup.js` 通过。
+- `git diff --check` 通过。

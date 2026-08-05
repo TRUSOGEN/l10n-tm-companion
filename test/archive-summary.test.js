@@ -14,7 +14,7 @@ assert.deepEqual(
 assert.deepEqual(estimateTmRequests({ rowCount: -2, languageCount: -1, batchSize: -4 }), { original: 0, final: 0, total: 0 });
 
 const realVendorFixture = buildVendorRoutes({
-  plannedScopes: [{ key: 'fr' }, { key: 'ja' }, { key: 'ar' }],
+  plannedScopes: [{ key: 'fr' }, { key: 'ja' }, { key: 'ar' }, { key: 'de' }],
   vendorResults: {
     RWS: {
       scopeRuns: [
@@ -36,20 +36,32 @@ assert.deepEqual(realVendorFixture, [
   { vendor: 'Pactera', scopeKey: 'ja', served: true, completeRate: true },
   { vendor: 'Pactera', scopeKey: 'fr', served: false, completeRate: false },
   { vendor: 'Pactera', scopeKey: 'ar', served: false, completeRate: false },
+  { vendor: null, scopeKey: 'de', served: false, completeRate: false },
 ]);
-const realRouteSummary = summarizeArchive({ sourceRowCount: 100, languageCount: 3, vendorRoutes: realVendorFixture });
+const realRouteSummary = summarizeArchive({ sourceRowCount: 100, languageCount: 4, vendorRoutes: realVendorFixture });
 assert.equal(realRouteSummary.incompleteLanguageCount, 1, 'only the served RWS rate gap is incomplete');
-assert.deepEqual(realRouteSummary.vendorCoverage, { RWS: 2, Pactera: 1, unpriced: 0 });
+assert.deepEqual(realRouteSummary.vendorCoverage, { RWS: 2, Pactera: 1, unpriced: 1 });
+assert.equal(realRouteSummary.unpricedLanguageCount, 1, 'a planned scope absent from every vendor is unpriced once');
+
+const crossVendorRoutes = buildVendorRoutes({
+  plannedScopes: [{ key: 'ja' }, { key: 'it' }],
+  vendorResults: {
+    RWS: { scopeRuns: [], unservedScopes: [{ key: 'ja' }, { key: 'it' }] },
+    Pactera: { scopeRuns: [{ scope: { key: 'ja' }, rate: { status: 'ready' } }], unservedScopes: [{ key: 'it' }] },
+  },
+});
+const crossVendorSummary = summarizeArchive({ languageCount: 2, vendorRoutes: crossVendorRoutes });
+assert.equal(crossVendorSummary.unpricedLanguageCount, 1, 'ja is served elsewhere; it is not unpriced, while it is counted once');
 
 const summary = summarizeArchive({
   sourceRows: Array.from({ length: 100 }),
   confirmedRows: Array.from({ length: 80 }),
   languages: Array.from({ length: 56 }),
   vendorRoutes: [
-    { vendor: 'RWS', served: true, completeRate: true },
-    { vendor: 'RWS', served: false, completeRate: false },
-    { vendor: 'Pactera', served: true, completeRate: true },
-    { vendor: null, served: false, completeRate: false },
+    { vendor: 'RWS', scopeKey: 'fr', served: true, completeRate: true },
+    { vendor: 'RWS', scopeKey: 'ja', served: false, completeRate: false },
+    { vendor: 'Pactera', scopeKey: 'ja', served: true, completeRate: true },
+    { vendor: null, scopeKey: 'de', served: false, completeRate: false },
   ],
 });
 assert.equal(summary.sourceRowCount, 100);
