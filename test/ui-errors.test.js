@@ -77,6 +77,61 @@ assert.match(cyclicDetails, /\[Circular\]/);
 assert.doesNotMatch(cyclicDetails, /cyclic-secret|nested-bearer-secret/);
 assert.doesNotThrow(() => JSON.parse(cyclicDetails));
 
+// Real product credential field names must be redacted by sensitive-root matching,
+// not by an exact allowlist of key spellings.
+const productSecrets = {
+  feishuAppSecret: 'feishu-app-secret-real',
+  feishuAppSecretBackup: 'feishu-app-secret-backup-real',
+  starlingSecretKey: 'starling-secret-key-real',
+  starlingAccessKey: 'starling-access-key-real',
+  starlingAccessKeyId: 'starling-access-key-id-real',
+  appSecret: 'app-secret-real',
+  client_secret: 'client-secret-value-real',
+  accessToken: 'access-token-value-real',
+  refreshToken: 'refresh-token-value-real',
+  authToken: 'auth-token-value-real',
+  access_key_id: 'access-key-id-value-real',
+  llmApiKey: 'llm-api-key-real',
+  userAccessToken: 'user-access-token-real',
+  brokerCredential: 'broker-credential-real',
+  keychainPassword: 'keychain-password-real',
+};
+const productDetails = sanitizeRawDetails({
+  code: 'FEISHU_BROKER_ERROR',
+  requestId: 'req-product',
+  ...productSecrets,
+  nested: { settings: { ...productSecrets } },
+});
+for (const [key, value] of Object.entries(productSecrets)) {
+  assert.doesNotMatch(productDetails, new RegExp(value), `product field ${key} redacted`);
+}
+assert.match(productDetails, /req-product/);
+assert.match(productDetails, /FEISHU_BROKER_ERROR/);
+assert.doesNotThrow(() => JSON.parse(productDetails));
+
+// JSON-shaped payloads embedded in error messages must also be redacted.
+const jsonPayloadDetails = sanitizeRawDetails({
+  requestId: 'req-json',
+  message: 'upstream rejected body {"access_key":"json-access-key-real","secret_key": "json-secret-key-real", "feishuAppSecret":"json-feishu-secret-real", "user_access_token" : "json-user-token-real", "safeField":"keep-this-value"}',
+});
+for (const leak of ['json-access-key-real', 'json-secret-key-real', 'json-feishu-secret-real', 'json-user-token-real']) {
+  assert.doesNotMatch(jsonPayloadDetails, new RegExp(leak), `json payload redacts ${leak}`);
+}
+assert.match(jsonPayloadDetails, /keep-this-value/, 'json payload keeps non-sensitive fields');
+assert.match(jsonPayloadDetails, /req-json/);
+
+// Credential-shaped values are redacted even without a recognizable key name.
+const shapeDetails = sanitizeRawDetails({
+  requestId: 'req-shape',
+  message: 'call failed for AKLTZmFrZUFjY2Vzc0tleUlk1234 using Bearer eyJhbGciOiJIUzI1NiJ9.abcdefghijklmno.signature-part',
+  note: 'retry hint: AKLTanotherFakeAccessKeyId9876',
+});
+assert.doesNotMatch(shapeDetails, /AKLTZmFrZUFjY2Vzc0tleUlk1234/, 'AKLT-prefixed value redacted');
+assert.doesNotMatch(shapeDetails, /AKLTanotherFakeAccessKeyId9876/, 'AKLT value redacted in any field');
+assert.doesNotMatch(shapeDetails, /eyJhbGciOiJIUzI1NiJ9/, 'bare Bearer value redacted');
+assert.match(shapeDetails, /req-shape/);
+assert.doesNotThrow(() => JSON.parse(shapeDetails));
+
 const unknown = toUiError(new Error('unexpected failure'));
 assert.deepEqual(Object.keys(unknown), ['title', 'message', 'primaryAction', 'secondaryAction', 'rawDetails', 'severity']);
 assert.equal(unknown.severity, 'error');
