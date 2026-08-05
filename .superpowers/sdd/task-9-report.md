@@ -63,3 +63,38 @@ Task 1–8 提交后进行整分支审查，发现 2 项 Critical、3 项 Import
 2. `popup.css` 中非本次范围的旧组件（header、focus overlay、health、tm-badge 等）仍有 raw hex，属既有代码，未在本轮扩大改动面；测试只对状态组件家族强约束。
 3. 语言感知目前只覆盖 `lib/ui-errors.js` 的错误文案；归档摘要弹窗、进度阶段名仍是英文（与既有字符串契约一致）。
 4. 需用户重载扩展做手动 E2E（含 100 行 × 56 语言归档、中文 UI 下错误卡片、reduced-motion）。
+
+## 最后一轮小修（2026-08-05，第 9 次审查收尾）
+
+### 9. 脱敏假阳性修复 — `5c4687f fix: keep diagnostic fields out of credential redaction`
+
+- 红灯：`test/ui-errors.test.js` 新增双向断言，验证 `scope.key`（locale 值）、`secretConfigured`/`brokerTokenConfigured` 布尔、`starlingSecretKeyConfigured` 字符串、`tokenCount`/`accessKeyCount`/`apiKeyRetries` 数值被保留，同时 `feishuAppSecret`/`starlingSecretKey`/`accessToken` 及其值仍被删除。首轮失败于 `scope.key` 被误删。
+- 实现：`lib/ui-errors.js` 新增 `isDiagnosticEntry(key, value, path)` 白名单。规则：布尔值一律保留；`Number.isFinite` 的数值一律保留（`0` 也保留，非有限数值如 `NaN`/`Infinity` 在敏感键上仍删除）；键名归一化后以 `configured`/`count`/`present`/`length` 结尾者保留；显式路径白名单 `scope.key` 保留。`sanitizeValue` 改为携带 `path`，数组不追加路径段。
+- 效果：支持排查可区分「没配」与「配错」，真实凭据仍全部脱敏。
+
+### 10. 后台日志脱敏 — `67286fc fix: log only error type and code in service worker`
+
+- 约束：`background.js` 是 classic service worker（manifest 未声明 `type: module`，`test/broker-native-routing.test.js` 用 `vm.runInContext` 加载），无法 import ESM `lib/ui-errors.js`。按用户授权采用「只打印脱敏 message」路线，并取更保守做法：完全不打印错误原文。
+- 红灯：新增 `test/background-error-logging.test.js`，用 vm 沙箱让 `chrome.sidePanel.setPanelBehavior` 与 `chrome.scripting.executeScript` 以带凭据 message 的错误 reject，断言日志不含凭据、不含原始 message、不含 `Error` 对象，且保留 `name` 与 `code`；另有源码守卫禁止 `console.*` 输出 `?.message`。
+- 实现：新增 `describeErrorForLog(error)` 返回 `Error (E_CODE)` 形态；替换两处 `console.warn`，并顺带修掉两处会输出 `chrome.runtime.lastError.message` 的 `console.log`。
+- 文档：`docs/user-guide.md` 改为明确两层日志契约（Popup 打印脱敏详情；后台只打印错误类型/代码），并新增诊断字段保留说明。
+
+### 11. 错误卡片保留容器语义 class — `f7115e5 fix: preserve container classes when rendering error cards`
+
+- 红灯：`test/popup-error-actions.test.js` 的 Element stub 升级为真实 `classList.add/remove/contains`，新增断言：容器初始 `run-status sheet-layout-status`，渲染后仍包含两者，并附加 `ui-error` + severity，且 `className` 不等于固定字符串。
+- 实现：`renderUiError` 不再覆写 `container.className`，改为移除过期 severity token（`error/warning/info/ok/success` 中非当前项）后 `classList.add('ui-error', severity)`。`popup.css` 的 `.ui-error*` 规则不依赖 `.status`，样式不受影响。
+
+### 复测结果（最后一轮）
+
+| 命令 | 结果 |
+| --- | --- |
+| 全量 `test/*.test.js`（61 个文件，含新增 background 日志测试） | 全部通过 |
+| `node --check`（popup/options/background + 全部 `lib/*.js`、`test/*.test.js`） | 通过 |
+| `git diff --check` | 无错误 |
+
+### 残留 concerns（延续）
+
+1. backend pytest 仍未真实执行（本机 `No module named pytest`），本轮未触及后端代码。
+2. `popup.css` 旧组件 raw hex 未在本轮扩大改动面。
+3. 后台日志放弃打印错误原文，排查时需结合 Popup 侧脱敏详情与 Request ID。
+4. 中文 UI 错误卡片、scaleX 进度、reduced-motion 仍需重载扩展手验。

@@ -276,7 +276,8 @@ TM Cost 由每个 target locale scope 的 RWS 或 Pactera 精确费率、本地�
 - 界面语言切到中文时，错误标题、说明和动作按钮文案会一起变成中文（例如「需要完成飞书配置」+「打开 Settings」）；动作行为、错误码与脱敏详情不随语言变化。
 - 动作执行期间按钮会禁用并标记忙碌状态，避免重复点击；动作自身失败时会在同一位置再显示一张脱敏后的错误卡片，等你再次点击，不会自动无限重试。
 - `Copy Details` 复制的是脱敏文本：保留 Request ID 与错误码，Secret、AK/SK、token、密码、凭据类字段一律替换为 `[REDACTED]`；即使字段名是 `feishuAppSecret`、`starlingSecretKey`、`starlingAccessKey`、`access_key_id` 这类前后缀变体，或凭据以 JSON 片段、`AKLT…`、`Bearer …` 形态出现在报文里，也会被识别并脱敏。反馈问题时请直接粘贴这段内容。
-- 插件的后台日志（DevTools Console）同样只打印脱敏后的详情，不会输出原始错误对象。
+- 脱敏不会吃掉排查所需的诊断信息：布尔值与数值一律保留，`secretConfigured`、`brokerTokenConfigured` 这类 `*Configured` 开关、`tokenCount` 这类 `*Count` 计数，以及语言维度里的 `scope.key`（例如 `de-DE`）都会原样保留，因此你仍能区分「没配」和「配错」。
+- 日志分两层：Side Panel（Popup）侧的 DevTools Console 只打印脱敏后的详情，不会输出原始错误对象；后台 Service Worker（`background.js`）是普通脚本、无法复用脱敏模块，因此它更保守——只打印错误类型与错误代码（例如 `Error (E_INJECT)`），完全不打印错误原文。
 - `Resume Archive` 复用快照里已有的 Run ID 与断点，不会新建 Run，也不会重复写入已完成的 vendor Run；Broker 仍是唯一权威授权路径。
 - Settings 只显示 Secret 是否 `Configured`，永不回显已保存的 Secret 明文。
 
