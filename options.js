@@ -137,6 +137,24 @@ async function load() {
   await renderFeishuUserStatus();
   await renderFeishuApplicationStatus();
   await loadCredentials(data);
+  const navigation = await chrome.storage.local.get(['optionsNavigationIntent']);
+  focusOptionsSection(location.hash, navigation.optionsNavigationIntent);
+  if (navigation.optionsNavigationIntent === 'feishu-secret') {
+    await chrome.storage.local.remove(['optionsNavigationIntent']);
+  }
+}
+
+/** Focus the requested Settings section without exposing credential values. */
+export function focusOptionsSection(hash, intent) {
+  if (hash !== '#feishu-secret' && intent !== 'feishu-secret') return false;
+  const section = document.getElementById('feishu-secret');
+  const action = document.getElementById('feishu-secret-action');
+  const guidance = document.getElementById('feishu-secret-guidance');
+  if (!section || !action || !guidance) return false;
+  guidance.classList.remove('hidden');
+  section.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  action.focus({ preventScroll: true });
+  return true;
 }
 
 /** 显示当前飞书 OAuth 用户资料和短期授权状态。 */
@@ -181,7 +199,7 @@ async function renderFeishuApplicationStatus() {
   try {
     const status = await getFeishuCredentialStatus();
     result.textContent = status.configured
-      ? 'Feishu App Secret is saved in macOS Keychain.'
+      ? 'Configured'
       : 'Feishu App Secret has not been entered on this Mac.';
     result.className = status.configured ? 'test-result ok' : 'test-result err';
     buttons.forEach((button) => {
@@ -429,7 +447,7 @@ async function configureFeishuAppOwner() {
   try {
     const configured = await configureFeishuApplication();
     if (!configured.configured) throw new Error('Feishu App Secret was not saved.');
-    result.textContent = 'Feishu App Secret is saved in macOS Keychain.';
+    result.textContent = 'Configured';
     result.className = 'test-result ok';
     buttons.forEach((button) => { button.textContent = 'Replace Feishu App Secret'; });
   } catch (error) {

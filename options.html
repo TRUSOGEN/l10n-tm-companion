@@ -31,12 +31,13 @@
       </ol>
     </section>
 
-    <section class="feishu-app-setup" aria-labelledby="feishu-app-setup-title">
+    <section id="feishu-secret" class="feishu-app-setup" aria-labelledby="feishu-app-setup-title" tabindex="-1">
       <div>
         <h2 id="feishu-app-setup-title">Feishu authorization</h2>
         <p>App Secret is required on this Mac before you can authorize Feishu.</p>
+        <p id="feishu-secret-guidance" class="feishu-secret-guidance hidden" role="status">Fill in and save the App Secret, then return to Side Panel to continue authorization.</p>
       </div>
-      <button type="button" class="btn btn-primary" data-configure-feishu-app>Enter Feishu App Secret</button>
+      <button id="feishu-secret-action" type="button" class="btn btn-primary" data-configure-feishu-app>Enter Feishu App Secret</button>
       <p id="feishu-owner-result" class="test-result"></p>
       <p class="feishu-app-note">Stored only in this Mac's Keychain. You can replace it here when the app credential changes.</p>
     </section>

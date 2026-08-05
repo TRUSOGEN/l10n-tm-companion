@@ -56,7 +56,9 @@ import { applyI18n, normalizeUiLanguage, t } from './lib/i18n.js';
 import {
   authorizeFeishuUser,
   authorizeFeishuUserViaBroker,
+  getFeishuCredentialStatus,
   getFeishuUserAuthorizationStatus,
+  preflightFeishuAuthorization,
 } from './lib/feishu-auth.js';
 import { sha256Text } from './lib/hash-utils.js';
 import {
@@ -175,6 +177,7 @@ document.getElementById('setup-open-settings').addEventListener('click', () => {
   chrome.runtime.openOptionsPage();
 });
 document.getElementById('connect-feishu-user').addEventListener('click', connectFeishuUserFromPopup);
+document.getElementById('feishu-secret-action').addEventListener('click', openFeishuSettings);
 document.getElementById('refresh-projects').addEventListener('click', loadAccessibleProjects);
 document.getElementById('project-page-previous').addEventListener('click', () => {
   projectPageIndex -= 1;
@@ -459,16 +462,43 @@ async function renderPopupFeishuAuthorizationStatus() {
  *  Broker 失败直接显示 Broker 错误，不再静默回退 legacy authorizeFeishuUser。
  *  Legacy 路径仅在 broker flag 关闭或开发者显式开启 dev-only toggle 时可用。
  */
+/** Persist a deep-link intent before opening Settings. */
+async function openFeishuSettings() {
+  await chrome.storage.local.set({ optionsNavigationIntent: 'feishu-secret' });
+  await chrome.runtime.openOptionsPage();
+}
+
 async function connectFeishuUserFromPopup() {
   const card = document.getElementById('feishu-auth-card');
   const statusText = document.getElementById('feishu-auth-status');
+  const diagnostic = document.getElementById('feishu-secret-diagnostic');
+  const secretAction = document.getElementById('feishu-secret-action');
   const button = document.getElementById('connect-feishu-user');
   card.classList.remove('error');
+  diagnostic.classList.add('hidden');
+  secretAction.classList.add('hidden');
   button.disabled = true;
   statusText.textContent = t('feishuAuthorizationWaiting', uiLanguage);
   try {
-    const returnUrl = await getActiveReturnUrl();
     const useLegacy = await shouldUseLegacyFallback();
+    const authorizationStatus = await getFeishuUserAuthorizationStatus();
+    const credentialStatus = useLegacy ? await getFeishuCredentialStatus() : { configured: true };
+    const preflight = preflightFeishuAuthorization({
+      connected: authorizationStatus.connected,
+      displayName: authorizationStatus.profile?.name || authorizationStatus.profile?.enName,
+      secretConfigured: credentialStatus.configured,
+    });
+    if (preflight.state === 'secret-required') {
+      card.classList.add('error');
+      statusText.textContent = preflight.title;
+      diagnostic.textContent = preflight.message;
+      diagnostic.classList.remove('hidden');
+      secretAction.classList.remove('hidden');
+      button.classList.add('hidden');
+      return;
+    }
+    button.classList.remove('hidden');
+    const returnUrl = await getActiveReturnUrl();
     if (useLegacy) {
       await authorizeFeishuUser({ returnUrl });
     } else {

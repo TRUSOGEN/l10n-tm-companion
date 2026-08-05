@@ -70,6 +70,8 @@ h1 { font-size: 20px; margin-bottom: 20px; }
 .feishu-app-setup .test-result,
 .feishu-app-note { grid-column: 1 / -1; }
 .feishu-app-setup .test-result { margin-top: 0; }
+.feishu-app-setup:focus-within { outline: 3px solid rgba(51, 112, 255, 0.28); outline-offset: 2px; }
+.feishu-app-setup .feishu-secret-guidance { margin-top: 6px; color: #245bdb; font-weight: 700; }
 
 .card {
   background: #fff; border: 1px solid #e5e7eb; border-radius: 8px;
