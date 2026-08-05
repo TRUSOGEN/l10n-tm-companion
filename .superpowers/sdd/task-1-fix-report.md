@@ -29,3 +29,23 @@
 - `lib/ui-errors.js`
 - `test/ui-errors.test.js`
 - `.superpowers/sdd/task-1-fix-report.md`
+
+## 复审跟进（2026-08-05）
+
+- 新增 `accessKeyId`、`access_key_id`、`access-key-id` 的字符串和结构化对象脱敏覆盖，并逐一断言真实值不残留。
+- 表驱动 friendly error 测试逐项验证 `message`、六字段契约、action label、severity，以及 `rawDetails` 的字符串契约。
+- 每个表驱动用例均通过 `JSON.parse(rawDetails)` 验证其为合法 JSON，并校验对应 `code`、`requestId`。
+- 按复审要求将 `.superpowers/sdd/task-1-report.md` 修正为 `100644`。
+
+### TDD 记录
+
+先新增三类 access key ID 测试，首次任务测试按预期失败：`access-key-id-camel-real` 仍残留。随后扩充敏感键归一化集合和字符串凭证名称模式，任务测试转为通过。
+
+### 复审回归结果
+
+- `node test/ui-errors.test.js`：通过。
+- `node test/errors.test.js`：21 通过，0 失败。
+- `node --check lib/ui-errors.js`：通过。
+- `node --check test/ui-errors.test.js`：通过。
+- `node --test test/*.test.js`：完整 JS 回归通过（49 个测试文件全部通过）。
+- `git diff --check`：通过。
